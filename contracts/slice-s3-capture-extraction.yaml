@@ -1,0 +1,1765 @@
+openapi: 3.1.0
+info:
+  title: Pixorex V1 API - Slice S3, locations, equipment types, capture and extraction
+  version: 0.3.0
+  contact:
+    name: Pixorex backend team (Amzur)
+  summary: Location setup and publish, equipment types and fields, AI-assist, scan upload, AI extraction.
+  description: 'Release Plan v2, Sprint 3 outcome: "Full extraction cycle works end-to-end. Clients can create custom
+    schemas (manual + AI-assisted). All security controls in place."
+
+
+    Data model: V3 Domain 2 (locations), Domain 3 (equipment types, versions, fields, contracts), Domain 4 (scan,
+    scan_photo, extraction_attempt, ai_field_value).
+
+
+    Rules:
+
+    - A published location tree and a published equipment type are locked: any change returns 409 /problems/locked-after-publish.
+
+    - A scan pins one extraction_contract when created; it changes only on re-extract.
+
+    - A scan gets at most 3 extraction attempts in total (first, retries and re-extracts).
+
+    - The AI Inference Proxy is internal; apps never call it.'
+servers:
+- url: /api/v1
+security:
+- keycloakBearer: []
+tags:
+- name: Locations
+- name: Equipment types
+- name: Fields
+- name: Capture
+- name: Extraction
+paths:
+  /business-units/{buId}/locations:
+    get:
+      tags:
+      - Locations
+      operationId: getLocationSetup
+      summary: Levels and tree being set up
+      description: 'Contract ref 2.1 in the API Contracts doc.
+
+
+        One location_hierarchy_version per unit. Screens EA 12, 19.'
+      x-roles: &id001
+      - enterprise_admin
+      x-brd:
+      - US-034
+      x-sprint: S3
+      parameters:
+      - &id002
+        $ref: ./common.yaml#/components/parameters/BuId
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LocationSetup'
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '403':
+          $ref: ./common.yaml#/components/responses/Forbidden
+        '404':
+          $ref: ./common.yaml#/components/responses/NotFound
+  /business-units/{buId}/locations/levels:
+    put:
+      tags:
+      - Locations
+      operationId: setLocationLevels
+      summary: Replace the level list (top first)
+      description: 'Contract ref 2.2 in the API Contracts doc.
+
+
+        Order = position. Top level is always required (400). A new level above existing locations starts optional.
+        Audit (locations). Screens EA 12, 19.'
+      x-roles: *id001
+      x-brd:
+      - US-025
+      - US-034
+      x-sprint: S3
+      x-decision-pending: 'O-5: Release Plan limits depth to 1-6; V3 states no limit.'
+      parameters:
+      - *id002
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                levels:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/LevelInput'
+              required:
+              - levels
+      responses:
+        '200':
+          description: Saved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LocationSetup'
+        '400':
+          $ref: ./common.yaml#/components/responses/BadRequest
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '403':
+          $ref: ./common.yaml#/components/responses/Forbidden
+        '404':
+          $ref: ./common.yaml#/components/responses/NotFound
+        '409':
+          description: 'Unit already published. Problem types: /problems/locked-after-publish.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./common.yaml#/components/schemas/Problem
+  /business-units/{buId}/locations/skeleton:
+    post:
+      tags:
+      - Locations
+      operationId: createLocationSkeleton
+      summary: Build one placeholder per level
+      description: 'Contract ref 2.3 in the API Contracts doc.
+
+
+        Placeholders have is_placeholder = true; the top one is named business_unit.facility_name. Audit (locations).
+        Screen EA 12.'
+      x-roles: *id001
+      x-brd:
+      - US-034
+      x-sprint: S3
+      parameters:
+      - *id002
+      responses:
+        '200':
+          description: Built
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LocationSetup'
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '403':
+          $ref: ./common.yaml#/components/responses/Forbidden
+        '404':
+          $ref: ./common.yaml#/components/responses/NotFound
+        '409':
+          description: 'Tree not empty, or unit already published. Problem types: /problems/tree-not-empty, /problems/locked-after-publish.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./common.yaml#/components/schemas/Problem
+  /business-units/{buId}/locations/nodes:
+    post:
+      tags:
+      - Locations
+      operationId: addLocationNodes
+      summary: Add one location or a range of up to 50
+      description: 'Contract ref 2.4 in the API Contracts doc.
+
+
+        Optional levels may be skipped. Audit (locations). Screen EA 19.'
+      x-roles: *id001
+      x-brd:
+      - US-034
+      x-sprint: S3
+      parameters:
+      - &id005
+        $ref: ./common.yaml#/components/parameters/IdempotencyKey
+      - *id002
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                parent_id:
+                  $ref: ./common.yaml#/components/schemas/Uuid
+                level_id:
+                  $ref: ./common.yaml#/components/schemas/Uuid
+                names:
+                  type: array
+                  items:
+                    type: string
+              required:
+              - parent_id
+              - level_id
+              - names
+      responses:
+        '201':
+          description: Added
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  nodes:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/LocationNode'
+                required:
+                - nodes
+        '400':
+          description: 'Invalid input, or level_id does not sit below the parent level. Problem types: /problems/validation,
+            /problems/wrong-level.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./common.yaml#/components/schemas/Problem
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '403':
+          $ref: ./common.yaml#/components/responses/Forbidden
+        '404':
+          $ref: ./common.yaml#/components/responses/NotFound
+        '409':
+          description: 'Name already used among siblings, or unit already published. Problem types: /problems/duplicate-name,
+            /problems/locked-after-publish.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./common.yaml#/components/schemas/Problem
+  /location-nodes/{nodeId}:
+    patch:
+      tags:
+      - Locations
+      operationId: updateLocationNode
+      summary: Rename or move a location
+      description: 'Contract ref 2.5 in the API Contracts doc.
+
+
+        Rename clears is_placeholder. Audit (locations). Screen EA 19.'
+      x-roles: *id001
+      x-brd:
+      - US-034
+      x-sprint: S3
+      parameters:
+      - &id003
+        $ref: '#/components/parameters/NodeId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              minProperties: 1
+              maxProperties: 1
+              properties:
+                name:
+                  type: string
+                parent_id:
+                  $ref: ./common.yaml#/components/schemas/Uuid
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LocationNode'
+        '400':
+          description: 'Move target is not at the same level as the old parent. Problem types: /problems/wrong-level.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./common.yaml#/components/schemas/Problem
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '403':
+          $ref: ./common.yaml#/components/responses/Forbidden
+        '404':
+          $ref: ./common.yaml#/components/responses/NotFound
+        '409':
+          description: 'Name already used among siblings, or unit already published. Problem types: /problems/duplicate-name,
+            /problems/locked-after-publish.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./common.yaml#/components/schemas/Problem
+    delete:
+      tags:
+      - Locations
+      operationId: deleteLocationNode
+      summary: Delete a location and everything inside it
+      description: 'Contract ref 2.6 in the API Contracts doc.
+
+
+        Audit (locations). Screen EA 19.'
+      x-roles: *id001
+      x-brd:
+      - US-034
+      x-sprint: S3
+      x-decision-pending: 'O-19: screens show Restore on deleted rows; V3 removes the row.'
+      parameters:
+      - *id003
+      responses:
+        '204':
+          description: Deleted
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '403':
+          $ref: ./common.yaml#/components/responses/Forbidden
+        '404':
+          $ref: ./common.yaml#/components/responses/NotFound
+        '409':
+          description: 'Unit already published. Problem types: /problems/locked-after-publish.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./common.yaml#/components/schemas/Problem
+  /business-units/{buId}/locations/publish-check:
+    get:
+      tags:
+      - Locations
+      operationId: checkLocationPublish
+      summary: Checks shown before publishing
+      description: 'Contract ref 2.7 in the API Contracts doc.
+
+
+        Feeds the Review & publish dialog. Screen EA 19.'
+      x-roles: *id001
+      x-brd:
+      - US-025
+      - US-034
+      x-sprint: S3
+      parameters:
+      - *id002
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublishCheck'
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '403':
+          $ref: ./common.yaml#/components/responses/Forbidden
+        '404':
+          $ref: ./common.yaml#/components/responses/NotFound
+  /business-units/{buId}/locations/publish:
+    post:
+      tags:
+      - Locations
+      operationId: publishLocations
+      summary: Publish and lock the tree
+      description: 'Contract ref 2.8 in the API Contracts doc.
+
+
+        Saves tree_snapshot, published_by and published_at. Audit (locations). Screen EA 19.'
+      x-roles: *id001
+      x-brd:
+      - US-025
+      - US-034
+      x-sprint: S3
+      parameters:
+      - *id002
+      responses:
+        '200':
+          description: Published
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum:
+                    - published
+                  published_at:
+                    $ref: ./common.yaml#/components/schemas/Timestamp
+                required:
+                - status
+                - published_at
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '403':
+          $ref: ./common.yaml#/components/responses/Forbidden
+        '404':
+          $ref: ./common.yaml#/components/responses/NotFound
+        '409':
+          description: 'Placeholders left, or already published. Problem types: /problems/publish-checks-failed,
+            /problems/locked-after-publish.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./common.yaml#/components/schemas/Problem
+  /business-units/{buId}/locations/published:
+    get:
+      tags:
+      - Locations
+      operationId: getPublishedLocations
+      summary: Published tree for the mobile picker
+      description: 'Contract ref 2.9 in the API Contracts doc.
+
+
+        Screens T 24, 41-45.'
+      x-roles: &id004
+      - field_technician
+      - bu_admin
+      - enterprise_admin
+      x-brd:
+      - US-014
+      - US-015
+      - US-025
+      x-sprint: S3
+      parameters:
+      - *id002
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublishedTree'
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '403':
+          $ref: ./common.yaml#/components/responses/Forbidden
+        '404':
+          description: 'Unit tree not published yet. Problem types: /problems/locations-not-published.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./common.yaml#/components/schemas/Problem
+  /business-units/{buId}/equipment-types:
+    get:
+      tags:
+      - Equipment types
+      operationId: listEquipmentTypes
+      summary: 'Types of a unit (technicians: published only)'
+      description: 'Contract ref 2.10 in the API Contracts doc.
+
+
+        The phone caches published types with fields for offline capture. Screens BU 24; T 21-22, 30-31.'
+      x-roles: *id004
+      x-brd:
+      - US-009
+      - US-033
+      x-sprint: S3
+      parameters:
+      - *id002
+      - name: status
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - not_published
+          - published
+      - name: include
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - fields
+      - $ref: ./common.yaml#/components/parameters/Cursor
+      - $ref: ./common.yaml#/components/parameters/Limit
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                - page
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/EquipmentType'
+                  page:
+                    $ref: ./common.yaml#/components/schemas/PageInfo
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '403':
+          $ref: ./common.yaml#/components/responses/Forbidden
+    post:
+      tags:
+      - Equipment types
+      operationId: createEquipmentType
+      summary: Create a type (blank, copy or AI-assist)
+      description: 'Contract ref 2.11 in the API Contracts doc.
+
+
+        Creates equipment_type (not_published) and equipment_type_version (version_no 1). Copy copies the source
+        fields; AI fields get origin ai_suggested. Audit (equipment_types). Screen BU 24.'
+      x-roles: &id006
+      - bu_admin
+      x-brd:
+      - US-033
+      - US-033b
+      x-sprint: S3
+      x-decision-pending: 'O-4: Release Plan wants edit-as-new-version, clone and deactivate for published types;
+        V3 locks them.'
+      parameters:
+      - *id005
+      - *id002
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                created_via:
+                  type: string
+                  enum:
+                  - blank
+                  - copy
+                  - ai_assist
+                copied_from_type_id:
+                  type:
+                  - string
+                  - 'null'
+                  format: uuid
+                  description: Required for copy
+                fields:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/FieldInput'
+                  description: 'ai_assist only: the ticked suggestions'
+              required:
+              - name
+              - created_via
+      responses:
+        '201':
+          description: Created, not published
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EquipmentType'
+        '400':
+          $ref: ./common.yaml#/components/responses/BadRequest
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '403':
+          $ref: ./common.yaml#/components/responses/Forbidden
+        '409':
+          description: 'Name already used in the unit. Problem types: /problems/duplicate-name.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./common.yaml#/components/schemas/Problem
+  /equipment-types/{typeId}:
+    get:
+      tags:
+      - Equipment types
+      operationId: getEquipmentType
+      summary: One type with its fields
+      description: 'Contract ref 2.12 in the API Contracts doc.
+
+
+        Technicians only for published types. Screen BU 24.'
+      x-roles: *id004
+      x-brd:
+      - US-033
+      x-sprint: S3
+      parameters:
+      - &id007
+        $ref: '#/components/parameters/TypeId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EquipmentType'
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '403':
+          $ref: ./common.yaml#/components/responses/Forbidden
+        '404':
+          $ref: ./common.yaml#/components/responses/NotFound
+    patch:
+      tags:
+      - Equipment types
+      operationId: renameEquipmentType
+      summary: Rename a type that is not published
+      description: 'Contract ref 2.13 in the API Contracts doc.
+
+
+        Audit (equipment_types). Screen BU 24.'
+      x-roles: *id006
+      x-brd:
+      - US-033
+      x-sprint: S3
+      parameters:
+      - *id007
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+              required:
+              - name
+      responses:
+        '200':
+          description: Renamed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EquipmentType'
+        '400':
+          $ref: ./common.yaml#/components/responses/BadRequest
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '403':
+          $ref: ./common.yaml#/components/responses/Forbidden
+        '404':
+          $ref: ./common.yaml#/components/responses/NotFound
+        '409':
+          description: 'Type published, or name used. Problem types: /problems/locked-after-publish, /problems/duplicate-name.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./common.yaml#/components/schemas/Problem
+    delete:
+      tags:
+      - Equipment types
+      operationId: deleteEquipmentType
+      summary: Delete a type that is not published
+      description: 'Contract ref 2.14 in the API Contracts doc.
+
+
+        Audit (equipment_types). Screen BU 24.'
+      x-roles: *id006
+      x-brd:
+      - US-033
+      x-sprint: S3
+      parameters:
+      - *id007
+      responses:
+        '204':
+          description: Deleted
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '403':
+          $ref: ./common.yaml#/components/responses/Forbidden
+        '404':
+          $ref: ./common.yaml#/components/responses/NotFound
+        '409':
+          description: 'Type published. Problem types: /problems/locked-after-publish.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./common.yaml#/components/schemas/Problem
+  /equipment-types/{typeId}/fields:
+    post:
+      tags:
+      - Fields
+      operationId: addField
+      summary: Add a field at the end
+      description: 'Contract ref 2.15 in the API Contracts doc.
+
+
+        Dropdown needs 2+ options (400). Audit (equipment_types). Screen BU 24.'
+      x-roles: *id006
+      x-brd:
+      - US-023
+      - US-033
+      x-sprint: S3
+      parameters:
+      - *id005
+      - *id007
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FieldInput'
+      responses:
+        '201':
+          description: Added
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Field'
+        '400':
+          $ref: ./common.yaml#/components/responses/BadRequest
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '403':
+          $ref: ./common.yaml#/components/responses/Forbidden
+        '404':
+          $ref: ./common.yaml#/components/responses/NotFound
+        '409':
+          description: 'Type published, or label already used in the type. Problem types: /problems/locked-after-publish,
+            /problems/duplicate-name.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./common.yaml#/components/schemas/Problem
+  /equipment-types/{typeId}/fields/{fieldId}:
+    patch:
+      tags:
+      - Fields
+      operationId: updateField
+      summary: Change a field
+      description: 'Contract ref 2.16 in the API Contracts doc.
+
+
+        Audit (equipment_types). Screen BU 24.'
+      x-roles: *id006
+      x-brd:
+      - US-023
+      - US-033
+      x-sprint: S3
+      parameters:
+      - *id007
+      - &id008
+        $ref: '#/components/parameters/FieldId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              minProperties: 1
+              properties:
+                label:
+                  type: string
+                data_type:
+                  $ref: '#/components/schemas/DataType'
+                options:
+                  type: array
+                  items:
+                    type: string
+                  description: 2 or more for dropdown
+                is_required:
+                  type: boolean
+                is_critical:
+                  type: boolean
+                format_rule:
+                  type:
+                  - string
+                  - 'null'
+                is_unique_in_unit:
+                  type: boolean
+                flag_below_confidence:
+                  type: number
+                  description: 0 to 1, default 0.85
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Field'
+        '400':
+          $ref: ./common.yaml#/components/responses/BadRequest
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '403':
+          $ref: ./common.yaml#/components/responses/Forbidden
+        '404':
+          $ref: ./common.yaml#/components/responses/NotFound
+        '409':
+          description: 'Type published, or label already used. Problem types: /problems/locked-after-publish, /problems/duplicate-name.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./common.yaml#/components/schemas/Problem
+    delete:
+      tags:
+      - Fields
+      operationId: removeField
+      summary: Delete a field
+      description: 'Contract ref 2.17 in the API Contracts doc.
+
+
+        Audit (equipment_types). Screen BU 24.'
+      x-roles: *id006
+      x-brd:
+      - US-033
+      x-sprint: S3
+      parameters:
+      - *id007
+      - *id008
+      responses:
+        '204':
+          description: Deleted
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '403':
+          $ref: ./common.yaml#/components/responses/Forbidden
+        '404':
+          $ref: ./common.yaml#/components/responses/NotFound
+        '409':
+          description: 'Type published. Problem types: /problems/locked-after-publish.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./common.yaml#/components/schemas/Problem
+  /equipment-types/{typeId}/field-order:
+    put:
+      tags:
+      - Fields
+      operationId: reorderFields
+      summary: Set the field order
+      description: 'Contract ref 2.18 in the API Contracts doc.
+
+
+        Screen BU 24.'
+      x-roles: *id006
+      x-brd:
+      - US-033
+      x-sprint: S3
+      parameters:
+      - *id007
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                field_ids:
+                  type: array
+                  items:
+                    $ref: ./common.yaml#/components/schemas/Uuid
+                  description: Every field exactly once
+              required:
+              - field_ids
+      responses:
+        '200':
+          description: Saved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  fields:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Field'
+                required:
+                - fields
+        '400':
+          $ref: ./common.yaml#/components/responses/BadRequest
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '403':
+          $ref: ./common.yaml#/components/responses/Forbidden
+        '404':
+          $ref: ./common.yaml#/components/responses/NotFound
+        '409':
+          description: 'Type published. Problem types: /problems/locked-after-publish.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./common.yaml#/components/schemas/Problem
+  /equipment-types/{typeId}/publish:
+    post:
+      tags:
+      - Equipment types
+      operationId: publishEquipmentType
+      summary: Publish and lock a type; creates its extraction contract
+      description: 'Contract ref 2.19 in the API Contracts doc.
+
+
+        Sets equipment_type.status, equipment_type_version.published_by/published_at, creates extraction_contract
+        with the current prompt_version. Audit (equipment_types). Screen BU 24.'
+      x-roles: *id006
+      x-brd:
+      - US-022
+      - US-023
+      - US-033
+      - US-033b
+      x-sprint: S3
+      parameters:
+      - *id007
+      responses:
+        '200':
+          description: Published
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum:
+                    - published
+                  published_at:
+                    $ref: ./common.yaml#/components/schemas/Timestamp
+                  contract_id:
+                    $ref: ./common.yaml#/components/schemas/Uuid
+                required:
+                - status
+                - published_at
+                - contract_id
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '403':
+          $ref: ./common.yaml#/components/responses/Forbidden
+        '404':
+          $ref: ./common.yaml#/components/responses/NotFound
+        '409':
+          description: 'No fields, or already published. Problem types: /problems/no-fields, /problems/locked-after-publish.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./common.yaml#/components/schemas/Problem
+  /business-units/{buId}/equipment-types/ai-suggest:
+    post:
+      tags:
+      - Fields
+      operationId: suggestFields
+      summary: Suggest fields from a label photo (nothing saved)
+      description: 'Contract ref 2.20 in the API Contracts doc.
+
+
+        Goes through the AI Inference Proxy. The admin ticks fields and calls createEquipmentType with created_via
+        ai_assist. Screen BU 24.'
+      x-roles: *id006
+      x-brd:
+      - US-020
+      - US-033b
+      x-sprint: S3
+      x-decision-pending: 'O-15: whether the photo and the AI cost of a suggestion are kept (V3 has no table for
+        them).'
+      parameters:
+      - *id002
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                image:
+                  type: string
+                  contentMediaType: image/jpeg
+              required:
+              - name
+              - image
+      responses:
+        '200':
+          description: Suggestions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  suggested_fields:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/SuggestedField'
+                required:
+                - suggested_fields
+        '400':
+          $ref: ./common.yaml#/components/responses/BadRequest
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '403':
+          $ref: ./common.yaml#/components/responses/Forbidden
+        '429':
+          $ref: ./common.yaml#/components/responses/TooManyRequests
+  /business-units/{buId}/scans:
+    post:
+      tags:
+      - Capture
+      operationId: createScan
+      summary: Create a scan (repeat-safe)
+      description: 'Contract ref 2.21 in the API Contracts doc.
+
+
+        Idempotency-Key must equal client_capture_id. Pins the type''s active extraction_contract and saves location_path_snapshot.
+        retake_of_scan_id: original must be the caller''s; it becomes closed. Screens T 32-46, 65-66, 71-72.'
+      x-roles: &id009
+      - field_technician
+      x-brd:
+      - US-010
+      - US-011
+      - US-013
+      - US-014
+      - US-016
+      - US-021
+      x-sprint: S3
+      parameters:
+      - *id005
+      - *id002
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ScanCreate'
+      responses:
+        '201':
+          description: Created; processing_status uploading
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Scan'
+        '200':
+          description: Same client_capture_id and same body already sent; same scan returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Scan'
+        '400':
+          $ref: ./common.yaml#/components/responses/BadRequest
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '402':
+          $ref: ./common.yaml#/components/responses/QuotaExceeded
+        '403':
+          $ref: ./common.yaml#/components/responses/Forbidden
+        '409':
+          description: 'Same key with a different body, type not published in the unit, node not in the published
+            tree, or retake target not allowed. Problem types: /problems/idempotency-conflict, /problems/type-not-published,
+            /problems/location-not-published, /problems/invalid-state.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./common.yaml#/components/schemas/Problem
+        '429':
+          $ref: ./common.yaml#/components/responses/TooManyRequests
+  /scans/{scanId}/photos/{photoNo}:
+    put:
+      tags:
+      - Capture
+      operationId: uploadPhoto
+      summary: Upload one photo (same bytes again = same result)
+      description: 'Contract ref 2.22 in the API Contracts doc.
+
+
+        Stored at /{tenant}/{bu}/{scan}/{photo_no}; only the key and SHA-256 are kept. Screens T 38-40, 52.'
+      x-roles: *id009
+      x-brd:
+      - US-010
+      - US-016
+      - US-029
+      x-sprint: S3
+      x-decision-pending: 'O-17: upload through the API (this contract) or signed MinIO URLs (Release Plan S3).'
+      parameters:
+      - &id010
+        $ref: '#/components/parameters/ScanId'
+      - name: photoNo
+        in: path
+        required: true
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 4
+      - name: Content-Digest
+        in: header
+        required: true
+        schema:
+          type: string
+        description: SHA-256 of the image (RFC 9530).
+      requestBody:
+        required: true
+        content:
+          image/jpeg:
+            schema:
+              type: string
+              contentMediaType: image/jpeg
+      responses:
+        '204':
+          description: Stored
+        '400':
+          description: 'Digest mismatch, over 2 MB (Release Plan S2), or not JPEG. Problem types: /problems/digest-mismatch,
+            /problems/photo-too-large, /problems/validation.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./common.yaml#/components/schemas/Problem
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '403':
+          $ref: ./common.yaml#/components/responses/Forbidden
+        '404':
+          $ref: ./common.yaml#/components/responses/NotFound
+        '409':
+          description: 'photo_no above photo_count, or scan no longer uploading. Problem types: /problems/invalid-state.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./common.yaml#/components/schemas/Problem
+  /scans/{scanId}/upload-complete:
+    post:
+      tags:
+      - Capture
+      operationId: confirmUpload
+      summary: All photos sent; extraction queued (ACK < 500 ms)
+      description: 'Contract ref 2.23 in the API Contracts doc.
+
+
+        Creates attempt 1 (trigger first) and an outbox_event for the proxy. Safe to retry. Screens T 46, 52, 78.'
+      x-roles: *id009
+      x-brd:
+      - US-011
+      - US-016
+      x-sprint: S3
+      parameters:
+      - *id010
+      responses:
+        '202':
+          description: Extraction queued
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  scan_id:
+                    $ref: ./common.yaml#/components/schemas/Uuid
+                  record_no:
+                    type: string
+                  attempt_no:
+                    type: integer
+                  processing_status:
+                    $ref: '#/components/schemas/ProcessingStatus'
+                required:
+                - scan_id
+                - record_no
+                - attempt_no
+                - processing_status
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '403':
+          $ref: ./common.yaml#/components/responses/Forbidden
+        '404':
+          $ref: ./common.yaml#/components/responses/NotFound
+        '409':
+          description: 'Photos missing, or already confirmed. Problem types: /problems/photos-missing, /problems/invalid-state.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./common.yaml#/components/schemas/Problem
+  /scans/{scanId}:
+    get:
+      tags:
+      - Extraction
+      operationId: getScan
+      summary: Scan with photos and AI result
+      description: 'Contract ref 2.24 in the API Contracts doc.
+
+
+        Own technician, admins of the unit, or the technician assigned to review it. Screens T 53-54, 57, 78-79.'
+      x-roles: *id004
+      x-brd:
+      - US-011
+      - US-012
+      - US-012b
+      - US-018
+      - US-022
+      x-sprint: S3
+      parameters:
+      - *id010
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Scan'
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '403':
+          $ref: ./common.yaml#/components/responses/Forbidden
+        '404':
+          $ref: ./common.yaml#/components/responses/NotFound
+  /scans/{scanId}/retry-extraction:
+    post:
+      tags:
+      - Extraction
+      operationId: retryExtraction
+      summary: Retry a failed extraction (same contract)
+      description: 'Contract ref 2.25 in the API Contracts doc.
+
+
+        Screens T 63-64.'
+      x-roles: *id009
+      x-brd:
+      - US-011
+      - US-018
+      x-sprint: S3
+      x-decision-pending: 'O-20: whether a proxy refusal (injection 400, quota 402, rate limit 429) uses one of
+        the 3 attempts.'
+      parameters:
+      - *id005
+      - *id010
+      responses:
+        '202':
+          description: Attempt queued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AttemptSummary'
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '403':
+          $ref: ./common.yaml#/components/responses/Forbidden
+        '404':
+          $ref: ./common.yaml#/components/responses/NotFound
+        '409':
+          description: 'Not failed, or 3 attempts used (retake only). Problem types: /problems/invalid-state, /problems/scan-attempts-used.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./common.yaml#/components/schemas/Problem
+  /scans/{scanId}/re-extract:
+    post:
+      tags:
+      - Extraction
+      operationId: reExtract
+      summary: Re-extract as another equipment type
+      description: 'Contract ref 2.26 in the API Contracts doc.
+
+
+        Type mismatch path. Sets the scan''s equipment_type_id and contract_id to the new type''s active contract;
+        trigger re_extract. Screen T 54.'
+      x-roles: *id009
+      x-brd:
+      - none
+      x-brd-note: No BRD story found in the earlier contract mapping; feature comes from V3 data model + 13 Oct
+        screens. Confirm the story ID.
+      x-sprint: S3
+      parameters:
+      - *id005
+      - *id010
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                equipment_type_id:
+                  $ref: ./common.yaml#/components/schemas/Uuid
+              required:
+              - equipment_type_id
+      responses:
+        '202':
+          description: Attempt queued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AttemptSummary'
+        '400':
+          $ref: ./common.yaml#/components/responses/BadRequest
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '403':
+          $ref: ./common.yaml#/components/responses/Forbidden
+        '404':
+          $ref: ./common.yaml#/components/responses/NotFound
+        '409':
+          description: '3 attempts used, wrong state, or type not published. Problem types: /problems/scan-attempts-used,
+            /problems/invalid-state, /problems/type-not-published.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./common.yaml#/components/schemas/Problem
+  /scans/{scanId}/discard:
+    post:
+      tags:
+      - Capture
+      operationId: discardScan
+      summary: Discard a scan before it is submitted for review
+      description: 'Contract ref 2.27 in the API Contracts doc.
+
+
+        review_status becomes discarded. Screens T 55-56.'
+      x-roles: *id009
+      x-brd:
+      - none
+      x-brd-note: No BRD story found in the earlier contract mapping; feature comes from V3 data model + 13 Oct
+        screens. Confirm the story ID.
+      x-sprint: S3
+      parameters:
+      - *id010
+      responses:
+        '204':
+          description: Discarded
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '403':
+          $ref: ./common.yaml#/components/responses/Forbidden
+        '404':
+          $ref: ./common.yaml#/components/responses/NotFound
+        '409':
+          description: 'Already submitted. Problem types: /problems/invalid-state.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./common.yaml#/components/schemas/Problem
+components:
+  securitySchemes:
+    keycloakBearer:
+      $ref: ./common.yaml#/components/securitySchemes/keycloakBearer
+  parameters:
+    NodeId:
+      name: nodeId
+      in: path
+      required: true
+      schema:
+        $ref: ./common.yaml#/components/schemas/Uuid
+    TypeId:
+      name: typeId
+      in: path
+      required: true
+      schema:
+        $ref: ./common.yaml#/components/schemas/Uuid
+    FieldId:
+      name: fieldId
+      in: path
+      required: true
+      schema:
+        $ref: ./common.yaml#/components/schemas/Uuid
+    ScanId:
+      name: scanId
+      in: path
+      required: true
+      schema:
+        $ref: ./common.yaml#/components/schemas/Uuid
+  schemas:
+    Requirement:
+      type: string
+      enum:
+      - required
+      - optional
+      - 'off'
+    Level:
+      type: object
+      properties:
+        level_id:
+          $ref: ./common.yaml#/components/schemas/Uuid
+        level_name:
+          type: string
+        level_order:
+          type: integer
+          description: 1 = top
+        requirement:
+          $ref: '#/components/schemas/Requirement'
+      required:
+      - level_id
+      - level_name
+      - level_order
+      - requirement
+    LevelInput:
+      type: object
+      properties:
+        level_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+          description: Null for a new level
+        level_name:
+          type: string
+        requirement:
+          $ref: '#/components/schemas/Requirement'
+      required:
+      - level_name
+      - requirement
+    LocationNode:
+      type: object
+      properties:
+        node_id:
+          $ref: ./common.yaml#/components/schemas/Uuid
+        parent_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        level_id:
+          $ref: ./common.yaml#/components/schemas/Uuid
+        name:
+          type: string
+        is_placeholder:
+          type: boolean
+        child_count:
+          type: integer
+      required:
+      - node_id
+      - parent_id
+      - level_id
+      - name
+      - is_placeholder
+      - child_count
+    LocationSetup:
+      type: object
+      properties:
+        version_id:
+          $ref: ./common.yaml#/components/schemas/Uuid
+        status:
+          type: string
+          enum:
+          - not_published
+          - published
+        levels:
+          type: array
+          items:
+            $ref: '#/components/schemas/Level'
+        nodes:
+          type: array
+          items:
+            $ref: '#/components/schemas/LocationNode'
+      required:
+      - version_id
+      - status
+      - levels
+      - nodes
+    PublishCheck:
+      type: object
+      properties:
+        counts:
+          type: object
+          description: Node count per level
+        placeholders_left:
+          type: integer
+        empty_branches:
+          type: array
+          items:
+            type: object
+        sample_path:
+          type:
+          - string
+          - 'null'
+        can_publish:
+          type: boolean
+      required:
+      - counts
+      - placeholders_left
+      - empty_branches
+      - sample_path
+      - can_publish
+    PublishedTree:
+      type: object
+      properties:
+        levels:
+          type: array
+          items:
+            $ref: '#/components/schemas/Level'
+        tree_snapshot:
+          type: object
+          description: Frozen at publish, cached by the phone.
+        published_at:
+          $ref: ./common.yaml#/components/schemas/Timestamp
+      required:
+      - levels
+      - tree_snapshot
+      - published_at
+    DataType:
+      type: string
+      enum:
+      - text
+      - number
+      - date
+      - dropdown
+      - boolean
+    FieldInput:
+      type: object
+      properties:
+        label:
+          type: string
+        data_type:
+          $ref: '#/components/schemas/DataType'
+        options:
+          type: array
+          items:
+            type: string
+          description: 2 or more for dropdown
+        is_required:
+          type: boolean
+        is_critical:
+          type: boolean
+        format_rule:
+          type:
+          - string
+          - 'null'
+        is_unique_in_unit:
+          type: boolean
+        flag_below_confidence:
+          type: number
+          description: 0 to 1, default 0.85
+      required:
+      - label
+      - data_type
+      - is_required
+      - is_critical
+    Field:
+      allOf:
+      - $ref: '#/components/schemas/FieldInput'
+      - type: object
+        properties:
+          field_id:
+            $ref: ./common.yaml#/components/schemas/Uuid
+          field_key:
+            type: string
+            description: Made by the server from label
+          sort_order:
+            type: integer
+          origin:
+            type: string
+            enum:
+            - manual
+            - ai_suggested
+        required:
+        - field_id
+        - field_key
+        - sort_order
+        - origin
+    EquipmentType:
+      type: object
+      properties:
+        type_id:
+          $ref: ./common.yaml#/components/schemas/Uuid
+        name:
+          type: string
+        status:
+          type: string
+          enum:
+          - not_published
+          - published
+        created_via:
+          type: string
+          enum:
+          - blank
+          - copy
+          - ai_assist
+        copied_from_type_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        version_no:
+          type: integer
+        field_count:
+          type: integer
+        published_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        fields:
+          type: array
+          items:
+            $ref: '#/components/schemas/Field'
+          description: Present when include=fields or on getEquipmentType
+      required:
+      - type_id
+      - name
+      - status
+      - created_via
+      - version_no
+      - field_count
+    SuggestedField:
+      type: object
+      properties:
+        label:
+          type: string
+        data_type:
+          $ref: '#/components/schemas/DataType'
+      required:
+      - label
+      - data_type
+    ProcessingStatus:
+      type: string
+      description: Server states. queued_on_phone exists only on the phone.
+      enum:
+      - uploading
+      - extracting
+      - ready_to_review
+      - failed
+      - retake_required
+    ReviewStatus:
+      type: string
+      enum:
+      - draft
+      - waiting_for_approval
+      - approved
+      - rejected
+      - closed
+      - discarded
+    Photo:
+      type: object
+      properties:
+        photo_no:
+          type: integer
+        view_url:
+          type: string
+          format: uri
+          description: Signed URL, valid 15 minutes
+      required:
+      - photo_no
+      - view_url
+    AttemptSummary:
+      type: object
+      properties:
+        attempt_no:
+          type: integer
+        trigger:
+          type: string
+          enum:
+          - first
+          - retry
+          - re_extract
+        status:
+          type: string
+          enum:
+          - queued
+          - running
+          - succeeded
+          - failed
+          - timed_out
+        detected_label:
+          type:
+          - string
+          - 'null'
+        suggested_type_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        suggestion_confidence:
+          type:
+          - number
+          - 'null'
+      required:
+      - attempt_no
+      - trigger
+      - status
+    AiField:
+      type: object
+      properties:
+        field_key:
+          type: string
+        label:
+          type: string
+        data_type:
+          $ref: '#/components/schemas/DataType'
+        is_required:
+          type: boolean
+        is_critical:
+          type: boolean
+        ai_value:
+          type:
+          - string
+          - 'null'
+        confidence:
+          type:
+          - number
+          - 'null'
+          description: Null = no score
+        flag_reasons:
+          type: array
+          items:
+            type: string
+            enum:
+            - low_confidence
+            - format_failed
+            - no_confidence
+            - missing_required
+            - critical_not_found
+      required:
+      - field_key
+      - label
+      - data_type
+      - is_required
+      - is_critical
+      - ai_value
+      - confidence
+      - flag_reasons
+    Scan:
+      type: object
+      properties:
+        scan_id:
+          $ref: ./common.yaml#/components/schemas/Uuid
+        record_no:
+          type: string
+        bu_id:
+          $ref: ./common.yaml#/components/schemas/Uuid
+        equipment_type_id:
+          $ref: ./common.yaml#/components/schemas/Uuid
+        equipment_type_name:
+          type: string
+        contract_id:
+          $ref: ./common.yaml#/components/schemas/Uuid
+        location_node_id:
+          $ref: ./common.yaml#/components/schemas/Uuid
+        location_path:
+          type: string
+        processing_status:
+          $ref: '#/components/schemas/ProcessingStatus'
+        review_status:
+          $ref: '#/components/schemas/ReviewStatus'
+        retake_of_scan_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        photos:
+          type: array
+          items:
+            $ref: '#/components/schemas/Photo'
+        attempts_used:
+          type: integer
+        latest_attempt:
+          $ref: '#/components/schemas/AttemptSummary'
+        fields:
+          type: array
+          items:
+            $ref: '#/components/schemas/AiField'
+        captured_at:
+          $ref: ./common.yaml#/components/schemas/Timestamp
+      required:
+      - scan_id
+      - record_no
+      - bu_id
+      - equipment_type_id
+      - contract_id
+      - location_node_id
+      - location_path
+      - processing_status
+      - review_status
+      - photos
+      - attempts_used
+      - captured_at
+    ScanCreate:
+      type: object
+      properties:
+        client_capture_id:
+          allOf:
+          - $ref: ./common.yaml#/components/schemas/Uuid
+          description: Made on the phone, equals Idempotency-Key
+        equipment_type_id:
+          $ref: ./common.yaml#/components/schemas/Uuid
+        location_node_id:
+          $ref: ./common.yaml#/components/schemas/Uuid
+        photo_count:
+          type: integer
+          minimum: 1
+          maximum: 4
+        captured_at:
+          $ref: ./common.yaml#/components/schemas/Timestamp
+        retake_of_scan_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+      required:
+      - client_capture_id
+      - equipment_type_id
+      - location_node_id
+      - photo_count
+      - captured_at
