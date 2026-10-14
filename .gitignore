@@ -1,0 +1,38 @@
+# Secrets and local env — never commit
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+vault-token*
+
+# Agent session bundles (regenerated per task)
+.claude/session-context.md
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Node / web
+node_modules/
+web/dist/
+
+# Flutter
+mobile/.dart_tool/
+mobile/build/
+mobile/.flutter-plugins*
+
+# Keycloak SPI build
+keycloak/**/target/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/

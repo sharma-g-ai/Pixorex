@@ -1,0 +1,20 @@
+# Replace the team handles with your GitHub org's teams (scripts/setup-github.sh creates none).
+# Architects must approve A0/A1 areas; DevOps co-owns CI.
+
+*                          @OWNER/pixorex-devs
+
+# Governance
+/CONSTITUTION.md           @OWNER/pixorex-architects
+/ARCHITECTURE.md           @OWNER/pixorex-architects
+/contracts/                @OWNER/pixorex-architects
+
+# A0 / A1 areas
+/api/app/auth/             @OWNER/pixorex-architects
+/api/migrations/           @OWNER/pixorex-architects
+/keycloak/                 @OWNER/pixorex-architects
+/web/src/auth/             @OWNER/pixorex-architects
+/mobile/lib/auth/          @OWNER/pixorex-architects
+
+# Pipeline
+/.github/                  @OWNER/pixorex-architects @OWNER/pixorex-devops
+/docker-compose.yml        @OWNER/pixorex-devops
