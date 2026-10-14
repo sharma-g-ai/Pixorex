@@ -1,0 +1,13 @@
+{
+  "source_path": "C:/Users/Geet Sharma/Documents/Pixorex/docs/design/README.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "Design canvases",
+  "summary": "Index of design canvas prototypes for the Enterprise Admin, BU Admin, and Field Technician app screens, referenced by screen IDs in specs and contracts.",
+  "scope": ["Enterprise Admin prototype", "BU Admin prototype", "Field Technician app prototype", "full design canvas", "screen IDs EA-01-04, BU-01-05, MOB-01-07"],
+  "cross_refs": ["docs/PRD.md"],
+  "locked": false,
+  "precedence": null,
+  "notes": "Filename is README-designhash-unavailable.json because the SHA-256 8-char hash of the source path could not be computed (no shell tool available to this agent). Orchestrator should rename to README-{hash}.json. Classification is from MANIFEST_TYPE=DOC; content is a link index with no decisions or requirements, consistent with DOC."
+}

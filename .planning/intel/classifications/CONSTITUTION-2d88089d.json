@@ -1,0 +1,13 @@
+{
+  "source_path": "C:/Users/Geet Sharma/Documents/Pixorex/CONSTITUTION.md",
+  "type": "ADR",
+  "confidence": "medium",
+  "manifest_override": true,
+  "title": "CONSTITUTION.md — Pixorex V1",
+  "summary": "Pixorex V1 governing constitution: non-negotiables, architecture principles, conventions, autonomy grades, gates, and change control for the monorepo.",
+  "scope": ["Pixorex V1", "monorepo", "api (FastAPI)", "web (EA and BU Admin dashboard)", "mobile (Flutter)", "keycloak", "contracts", "specs", "docs", "tenant isolation", "PostgreSQL RLS", "audit_log", "outbox", "AI Inference Proxy", "Vault", "MinIO", "autonomy grades", "delivery gates G1-G5"],
+  "cross_refs": ["docs/PRD.md", "docs/data-model.md", "contracts/", "docs/api-contracts.md", "docs/design/README.md", "ARCHITECTURE.md", "STATE.md", "SPEC-PX-01", "SPEC-PX-02", "SPEC-PX-03", "SPEC-PX-04", "SPEC-PX-05", "SPEC-PX-06", "SPEC-PX-07", "SPEC-PX-08", "SPEC-PX-09", "SPEC-PX-10", "SPEC-PX-11"],
+  "locked": false,
+  "precedence": 0,
+  "notes": "Manifest declared type ADR and precedence 0; both applied as authoritative (manifest_override true). Heuristic and content signals do not match a single-decision ADR: the document is a governance constitution with no Status field, no Context/Decision/Consequences structure, and version approvals marked [TBD]. locked is false because no Accepted status is present. Output filename omits the source_hash suffix because no hashing tool was available to this classifier; the file should be renamed to CONSTITUTION-<sha256(POSIX path)[0:8]>.json if the synthesizer requires the suffix."
+}

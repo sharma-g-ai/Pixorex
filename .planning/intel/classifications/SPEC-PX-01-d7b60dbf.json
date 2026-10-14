@@ -1,0 +1,13 @@
+{
+  "source_path": "C:/Users/Geet Sharma/Documents/Pixorex/specs/SPEC-PX-01.md",
+  "type": "SPEC",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "SPEC-PX-01 — Identity, sessions & invites",
+  "summary": "Technical spec for identity, sessions and invites: Keycloak realm, one-time code sign-in, lockout, request context middleware, invite and /me endpoints.",
+  "scope": ["Keycloak realm pixorex", "one-time code sign-in", "lockout", "sign-in event listener", "request context middleware", "sessions", "invites", "/me endpoints", "active unit", "phone change", "pixorex-web client", "pixorex-mobile client"],
+  "cross_refs": ["keycloak/realm-pixorex.json", "STATE.md", "ARCHITECTURE §4.4", "PRD FR-1.4 to FR-1.8"],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}

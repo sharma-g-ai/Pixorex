@@ -1,0 +1,13 @@
+{
+  "source_path": "C:/Users/Geet Sharma/Documents/Pixorex/specs/SPEC-PX-10.md",
+  "type": "SPEC",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "SPEC-PX-10 — DevSecOps & resilience (Sprint 2 slice)",
+  "summary": "Specifies local stack startup, API health/readiness probes, Vault secret loading, CI test, security, contract and PR gates, branch protection, and an AI review job.",
+  "scope": ["DevSecOps", "resilience", "local Docker Compose stack", "API health and readiness probes", "Vault secret loading", "CI test and coverage gates", "CI security gates", "contract and PR rules", "branch protection", "CODEOWNERS", "AI review job"],
+  "cross_refs": [".claude/ai-review-prompt.md", "contracts/", ".spectral.yaml", "ARCHITECTURE §11"],
+  "locked": false,
+  "precedence": null,
+  "notes": "Type declared by manifest (SPEC) and matches SPEC-*.md filename and REQ/GIVEN-WHEN-THEN technical contract content. Status is Draft (awaiting G1), so locked is false. Output filename uses a placeholder suffix because the SHA-256 hash of the source path could not be computed with available tools."
+}

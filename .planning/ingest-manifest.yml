@@ -1,0 +1,24 @@
+# Ingest manifest for /gsd-ingest-docs (lower precedence = higher authority)
+docs:
+  - path: CONSTITUTION.md
+    type: ADR
+    precedence: 0
+  - path: ARCHITECTURE.md
+    type: ADR
+    precedence: 1
+  - path: specs/SPEC-PX-01.md
+    type: SPEC
+  - path: specs/SPEC-PX-04.md
+    type: SPEC
+  - path: specs/SPEC-PX-07.md
+    type: SPEC
+  - path: specs/SPEC-PX-10.md
+    type: SPEC
+  - path: docs/PRD.md
+    type: PRD
+  - path: docs/api-contracts.md
+    type: DOC
+  - path: docs/design/README.md
+    type: DOC
+  - path: contracts/README.md
+    type: DOC

@@ -1,0 +1,17 @@
+{
+  "source_path": "C:/Users/Geet Sharma/Documents/Pixorex/docs/PRD.md",
+  "type": "PRD",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "Pixorex PRD V3 — V1 Baselined",
+  "summary": "Defines Pixorex V1 scope: field-technician nameplate capture, AI extraction, verification and approval within tenant, unit and location structure, with roles, requirements and release tests.",
+  "scope": ["Pixorex V1", "tenancy", "business units", "locations", "equipment types", "extraction contracts", "AI Inference Proxy", "scans", "photos", "revisions", "review and delegation", "escalation", "audit log", "notifications", "CSV export", "quota", "retention", "Keycloak sign-in", "mobile app", "permissions matrix", "NFRs"],
+  "cross_refs": [
+    "https://docs.google.com/document/d/1W4UGpmCxTGTQSGMOeX30qY6RALwT_4k4XZ07pPp1fnE/edit",
+    "https://docs.google.com/document/d/1lRZFwczFVEezkif5LOlWW4xI3-7onePz2EX9l339J4o/edit",
+    "Pixorex_PRD_V3_V1_Baselined.docx"
+  ],
+  "locked": false,
+  "precedence": null,
+  "notes": "Classification forced by manifest (MANIFEST_TYPE=PRD). Filename was not hashed: the classifier has no shell or hashing tool, so the required 8-char SHA-256 suffix of the source path is missing and this file is named PRD-NOHASH.json. Rename to PRD-{first 8 hex of SHA-256 of 'C:/Users/Geet Sharma/Documents/Pixorex/docs/PRD.md'}.json before synthesis. Content also carries strong PRD signals (user roles, functional requirements FR-x.y tables, acceptance tests AT-01 to AT-18). Document contains ADR-like 'Decision' wording in open items and a settled-decisions section, but these are not locked ADR decisions."
+}

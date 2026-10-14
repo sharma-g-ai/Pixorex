@@ -1,0 +1,13 @@
+{
+  "source_path": "C:/Users/Geet Sharma/Documents/Pixorex/ARCHITECTURE.md",
+  "type": "ADR",
+  "confidence": "medium",
+  "manifest_override": true,
+  "title": "ARCHITECTURE.md — Pixorex V1",
+  "summary": "Explains how Pixorex V1 components, tenancy, identity, data model, scan lifecycle, AI proxy, outbox, and security fit together; open items noted.",
+  "scope": ["Pixorex V1", "mobile app", "web dashboard", "backend API", "workers", "Keycloak identity", "PostgreSQL database", "MinIO object storage", "Vault secrets", "AI Inference Proxy", "RLS tenancy", "outbox", "scan lifecycle", "Sea Stock relationship"],
+  "cross_refs": ["CONSTITUTION.md", "STATE.md", "TASK_TEMPLATE.md", "BRD-INDEX.md", "start-session.sh", "docker-compose.yml", "contracts/", "contracts/README.md", "docs/PRD.md", "docs/data-model.md", "docs/api-contracts.md", "docs/design/README.md", "specs/SPEC-PX-01 … SPEC-PX-11", "tasks/PX-XX-TNN.md", "api/scripts/bootstrap_tenant.py", "api/scripts/seed_synthetic.py", ".claude/ai-review-prompt.md", ".github/CODEOWNERS", ".github/workflows/"],
+  "locked": false,
+  "precedence": 1,
+  "notes": "MANIFEST_TYPE=ADR was applied as authoritative (manifest_override=true, precedence=1). Content does not match ADR structure: no Status: Accepted field, no Context/Decision/Consequences sections; it is an architecture overview with many items marked OPEN. Because the status is not Accepted, locked is false. Synthesizer should treat the manifest-declared ADR type with this mismatch in mind. Output filename hash is pending: the classifier had no shell tool to compute the SHA-256 of the source path, so the file is named ARCHITECTURE-HASHPENDING.json and must be renamed to ARCHITECTURE-<first 8 hex of sha256('C:/Users/Geet Sharma/Documents/Pixorex/ARCHITECTURE.md' as POSIX path)>.json."
+}

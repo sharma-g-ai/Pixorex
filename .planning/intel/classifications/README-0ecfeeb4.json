@@ -1,0 +1,13 @@
+{
+  "source_path": "C:/Users/Geet Sharma/Documents/Pixorex/contracts/README.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "API contracts (OpenAPI 3.1)",
+  "summary": "Lists the OpenAPI 3.1 contract files to be added to contracts/ and the rules for changing endpoints and running Spectral lint.",
+  "scope": ["OpenAPI 3.1 contracts", "common.yaml", "slice-s2-auth-rbac.yaml", "slice-s3-capture-extraction.yaml", "slice-s4-workflow-review.yaml", "slice-s5-portal-export.yaml", ".spectral.yaml", "Spectral lint", "x-decision-pending"],
+  "cross_refs": ["docs/api-contracts.md", "STATE.md"],
+  "locked": false,
+  "precedence": null,
+  "notes": "Filename should be README-{first 8 hex of SHA-256 of 'C:/Users/Geet Sharma/Documents/Pixorex/contracts/README.md'}.json per the output contract. The classifier had no hashing tool available, so the hash was not computed and the file was written as README-unhashed.json. The orchestrator must rename it. Classification is DOC from MANIFEST_TYPE; the content is a short operational README with no decision, requirement, or schema of its own."
+}

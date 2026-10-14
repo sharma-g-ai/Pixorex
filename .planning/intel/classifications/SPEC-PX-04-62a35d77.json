@@ -1,0 +1,13 @@
+{
+  "source_path": "C:/Users/Geet Sharma/Documents/Pixorex/specs/SPEC-PX-04.md",
+  "type": "SPEC",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "SPEC-PX-04 — Tenancy, roles & RLS",
+  "summary": "Specifies tenancy, roles, and row-level security for Domain 1: schema migrations, DB grants, RLS policies, authorization helpers, bootstrap CLI, and unit/BU Admin/technician management endpoints.",
+  "scope": ["tenancy", "roles", "row-level security (RLS)", "Domain 1 schema", "database roles and grants", "authorization helpers (require_role)", "tenant bootstrap CLI", "synthetic seed", "business units", "BU Admin management", "technician management", "location_hierarchy_version", "Keycloak attack-detection lock state"],
+  "cross_refs": ["SPEC-PX-05", "SPEC-PX-11"],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}

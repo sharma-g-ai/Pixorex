@@ -1,0 +1,13 @@
+{
+  "source_path": "C:/Users/Geet Sharma/Documents/Pixorex/specs/SPEC-PX-07.md",
+  "type": "SPEC",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "SPEC-PX-07 — Audit, outbox & notifications",
+  "summary": "Technical spec for the audit_log table, audit writer, transactional outbox, outbox worker with email adapter, and deferred notifications and audit read.",
+  "scope": ["audit_log table", "audit writer (audit.record)", "outbox_event", "outbox.enqueue", "outbox worker", "email adapter", "invite_email event", "Mailpit", "notifications", "audit log read"],
+  "cross_refs": [],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}

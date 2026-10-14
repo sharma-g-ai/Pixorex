@@ -1,0 +1,13 @@
+{
+  "source_path": "C:/Users/Geet Sharma/Documents/Pixorex/docs/api-contracts.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "Pixorex V1 — API Contracts (Slices = Sprints 2–5)",
+  "summary": "Lists Pixorex V1 REST API endpoints for Sprints 2–5 across four slices, with conventions, error codes, status moves and open decisions.",
+  "scope": ["Pixorex V1 API", "authentication and RBAC", "invites", "business units", "locations", "equipment types", "scans and extraction", "review and decisions", "review batches and delegation", "escalation", "notifications", "audit log", "CSV export", "health and readiness probes", "Keycloak", "MinIO"],
+  "cross_refs": ["Release Plan v2", "Pixorex V3 data model", "common.yaml", "slice-s2-auth-rbac.yaml", "slice-s3-capture-extraction.yaml", "slice-s4-workflow-review.yaml", "slice-s5-portal-export.yaml", "README.md", ".spectral.yaml"],
+  "locked": false,
+  "precedence": null,
+  "notes": "Type DOC was set by MANIFEST_TYPE and is authoritative. Content signals are SPEC-like: endpoint tables with request/response schemas, error code tables, and status transition tables. Synthesizer should consider SPEC treatment or confirm the manifest tag. No MANIFEST_PRECEDENCE was provided, so precedence is null. Output filename lacks the source_hash suffix because no hashing tool was available to this classifier."
+}
