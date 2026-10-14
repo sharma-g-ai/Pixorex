@@ -1,0 +1,246 @@
+openapi: 3.1.0
+info:
+  title: Pixorex V1 API - Shared basics
+  version: 0.3.0
+  contact:
+    name: Pixorex backend team (Amzur)
+  summary: Auth, errors, paging, idempotency and IDs used by every slice.
+  description: "Every slice file references this file. Change it only with agreement of\nall contract owners.\n\n\
+    Sources: Pixorex V3 Data Models (31 tables, 13 Oct 2026), UI screens of 13 Oct 2026\n(Enterprise Admin EA 01-73,\
+    \ BU Admin BU 01-35, Technician app T 01-80), Release Plan v2.\n\nRules for every endpoint:\n- Base path /api/v1.\
+    \ IDs are UUIDs. Times are UTC (RFC 3339).\n- Sign-in (one-time codes, 5-wrong-code lockout) is done by the\
+    \ apps directly with\n  Keycloak. This API only checks the Keycloak access token.\n- Tenant comes from the Keycloak\
+    \ token, never from the request.\n- Unit (BU) scope comes from the path or body and is checked against the caller's\n\
+    \  active user_unit_role rows. enterprise_admin passes for every unit of the tenant.\n  RLS enforces tenant\
+    \ first, then unit, again in PostgreSQL.\n- Errors use RFC 9457 Problem Details (application/problem+json).\
+    \ The type URI is the\n  stable error code, e.g. /problems/locked-after-publish.\n- Retried creates carry Idempotency-Key.\
+    \ Same key + same body returns the first result;\n  same key + different body returns 409 /problems/idempotency-conflict.\n\
+    \  For scans the key equals client_capture_id.\n- Status changes are actions (POST .../decisions, .../publish),\
+    \ never PATCH status.\n  Wrong state returns 409.\n- V3 tables have no row_version column, so If-Match / ETag\
+    \ are not used in these\n  contracts (decision pending: add row_version or keep 409 state checks only).\n- Every\
+    \ operation lists x-roles (V3 user_unit_role.role, or public), x-brd (stories)\n  and x-sprint (Release Plan\
+    \ v2 sprint). Open points are marked x-decision-pending\n  (numbered O-1 to O-23 in the API Contracts doc) and\
+    \ are not guessed.\n  x-brd: [none] means no BRD story was found for a V3-only feature (see x-brd-note)."
+servers:
+- url: /api/v1
+tags:
+- name: Operations
+paths:
+  /health:
+    get:
+      tags:
+      - Operations
+      operationId: getHealth
+      summary: Liveness probe (process is up); no auth, no data
+      x-roles:
+      - public
+      x-brd:
+      - US-067
+      x-sprint: S5
+      security: []
+      responses:
+        '200':
+          description: Up
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - status
+                properties:
+                  status:
+                    type: string
+                    enum:
+                    - ok
+  /ready:
+    get:
+      tags:
+      - Operations
+      operationId: getReadiness
+      summary: Readiness probe (database, Keycloak, MinIO, Vault reachable)
+      description: Used by DevOps monitoring and container health checks (Release Plan S5).
+      x-roles:
+      - public
+      x-brd:
+      - US-067
+      x-sprint: S5
+      security: []
+      responses:
+        '200':
+          description: Ready
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Readiness'
+        '503':
+          description: One or more dependencies down
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+components:
+  securitySchemes:
+    keycloakBearer:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Keycloak RS256 access token. Carries tenant and user (sub).
+  parameters:
+    BuId:
+      name: buId
+      in: path
+      required: true
+      description: 'Business unit ID. Caller needs an active role in this unit (enterprise_admin: any unit).'
+      schema:
+        $ref: '#/components/schemas/Uuid'
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: Client-generated UUID that makes a retried request safe.
+      schema:
+        $ref: '#/components/schemas/Uuid'
+    Cursor:
+      name: cursor
+      in: query
+      required: false
+      description: Opaque cursor from the previous page's next_cursor.
+      schema:
+        type: string
+    Limit:
+      name: limit
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 25
+  schemas:
+    Uuid:
+      type: string
+      format: uuid
+      examples:
+      - 3f1c9a52-7d2e-4b8a-9c11-0a6e5b2f4d10
+    Timestamp:
+      type: string
+      format: date-time
+      description: UTC, RFC 3339.
+      examples:
+      - '2026-10-08T04:30:00Z'
+    Readiness:
+      type: object
+      required:
+      - status
+      - checks
+      properties:
+        status:
+          type: string
+          enum:
+          - ready
+          - not_ready
+        checks:
+          type: object
+          description: One entry per dependency; no secrets or versions exposed.
+          additionalProperties:
+            type: string
+            enum:
+            - ok
+            - fail
+    PageInfo:
+      type: object
+      required:
+      - next_cursor
+      properties:
+        next_cursor:
+          type:
+          - string
+          - 'null'
+          description: Null when there are no more pages.
+    Problem:
+      type: object
+      description: RFC 9457 Problem Details.
+      required:
+      - type
+      - title
+      - status
+      properties:
+        type:
+          type: string
+          format: uri-reference
+          description: Stable error code as a URI, e.g. /problems/invalid-state.
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        instance:
+          type: string
+        correlation_id:
+          type: string
+          description: Same ID as in the audit log and server logs.
+        errors:
+          type: array
+          description: Field-level validation errors (400 only).
+          items:
+            type: object
+            required:
+            - field
+            - message
+            properties:
+              field:
+                type: string
+              message:
+                type: string
+    Role:
+      type: string
+      description: user_unit_role.role (V3 Domain 1). A field_technician holding an active review assignment acts
+        as delegated_technician for that scan.
+      enum:
+      - enterprise_admin
+      - bu_admin
+      - field_technician
+  responses:
+    BadRequest:
+      description: Invalid input.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    Unauthorized:
+      description: Missing, expired or revoked token.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    Forbidden:
+      description: No grant for this action or scope.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    NotFound:
+      description: Not found, or not visible to the caller (never reveals other tenants).
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    Conflict:
+      description: Wrong state for this action, locked after publish, or idempotency conflict.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    TooManyRequests:
+      description: Rate limit reached (100 RPM per tenant default, Release Plan S3).
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    QuotaExceeded:
+      description: Unit scan quota reached (HTTP 402, Release Plan S3). Limit storage is OPEN O-7.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
