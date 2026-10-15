@@ -87,11 +87,22 @@ Lanes: **FSD-A** Foundation · **FSD-B** API & Security · **Divya** web · **Fl
 | — | Sprint Deliverables S2 demo text | Replace "SSO" and "Reviewer role" per the demo script above | You + Suchith | |
 
 ## Recently merged (last 5)
-- none yet
+- none yet (contracts v0.3.0 added to `contracts/`, pending PR; Spectral: 0 errors)
 
 ## Decisions made this wave
 - 2026-10-14 — Monorepo; Keycloak-direct sign-in; email + SMS OTP; trunk-based, 80% floor; React + TS; Sonnet build / Opus review; local-only environments; demo on synthetic data stated up front.
 - 2026-10-14 — PRD V3 baseline adopted: 3 roles, no Client Portal, no SAML, frozen 31-table model, two approvals per PR (constitution v1.2).
+- 2026-10-15 — Dashboard decisions D-01 to D-07, delegated by the lead to the dashboard team ("implement the best way possible"); detail and reasoning in `docs/proposals/web-dashboard-stack.md`:
+
+| ID | Topic | Decision | Follow-up |
+|---|---|---|---|
+| D-01 | Web stack | Vite + React + strict TS, Tailwind, React Router, TanStack Query, openapi-typescript + openapi-fetch, Prism mock, oidc-client-ts, React Hook Form + Zod, Vitest + RTL, Playwright, ESLint + Prettier, npm | Web section in ARCHITECTURE.md |
+| D-02 | Admin sign-in (Release Plan SAML vs PRD) | Email code in V1; SSO per tenant later via Keycloak identity brokering | none |
+| D-03 | Runtime versions | PostgreSQL 18 (app database) and Node 24 LTS (constitution v1.3); approved by the lead Oct 15. Keycloak and its own database unchanged | CI workflows use the same versions |
+| D-04 | Who invites whom (PRD item 5) | EA invites BU Admins and technicians into any unit; BU Admin invites technicians into units they run | Update contract 1.8 `x-roles`, SPEC-PX-01 REQ-01.10 |
+| D-05 | Who overrides a decision (PRD item 6) | BU Admin in units they run; EA in any unit | Update contract 3.7 `x-roles` (S4) |
+| D-06 | Audit log access | EA all units; BU Admin read + export for units they run (PRD wins for behaviour) | Update contracts 3.22, 4.1, SPEC-PX-07 REQ-07.01; unit-scoped RLS on `audit_log`; BU Audit log screen (S4) |
+| D-07 | Screen IDs | PRD ↔ prototype mapping in `docs/design/README.md`; tasks cite both | none |
 
 ## Open questions (not blocking S2)
 - P-4 admin MFA · P-13 WAL-based RPO · P-14 OpenAI US/ZDR evidence · environment procurement (needed by S3–S4).
