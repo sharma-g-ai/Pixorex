@@ -25,7 +25,7 @@ A field technician photographs an equipment nameplate (1–4 photos), the AI Inf
 | Backend API | Python 3.11 + FastAPI, `api/` | `/api/v1`, 76 endpoints in 4 slices. No sign-in endpoints |
 | Workers | Same codebase, separate process | Outbox worker, extraction runner, scheduled jobs (escalation, batch alerts, retention, export builds) |
 | Identity | Keycloak 24.x, `keycloak/` | One-time-code sign-in, lockout, sessions; realm config as code |
-| Database | PostgreSQL 16 | 31 tables in 6 domains (frozen V3 model); RLS on every tenant-owned table |
+| Database | PostgreSQL 18 | 31 tables in 6 domains (frozen V3 model); RLS on every tenant-owned table |
 | Object storage | MinIO (private) | Photos at `/{tenant}/{bu}/{scan}/{photo_no}`, export files; versioning on |
 | Secrets | HashiCorp Vault | Loaded at container start; AppRole in deployed environments, dev mode locally |
 | AI | AI Inference Proxy → OpenAI (US endpoints, Zero Data Retention: **OPEN P-14**) | Internal only; apps never call it |

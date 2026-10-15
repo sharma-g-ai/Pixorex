@@ -10,7 +10,7 @@
 | Version | v1.2 — aligned to PRD V3 and API Contracts (Oct 14, 2026) |
 | Constitution owners | Geetashish Sharma, Suchith Veeramalla (co-architects) |
 | Pinned agent models | Build sessions: **Claude Sonnet 5.5**. AI review gate: **Claude Opus 5.5**. Changing either mid-engagement is a practice-level decision |
-| Pinned runtimes | Python 3.11 · FastAPI · Flutter 3.x · Keycloak 24.x · React + TypeScript (Vite) · PostgreSQL 16 · Node 22 LTS |
+| Pinned runtimes | Python 3.11 · FastAPI · Flutter 3.x · Keycloak 24.x · React + TypeScript (Vite) · PostgreSQL 18 · Node 24 LTS |
 | Branching | Trunk-based: short-lived branches into `main`; no direct pushes; required reviews and status checks |
 | Coverage floor | 80% on changed lines, blocking in CI |
 
@@ -190,3 +190,4 @@ This file changes only by PR approved by both architects. Each G5 retro and each
 | v1.0 | Oct 2026 | Baseline from AI-Native Delivery Playbook plan | **[TBD]** |
 | v1.1 | Oct 14, 2026 | Monorepo; trunk-based, 80% floor; Sonnet build / Opus review; React + TS; Keycloak-direct sign-in; email + SMS OTP; local-only environments | **[TBD]** |
 | v1.2 | Oct 14, 2026 | Aligned to PRD V3 and API Contracts: sources of truth, frozen data model, 3 roles, Client Portal and SAML out of V1, bounded contexts re-cut to PRD domains, two approvals per PR, PostgreSQL 16 / Node 22 | **[TBD]** |
+| v1.3 | Oct 15, 2026 | Pinned runtimes moved to PostgreSQL 18 and Node 24 LTS (decision D-03, approved by the lead) | **[TBD]** |
