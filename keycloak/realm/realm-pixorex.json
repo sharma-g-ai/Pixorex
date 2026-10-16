@@ -1,0 +1,239 @@
+{
+  "realm": "pixorex",
+  "displayName": "Pixorex",
+  "enabled": true,
+  "sslRequired": "external",
+  "loginTheme": "pixorex",
+  "emailTheme": "pixorex",
+  "browserFlow": "pixorex-browser",
+
+  "registrationAllowed": false,
+  "registrationEmailAsUsername": false,
+  "resetPasswordAllowed": false,
+  "rememberMe": false,
+  "verifyEmail": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "editUsernameAllowed": false,
+
+  "bruteForceProtected": true,
+  "permanentLockout": false,
+  "maxTemporaryLockouts": 0,
+  "bruteForceStrategy": "MULTIPLE",
+  "failureFactor": 5,
+  "waitIncrementSeconds": 1800,
+  "maxFailureWaitSeconds": 1800,
+  "maxDeltaTimeSeconds": 1800,
+  "quickLoginCheckMilliSeconds": 1000,
+  "minimumQuickLoginWaitSeconds": 60,
+
+  "accessTokenLifespan": 300,
+  "ssoSessionIdleTimeout": 1800,
+  "ssoSessionMaxLifespan": 36000,
+  "offlineSessionIdleTimeout": 1209600,
+  "offlineSessionMaxLifespanEnabled": true,
+  "offlineSessionMaxLifespan": 2592000,
+  "revokeRefreshToken": true,
+  "refreshTokenMaxReuse": 0,
+
+  "eventsEnabled": true,
+  "eventsExpiration": 604800,
+  "eventsListeners": ["jboss-logging", "pixorex-audit"],
+  "adminEventsEnabled": true,
+  "adminEventsDetailsEnabled": false,
+
+  "smtpServer": {
+    "host": "mailpit",
+    "port": "1025",
+    "from": "no-reply@pixorex.local",
+    "fromDisplayName": "Pixorex",
+    "auth": "false",
+    "ssl": "false",
+    "starttls": "false"
+  },
+
+  "roles": {
+    "realm": [
+      { "name": "offline_access", "description": "${role_offline-access}" },
+      { "name": "uma_authorization", "description": "${role_uma_authorization}" },
+      { "name": "pixorex-web", "description": "May sign in to the web dashboard (holds an enterprise_admin or bu_admin role). Not used for API authorization." },
+      { "name": "pixorex-mobile", "description": "May sign in to the mobile app (holds a field_technician role). Not used for API authorization." }
+    ]
+  },
+  "defaultRole": {
+    "name": "default-roles-pixorex",
+    "description": "${role_default-roles}",
+    "composite": true,
+    "composites": { "realm": ["offline_access"] }
+  },
+
+  "clients": [
+    {
+      "clientId": "pixorex-web",
+      "name": "Pixorex web dashboard",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "implicitFlowEnabled": false,
+      "serviceAccountsEnabled": false,
+      "frontchannelLogout": true,
+      "fullScopeAllowed": false,
+      "rootUrl": "http://localhost:5173",
+      "baseUrl": "/",
+      "redirectUris": ["http://localhost:5173/auth/callback", "http://localhost:5173/auth/silent"],
+      "webOrigins": ["http://localhost:5173"],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "http://localhost:5173/##http://localhost:5173/signed-out",
+        "oauth2.device.authorization.grant.enabled": "false",
+        "oidc.ciba.grant.enabled": "false"
+      },
+      "defaultClientScopes": ["web-origins", "acr", "basic", "profile", "email"],
+      "optionalClientScopes": [],
+      "protocolMappers": [
+        {
+          "name": "tenant_id", "protocol": "openid-connect", "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "config": { "user.attribute": "tenant_id", "claim.name": "tenant_id", "jsonType.label": "String",
+                      "access.token.claim": "true", "id.token.claim": "true", "userinfo.token.claim": "true", "introspection.token.claim": "true" }
+        },
+        {
+          "name": "app_user_id", "protocol": "openid-connect", "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "config": { "user.attribute": "app_user_id", "claim.name": "app_user_id", "jsonType.label": "String",
+                      "access.token.claim": "true", "id.token.claim": "true", "userinfo.token.claim": "true", "introspection.token.claim": "true" }
+        },
+        {
+          "name": "pixorex-api-audience", "protocol": "openid-connect", "protocolMapper": "oidc-audience-mapper",
+          "config": { "included.custom.audience": "pixorex-api",
+                      "access.token.claim": "true", "id.token.claim": "false", "introspection.token.claim": "true" }
+        }
+      ]
+    },
+    {
+      "clientId": "pixorex-mobile",
+      "name": "Pixorex mobile app",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "implicitFlowEnabled": false,
+      "serviceAccountsEnabled": false,
+      "frontchannelLogout": false,
+      "fullScopeAllowed": false,
+      "redirectUris": ["com.pixorex.mobile:/oauth2redirect"],
+      "webOrigins": [],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "com.pixorex.mobile:/logout",
+        "oauth2.device.authorization.grant.enabled": "false",
+        "oidc.ciba.grant.enabled": "false"
+      },
+      "defaultClientScopes": ["acr", "basic", "profile", "email"],
+      "optionalClientScopes": ["offline_access"],
+      "protocolMappers": [
+        {
+          "name": "tenant_id", "protocol": "openid-connect", "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "config": { "user.attribute": "tenant_id", "claim.name": "tenant_id", "jsonType.label": "String",
+                      "access.token.claim": "true", "id.token.claim": "true", "userinfo.token.claim": "true", "introspection.token.claim": "true" }
+        },
+        {
+          "name": "app_user_id", "protocol": "openid-connect", "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "config": { "user.attribute": "app_user_id", "claim.name": "app_user_id", "jsonType.label": "String",
+                      "access.token.claim": "true", "id.token.claim": "true", "userinfo.token.claim": "true", "introspection.token.claim": "true" }
+        },
+        {
+          "name": "phone_verified", "protocol": "openid-connect", "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "config": { "user.attribute": "phone_verified", "claim.name": "phone_verified", "jsonType.label": "boolean",
+                      "access.token.claim": "true", "id.token.claim": "false", "userinfo.token.claim": "false", "introspection.token.claim": "true" }
+        },
+        {
+          "name": "pixorex-api-audience", "protocol": "openid-connect", "protocolMapper": "oidc-audience-mapper",
+          "config": { "included.custom.audience": "pixorex-api",
+                      "access.token.claim": "true", "id.token.claim": "false", "introspection.token.claim": "true" }
+        }
+      ]
+    },
+    {
+      "clientId": "pixorex-api-admin",
+      "name": "Pixorex API (Keycloak admin access)",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "clientAuthenticatorType": "client-secret",
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "implicitFlowEnabled": false,
+      "serviceAccountsEnabled": true,
+      "attributes": {
+        "oauth2.device.authorization.grant.enabled": "false",
+        "oidc.ciba.grant.enabled": "false"
+      },
+      "defaultClientScopes": ["basic"],
+      "optionalClientScopes": []
+    }
+  ],
+
+  "authenticationFlows": [
+    {
+      "alias": "pixorex-browser",
+      "description": "Pixorex one-time-code sign-in for pixorex-web and pixorex-mobile. Channel and identifier rules follow the client.",
+      "providerId": "basic-flow",
+      "topLevel": true,
+      "builtIn": false,
+      "authenticationExecutions": [
+        { "flowAlias": "pixorex-browser-authenticate", "requirement": "REQUIRED", "priority": 10, "authenticatorFlow": true, "autheticatorFlow": true, "userSetupAllowed": false },
+        { "authenticator": "pixorex-app-gate", "requirement": "REQUIRED", "priority": 20, "authenticatorFlow": false, "autheticatorFlow": false, "userSetupAllowed": false }
+      ]
+    },
+    {
+      "alias": "pixorex-browser-authenticate",
+      "description": "Existing SSO session, or a new code sign-in",
+      "providerId": "basic-flow",
+      "topLevel": false,
+      "builtIn": false,
+      "authenticationExecutions": [
+        { "authenticator": "auth-cookie", "requirement": "ALTERNATIVE", "priority": 10, "authenticatorFlow": false, "autheticatorFlow": false, "userSetupAllowed": false },
+        { "flowAlias": "pixorex-browser-code", "requirement": "ALTERNATIVE", "priority": 20, "authenticatorFlow": true, "autheticatorFlow": true, "userSetupAllowed": false }
+      ]
+    },
+    {
+      "alias": "pixorex-browser-code",
+      "description": "Identifier, app gate, lock check, channel, code",
+      "providerId": "basic-flow",
+      "topLevel": false,
+      "builtIn": false,
+      "authenticationExecutions": [
+        { "authenticator": "pixorex-identifier", "requirement": "REQUIRED", "priority": 10, "authenticatorFlow": false, "autheticatorFlow": false, "userSetupAllowed": false },
+        { "authenticator": "pixorex-app-gate", "requirement": "REQUIRED", "priority": 20, "authenticatorFlow": false, "autheticatorFlow": false, "userSetupAllowed": false },
+        { "authenticator": "pixorex-lock-check", "requirement": "REQUIRED", "priority": 30, "authenticatorFlow": false, "autheticatorFlow": false, "userSetupAllowed": false },
+        { "authenticator": "pixorex-channel", "requirement": "REQUIRED", "priority": 40, "authenticatorFlow": false, "autheticatorFlow": false, "userSetupAllowed": false },
+        { "authenticator": "pixorex-otp", "requirement": "REQUIRED", "priority": 50, "authenticatorFlow": false, "autheticatorFlow": false, "userSetupAllowed": false }
+      ]
+    }
+  ],
+
+  "users": [
+    {
+      "username": "service-account-pixorex-api-admin",
+      "enabled": true,
+      "serviceAccountClientId": "pixorex-api-admin",
+      "clientRoles": { "realm-management": ["manage-users", "view-users", "query-users"] }
+    }
+  ],
+
+  "components": {
+    "org.keycloak.userprofile.UserProfileProvider": [
+      {
+        "providerId": "declarative-user-profile",
+        "subComponents": {},
+        "config": {
+          "kc.user.profile.config": [
+            "{\"attributes\":[{\"name\":\"username\",\"displayName\":\"${username}\",\"validations\":{\"length\":{\"min\":3,\"max\":255},\"username-prohibited-characters\":{},\"up-username-not-idn-homograph\":{}},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"email\",\"displayName\":\"${email}\",\"validations\":{\"email\":{},\"length\":{\"max\":255}},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"firstName\",\"displayName\":\"${firstName}\",\"validations\":{\"length\":{\"max\":255},\"person-name-prohibited-characters\":{}},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"lastName\",\"displayName\":\"${lastName}\",\"validations\":{\"length\":{\"max\":255},\"person-name-prohibited-characters\":{}},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"app_user_id\",\"displayName\":\"App user id\",\"group\":\"pixorex\",\"validations\":{\"length\":{\"max\":36}},\"permissions\":{\"view\":[\"admin\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"tenant_id\",\"displayName\":\"Tenant id\",\"group\":\"pixorex\",\"validations\":{\"length\":{\"max\":36}},\"permissions\":{\"view\":[\"admin\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"phone_number\",\"displayName\":\"Phone number (E.164)\",\"group\":\"pixorex\",\"validations\":{\"pattern\":{\"pattern\":\"^[+][1-9][0-9]{7,14}$\",\"error-message\":\"invalidPhoneNumber\"}},\"permissions\":{\"view\":[\"admin\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"phone_verified\",\"displayName\":\"Phone verified\",\"group\":\"pixorex\",\"validations\":{\"options\":{\"options\":[\"true\",\"false\"]}},\"permissions\":{\"view\":[\"admin\"],\"edit\":[\"admin\"]},\"multivalued\":false}],\"groups\":[{\"name\":\"user-metadata\",\"displayHeader\":\"User metadata\",\"displayDescription\":\"Attributes, which refer to user metadata\"},{\"name\":\"pixorex\",\"displayHeader\":\"Pixorex\",\"displayDescription\":\"Set by the Pixorex API and the Pixorex sign-in plugin only\"}]}"
+          ]
+        }
+      }
+    ]
+  }
+}

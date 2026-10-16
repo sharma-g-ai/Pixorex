@@ -7,13 +7,16 @@ name: pixorex
 
 services:
   postgres:
-    image: postgres:16
+    # Baseline migrations use uuidv7() (PostgreSQL 18+). See api/migrations/baseline/README.md.
+    image: postgres:18
     environment:
       POSTGRES_DB: pixorex
       POSTGRES_USER: ${PG_OWNER_USER:-pixorex_owner}
       POSTGRES_PASSWORD: ${PG_OWNER_PASSWORD:-local-only}
-    ports: ["5432:5432"]
-    volumes: [pgdata:/var/lib/postgresql/data]
+    # Host 5433 avoids clashing with a local Postgres already on 5432.
+    ports: ["5433:5432"]
+    # Postgres 18+ images expect the volume at /var/lib/postgresql (not .../data).
+    volumes: [pgdata:/var/lib/postgresql]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${PG_OWNER_USER:-pixorex_owner} -d pixorex"]
       interval: 5s
@@ -32,22 +35,49 @@ services:
       retries: 20
 
   keycloak:
-    image: quay.io/keycloak/keycloak:24.0
+    image: quay.io/keycloak/keycloak:26.8.1
     command: ["start-dev", "--import-realm"]
     environment:
       KC_DB: postgres
       KC_DB_URL: jdbc:postgresql://keycloak-db:5432/keycloak
       KC_DB_USERNAME: keycloak
       KC_DB_PASSWORD: ${KC_DB_PASSWORD:-local-only}
-      KEYCLOAK_ADMIN: ${KC_ADMIN_USER:-admin}
-      KEYCLOAK_ADMIN_PASSWORD: ${KC_ADMIN_PASSWORD:-local-only}
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KC_ADMIN_USER:-admin}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KC_ADMIN_PASSWORD:-local-only}
       KC_HEALTH_ENABLED: "true"
-    ports: ["8080:8080"]
+      KC_METRICS_ENABLED: "true"
+      KC_HOSTNAME: ${KC_HOSTNAME:-http://localhost:8080}   # set to http://<laptop-LAN-IP>:8080 in .env for phone testing
+      KC_LOG_LEVEL: ${KC_LOG_LEVEL:-info,com.amzur.pixorex:debug}
+      # SMS for one-time codes (PX-01-T03): mailpit (local inbox), log (CI) or amzur (real gateway, values from .env / Vault)
+      KC_SPI_PIXOREX_SMS__PROVIDER: ${KC_SMS_PROVIDER:-mailpit}
+      KC_SPI_PIXOREX_SMS__AMZUR__URL: ${PIXOREX_SMS_URL:-}
+      KC_SPI_PIXOREX_SMS__AMZUR__AUTH_HEADER: ${PIXOREX_SMS_AUTH_HEADER:-}
+      KC_SPI_PIXOREX_SMS__AMZUR__AUTH_VALUE: ${PIXOREX_SMS_AUTH_VALUE:-}
+      KC_SPI_PIXOREX_SMS__AMZUR__SENDER: ${PIXOREX_SMS_SENDER:-}
+      KC_SPI_PIXOREX_SMS__AMZUR__FORMAT: ${PIXOREX_SMS_FORMAT:-}
+      KC_SPI_PIXOREX_SMS__AMZUR__BODY_TEMPLATE: ${PIXOREX_SMS_BODY_TEMPLATE:-}
+      # Audit events (PX-01-T04): the mock event-sink locally, the API's internal endpoint once it exists
+      KC_SPI_EVENTS_LISTENER__PIXOREX_AUDIT__ENDPOINT: ${PIXOREX_AUDIT_ENDPOINT:-http://event-sink:8888/internal/keycloak-events}
+      KC_SPI_EVENTS_LISTENER__PIXOREX_AUDIT__SECRET: ${PIXOREX_AUDIT_SECRET:-local-only-audit-secret}
+    ports:                                                 # override in .env if 8080/9100 are taken locally
+      - "${KC_HTTP_PORT:-8080}:8080"
+      - "${KC_MGMT_PORT:-9100}:9000"                       # management port (health, metrics); 9000 on the host belongs to minio
     volumes:
-      - ./keycloak/realm:/opt/keycloak/data/import:ro      # realm-pixorex.json lands here (PX-01-T01)
-      - ./keycloak/themes:/opt/keycloak/themes/pixorex:ro  # login theme (PX-01-T10)
+      - ./keycloak/realm:/opt/keycloak/data/import:ro              # realm-pixorex.json (PX-01-T01)
+      - ./keycloak/themes/pixorex:/opt/keycloak/themes/pixorex:ro  # login theme (PX-01-T10)
+      - ./keycloak/providers:/opt/keycloak/providers:ro            # SPI jar built by keycloak/scripts/kc.ps1 build
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/9000 && printf 'GET /health/ready HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && grep -q UP <&3"]
+      interval: 10s
+      retries: 30
     depends_on:
       keycloak-db: { condition: service_healthy }
+      mailpit: { condition: service_started }
+
+  event-sink:                            # LOCAL ONLY: prints the audit events Keycloak posts (docker compose logs event-sink)
+    image: mendhak/http-https-echo:latest
+    environment: { HTTP_PORT: "8888", LOG_IGNORE_PATH: "/health" }
+    ports: ["8888:8888"]
 
   minio:
     image: minio/minio:latest
@@ -73,6 +103,26 @@ services:
   mailpit:
     image: axllent/mailpit:latest
     ports: ["1025:1025", "8025:8025"]   # SMTP, web inbox at http://localhost:8025
+
+  api:
+    build: ./api
+    environment:
+      DATABASE_URL: postgresql://pixorex_app:${PG_OWNER_PASSWORD:-local-only}@postgres:5432/pixorex
+      DATABASE_OWNER_URL: postgresql://pixorex_owner:${PG_OWNER_PASSWORD:-local-only}@postgres:5432/pixorex
+      # Inside the network Keycloak is reachable as keycloak:8080; tokens still carry the public issuer.
+      KC_ISSUER: http://keycloak:8080/realms/pixorex
+      KC_PUBLIC_ISSUER: ${KC_HOSTNAME:-http://localhost:8080}/realms/pixorex
+      KC_API_ADMIN_CLIENT_ID: ${KC_API_ADMIN_CLIENT_ID:-pixorex-api-admin}
+      KC_API_ADMIN_SECRET: ${KC_API_ADMIN_SECRET:-}
+      INVITE_APP_BASE_URL: ${INVITE_APP_BASE_URL:-http://localhost:5173}
+      SMTP_HOST: mailpit
+      SMTP_PORT: "1025"
+      CORS_ORIGINS: http://localhost:5173
+    ports: ["8000:8000"]
+    depends_on:
+      postgres: { condition: service_healthy }
+      keycloak: { condition: service_healthy }
+      mailpit: { condition: service_started }
 
 volumes:
   pgdata:

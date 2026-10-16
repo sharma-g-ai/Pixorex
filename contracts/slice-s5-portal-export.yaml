@@ -1,0 +1,209 @@
+openapi: 3.1.0
+info:
+  title: Pixorex V1 API - Slice S5, export and portal
+  version: 0.3.1
+  contact:
+    name: Pixorex backend team (Amzur)
+  summary: CSV export of scans and the audit log. Client Portal is an open decision.
+  description: 'Release Plan v2, Sprint 5 outcome: "All surfaces integrated. Client Portal live. CSV export working
+    with DLP. System ready for E2E gate."
+
+
+    Data model: V3 export_job.
+
+
+    Rules:
+
+    - Up to 1,000 rows: the file comes back at once. Over 1,000: background job, export_ready alert, link valid
+    1 hour.
+
+    - Every export writes an audit_log row (export).
+
+    - Client Portal (approved records, portal-only hidden fields, magic link + SAML) is not in V3 or the screens:
+    OPEN O-6. The Release Plan also says the portal reads the database directly, bypassing the API.
+
+    - User provisioning (invite, remove) is in Slice S2. Role change is OPEN O-16.'
+servers:
+- url: /api/v1
+security:
+- keycloakBearer: []
+tags:
+- name: Exports
+paths:
+  /exports:
+    post:
+      tags:
+      - Exports
+      operationId: createExport
+      summary: Export scans or the audit log to CSV
+      description: 'Contract ref 4.1 in the API Contracts doc.
+
+
+        bu_admin: scans of their unit. enterprise_admin: scans and audit_log. Saved in filters_json and options_json.
+        Audit (export). Screens EA 21, 23; BU 12.'
+      x-roles: &id001
+      - bu_admin
+      - enterprise_admin
+      x-brd:
+      - US-039
+      - US-057
+      x-sprint: S5
+      x-decision-pending: 'O-14: DLP scan before the file or link is given (V3 export_job has no DLP result).'
+      parameters:
+      - $ref: ./common.yaml#/components/parameters/IdempotencyKey
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExportInput'
+      responses:
+        '200':
+          description: 'Up to 1,000 rows: the CSV file'
+          content:
+            text/csv:
+              schema:
+                type: string
+        '202':
+          description: 'Over 1,000 rows: queued; export_ready alert when done'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExportJob'
+        '400':
+          $ref: ./common.yaml#/components/responses/BadRequest
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '403':
+          $ref: ./common.yaml#/components/responses/Forbidden
+  /exports/{exportId}:
+    get:
+      tags:
+      - Exports
+      operationId: getExport
+      summary: Export status and download link
+      description: 'Contract ref 4.2 in the API Contracts doc.
+
+
+        Requester only. Screens EA 21, 23; BU 12.'
+      x-roles: *id001
+      x-brd:
+      - US-039
+      x-sprint: S5
+      parameters:
+      - $ref: '#/components/parameters/ExportId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExportJob'
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '403':
+          $ref: ./common.yaml#/components/responses/Forbidden
+        '404':
+          $ref: ./common.yaml#/components/responses/NotFound
+        '409':
+          description: 'Link older than 1 hour. Problem types: /problems/link-expired.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./common.yaml#/components/schemas/Problem
+components:
+  securitySchemes:
+    keycloakBearer:
+      $ref: ./common.yaml#/components/securitySchemes/keycloakBearer
+  parameters:
+    ExportId:
+      name: exportId
+      in: path
+      required: true
+      schema:
+        $ref: ./common.yaml#/components/schemas/Uuid
+  schemas:
+    ExportInput:
+      type: object
+      properties:
+        export_kind:
+          type: string
+          enum:
+          - scans
+          - audit_log
+        filters:
+          $ref: '#/components/schemas/ExportFilters'
+        options:
+          $ref: '#/components/schemas/ExportOptions'
+      required:
+      - export_kind
+    ExportFilters:
+      type: object
+      properties:
+        bu_id:
+          $ref: ./common.yaml#/components/schemas/Uuid
+        review_status:
+          type: string
+        equipment_type_id:
+          $ref: ./common.yaml#/components/schemas/Uuid
+        from:
+          type: string
+          format: date
+        to:
+          type: string
+          format: date
+        category:
+          type: string
+          description: audit_log only
+    ExportOptions:
+      type: object
+      properties:
+        columns:
+          type: array
+          description: 'Scans exports only (audit exports ignore it). Always included: record_no, unit,
+            location, equipment type, captured by, captured at, review status. field_values adds one column
+            per field (value sent for approval); ai_vs_technician adds the AI value and confidence next to
+            each; review_decision adds decision, reject category, decided by and decided at.'
+          items:
+            type: string
+            enum:
+            - field_values
+            - ai_vs_technician
+            - review_decision
+        include_photo_links:
+          type: boolean
+    ExportJob:
+      type: object
+      properties:
+        export_id:
+          $ref: ./common.yaml#/components/schemas/Uuid
+        export_kind:
+          type: string
+          enum:
+          - scans
+          - audit_log
+        status:
+          type: string
+          enum:
+          - queued
+          - ready
+          - failed
+        row_count:
+          type:
+          - integer
+          - 'null'
+        download_url:
+          type:
+          - string
+          - 'null'
+          format: uri
+          description: Valid 1 hour
+        link_expires_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+      required:
+      - export_id
+      - export_kind
+      - status

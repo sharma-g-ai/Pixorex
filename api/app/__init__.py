@@ -1,0 +1,1 @@
+"""Pixorex API (FastAPI)."""

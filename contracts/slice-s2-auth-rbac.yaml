@@ -1,0 +1,1169 @@
+openapi: 3.1.0
+info:
+  title: Pixorex V1 API - Slice S2, Auth and RBAC
+  version: 0.3.1
+  contact:
+    name: Pixorex backend team (Amzur)
+  summary: Signed-in user, unit switching, phone change, invites, business units, BU Admins and technicians.
+  description: 'Release Plan v2, Sprint 2 outcome: "Users can log in on all surfaces. RBAC enforced end-to-end.
+    BU context switching works. Dashboard shell navigable."
+
+
+    Login itself (one-time codes by text or email, lockout after 5 wrong codes for 30 minutes) is done by the apps
+    directly with Keycloak (manager decision, option 1) and is not part of this API. After login, clients call GET
+    /me.
+
+
+    Data model: V3 Domain 1 (tenant, business_unit, business_process, app_user, user_unit_role, invite, user_session).'
+servers:
+- url: /api/v1
+security:
+- keycloakBearer: []
+tags:
+- name: Session
+- name: Invites
+- name: Business units
+- name: BU Admins
+- name: Technicians
+paths:
+  /me:
+    get:
+      tags:
+      - Session
+      operationId: getMe
+      summary: Signed-in user, tenant name, units and roles
+      description: 'Contract ref 1.1 in the API Contracts doc.
+
+
+        Sets app_user.last_active_at. Screens T 13-15, BU 03, EA 03.'
+      x-roles: &id001
+      - field_technician
+      - bu_admin
+      - enterprise_admin
+      x-brd:
+      - US-001
+      - US-002
+      - US-004
+      - US-027
+      x-sprint: S2
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Me'
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '403':
+          $ref: ./common.yaml#/components/responses/Forbidden
+  /me/active-unit:
+    put:
+      tags:
+      - Session
+      operationId: setActiveUnit
+      summary: Switch the active unit (no new sign-in)
+      description: 'Contract ref 1.2 in the API Contracts doc.
+
+
+        Caller must hold an active role in bu_id (403). Updates user_session.active_bu_id for this device and app_user.last_bu_id.
+        Device is identified by the X-Device-Id header. Screens T 19-20, 28; BU 28-30.'
+      x-roles: *id001
+      x-brd:
+      - US-004
+      - US-030
+      x-sprint: S2
+      x-decision-pending: 'O-11: Release Plan puts the active unit in the token; V3 keeps it in user_session.'
+      parameters:
+      - name: X-Device-Id
+        in: header
+        required: true
+        schema:
+          type: string
+        description: Stable ID of this device/browser (user_session.device_id).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                bu_id:
+                  $ref: ./common.yaml#/components/schemas/Uuid
+              required:
+              - bu_id
+      responses:
+        '200':
+          description: Unit switched
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Me'
+        '400':
+          $ref: ./common.yaml#/components/responses/BadRequest
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '403':
+          $ref: ./common.yaml#/components/responses/Forbidden
+  /me/sign-out:
+    post:
+      tags:
+      - Session
+      operationId: signOut
+      summary: Revoke this device session
+      description: 'Contract ref 1.3 in the API Contracts doc.
+
+
+        Sets user_session.revoked_at. The app also ends the Keycloak session. Audit (sign_in). Screen T 29.'
+      x-roles: *id001
+      x-brd:
+      - none
+      x-brd-note: No BRD story found in the earlier contract mapping; feature comes from V3 data model + 13 Oct
+        screens. Confirm the story ID.
+      x-sprint: S2
+      parameters:
+      - name: X-Device-Id
+        in: header
+        required: true
+        schema:
+          type: string
+      responses:
+        '204':
+          description: Signed out
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '403':
+          $ref: ./common.yaml#/components/responses/Forbidden
+  /me/phone-change:
+    post:
+      tags:
+      - Session
+      operationId: startPhoneChange
+      summary: Start a mobile number change
+      deprecated: true
+      description: 'Contract ref 1.4 in the API Contracts doc.
+
+
+        Deprecated by D-08: phone change is a Keycloak application-initiated action and Keycloak sends and checks
+        the code. Kept until the mobile team confirms removal. Screen T 16.'
+      x-roles: &id002
+      - field_technician
+      x-brd:
+      - none
+      x-brd-note: No BRD story found in the earlier contract mapping; feature comes from V3 data model + 13 Oct
+        screens. Confirm the story ID.
+      x-sprint: S2
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                new_phone_number:
+                  type: string
+                  description: E.164
+              required:
+              - new_phone_number
+      responses:
+        '202':
+          description: Code sent to the new number
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  expires_at:
+                    $ref: ./common.yaml#/components/schemas/Timestamp
+                required:
+                - expires_at
+        '400':
+          $ref: ./common.yaml#/components/responses/BadRequest
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '403':
+          $ref: ./common.yaml#/components/responses/Forbidden
+        '409':
+          description: 'Number already used by another user. Problem types: /problems/phone-in-use.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./common.yaml#/components/schemas/Problem
+  /me/phone-change/verify:
+    post:
+      tags:
+      - Session
+      operationId: verifyPhoneChange
+      summary: Verify the new mobile number
+      deprecated: true
+      description: 'Contract ref 1.5 in the API Contracts doc.
+
+
+        Deprecated by D-08: Keycloak checks the code; the API applies these effects from the Keycloak event listener.
+        Saves phone_number and phone_verified_at, revokes every other user_session of the user, emails the user.
+        Audit (users). Screens T 17-18.'
+      x-roles: *id002
+      x-brd:
+      - none
+      x-brd-note: No BRD story found in the earlier contract mapping; feature comes from V3 data model + 13 Oct
+        screens. Confirm the story ID.
+      x-sprint: S2
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                code:
+                  type: string
+              required:
+              - code
+      responses:
+        '200':
+          description: Number changed; other devices signed out
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Me'
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '403':
+          $ref: ./common.yaml#/components/responses/Forbidden
+        '409':
+          description: 'Wrong code, expired code, or phone changes locked for 30 minutes after 5 wrong codes. Problem
+            types: /problems/code-invalid, /problems/phone-change-locked.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./common.yaml#/components/schemas/Problem
+  /invites/preview:
+    post:
+      tags:
+      - Invites
+      operationId: previewInvite
+      summary: Read an invite before accepting (token in body, no auth)
+      description: 'Contract ref 1.6 in the API Contracts doc.
+
+
+        The web link carries the token in the URL fragment (/activate#token=...), so it never reaches a server
+        log (D-11). Screens T 03-04, BU 01.'
+      x-roles:
+      - public
+      x-brd:
+      - US-049
+      x-sprint: S2
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                token:
+                  type: string
+                  description: Token from the link. Only its hash is stored.
+              required:
+              - token
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvitePreview'
+        '400':
+          $ref: ./common.yaml#/components/responses/BadRequest
+        '409':
+          description: 'Invite link no longer valid. Problem types: /problems/invite-expired, /problems/invite-used,
+            /problems/invite-cancelled.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./common.yaml#/components/schemas/Problem
+  /invites/accept:
+    post:
+      tags:
+      - Invites
+      operationId: acceptInvite
+      summary: Accept an invite (no auth)
+      description: 'Contract ref 1.7 in the API Contracts doc.
+
+
+        Single use. Creates or re-activates app_user and one user_unit_role per invite row with the same hash. Also
+        accepts every other pending invite for the same email and role in the tenant; the primary unit is the oldest
+        invite''s unit (D-09). Creates the Keycloak user with the email or phone not yet verified; Keycloak sends and
+        checks the code at the first sign-in, then the account becomes active (D-08). Technicians never get dashboard
+        access. Audit (users). Screens T 03, 05; BU 01, 33.'
+      x-roles:
+      - public
+      x-brd:
+      - US-049
+      x-sprint: S2
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                token:
+                  type: string
+                full_name:
+                  type: string
+                phone_number:
+                  type:
+                  - string
+                  - 'null'
+                  description: Required for technicians (E.164).
+              required:
+              - token
+              - full_name
+      responses:
+        '201':
+          description: Accepted. The client starts sign-in with the invited email or phone as login_hint; Keycloak
+            sends and checks the code (D-08).
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user_id:
+                    $ref: ./common.yaml#/components/schemas/Uuid
+                  next_step:
+                    type: string
+                    enum:
+                    - verify_phone
+                    - verify_email
+                required:
+                - user_id
+                - next_step
+        '400':
+          $ref: ./common.yaml#/components/responses/BadRequest
+        '409':
+          description: 'Invite link no longer valid, or phone number already used. Problem types: /problems/invite-expired,
+            /problems/invite-used, /problems/invite-cancelled, /problems/phone-in-use.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./common.yaml#/components/schemas/Problem
+  /invites:
+    post:
+      tags:
+      - Invites
+      operationId: createInvite
+      summary: Send a magic-link invite (24 h)
+      description: 'Contract ref 1.8 in the API Contracts doc.
+
+
+        One invite row per unit with the same token_hash; expires_at = now + 24 h. bu_admin may invite field_technician
+        to units they run; enterprise_admin may invite bu_admin to units with no BU Admin. Audit (users). Screens
+        BU 26, EA 14.'
+      x-roles: &id003
+      - bu_admin
+      - enterprise_admin
+      x-brd:
+      - US-036
+      - US-049
+      x-sprint: S2
+      parameters:
+      - &id006
+        $ref: ./common.yaml#/components/parameters/IdempotencyKey
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                role:
+                  $ref: '#/components/schemas/Role'
+                email:
+                  type: string
+                  format: email
+                bu_ids:
+                  type: array
+                  items:
+                    $ref: ./common.yaml#/components/schemas/Uuid
+              required:
+              - role
+              - email
+              - bu_ids
+      responses:
+        '201':
+          description: Invite rows created; email sent by the outbox worker
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  invite_ids:
+                    type: array
+                    items:
+                      $ref: ./common.yaml#/components/schemas/Uuid
+                  expires_at:
+                    $ref: ./common.yaml#/components/schemas/Timestamp
+                required:
+                - invite_ids
+                - expires_at
+        '400':
+          $ref: ./common.yaml#/components/responses/BadRequest
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '403':
+          $ref: ./common.yaml#/components/responses/Forbidden
+        '409':
+          description: 'A chosen unit already has a BU Admin. Problem types: /problems/unit-has-bu-admin.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./common.yaml#/components/schemas/Problem
+    get:
+      tags:
+      - Invites
+      operationId: listInvites
+      summary: Invites for the caller's units
+      description: 'Contract ref 1.9 in the API Contracts doc.
+
+
+        bu_admin sees technician invites of their units; enterprise_admin sees BU Admin invites. Screens BU 25,
+        EA 13.'
+      x-roles: *id003
+      x-brd:
+      - US-036
+      - US-049
+      x-sprint: S2
+      parameters:
+      - name: status
+        in: query
+        required: false
+        schema:
+          $ref: '#/components/schemas/InviteStatus'
+      - name: bu_id
+        in: query
+        required: false
+        schema:
+          $ref: ./common.yaml#/components/schemas/Uuid
+      - &id004
+        $ref: ./common.yaml#/components/parameters/Cursor
+      - &id005
+        $ref: ./common.yaml#/components/parameters/Limit
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                - page
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Invite'
+                  page:
+                    $ref: ./common.yaml#/components/schemas/PageInfo
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '403':
+          $ref: ./common.yaml#/components/responses/Forbidden
+  /invites/{inviteId}/resend:
+    post:
+      tags:
+      - Invites
+      operationId: resendInvite
+      summary: New token and new 24 h for a pending or expired invite
+      description: 'Contract ref 1.10 in the API Contracts doc.
+
+
+        The old link stops working. Audit (users). Screens BU 25, EA 13.'
+      x-roles: *id003
+      x-brd:
+      - US-049
+      x-sprint: S2
+      parameters:
+      - $ref: '#/components/parameters/InviteId'
+      responses:
+        '200':
+          description: Resent
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  expires_at:
+                    $ref: ./common.yaml#/components/schemas/Timestamp
+                required:
+                - expires_at
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '403':
+          $ref: ./common.yaml#/components/responses/Forbidden
+        '404':
+          $ref: ./common.yaml#/components/responses/NotFound
+        '409':
+          description: 'Invite already accepted or cancelled. Problem types: /problems/invalid-state.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./common.yaml#/components/schemas/Problem
+  /invites/{inviteId}/cancel:
+    post:
+      tags:
+      - Invites
+      operationId: cancelInvite
+      summary: Cancel a pending invite, or remove an expired one
+      description: 'Contract ref 1.11 in the API Contracts doc.
+
+
+        Status becomes cancelled. Audit (users). Screens BU 25, EA 13.'
+      x-roles: *id003
+      x-brd:
+      - US-049
+      x-sprint: S2
+      parameters:
+      - $ref: '#/components/parameters/InviteId'
+      responses:
+        '204':
+          description: Cancelled
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '403':
+          $ref: ./common.yaml#/components/responses/Forbidden
+        '404':
+          $ref: ./common.yaml#/components/responses/NotFound
+        '409':
+          description: 'Invite already accepted. Problem types: /problems/invalid-state.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./common.yaml#/components/schemas/Problem
+  /business-units:
+    get:
+      tags:
+      - Business units
+      operationId: listBusinessUnits
+      summary: Units (all for EA; own for BU Admin)
+      description: 'Contract ref 1.12 in the API Contracts doc.
+
+
+        Screens EA 03, 10; BU 28.'
+      x-roles: *id003
+      x-brd:
+      - US-024
+      - US-030
+      x-sprint: S2
+      parameters:
+      - name: no_bu_admin
+        in: query
+        required: false
+        schema:
+          type: boolean
+      - *id004
+      - *id005
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                - page
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/BusinessUnit'
+                  page:
+                    $ref: ./common.yaml#/components/schemas/PageInfo
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '403':
+          $ref: ./common.yaml#/components/responses/Forbidden
+    post:
+      tags:
+      - Business units
+      operationId: createBusinessUnit
+      summary: Create a unit with its BU Admin
+      description: 'Contract ref 1.13 in the API Contracts doc.
+
+
+        Creates business_unit, its default business_process (is_default = true) and its location_hierarchy_version
+        (not_published). invite_email runs createInvite. Audit (users). Screen EA 11.'
+      x-roles: &id007
+      - enterprise_admin
+      x-brd:
+      - US-024
+      x-sprint: S2
+      parameters:
+      - *id006
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - name
+              - facility_name
+              - bu_admin
+              properties:
+                name:
+                  type: string
+                facility_name:
+                  type: string
+                  description: Top location level name.
+                bu_admin:
+                  oneOf:
+                  - type: object
+                    properties:
+                      invite_email:
+                        type: string
+                        format: email
+                    required:
+                    - invite_email
+                  - type: object
+                    properties:
+                      user_id:
+                        $ref: ./common.yaml#/components/schemas/Uuid
+                    required:
+                    - user_id
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessUnit'
+        '400':
+          $ref: ./common.yaml#/components/responses/BadRequest
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '403':
+          $ref: ./common.yaml#/components/responses/Forbidden
+        '409':
+          description: 'Unit name already used, or user_id is not an existing BU Admin. Problem types: /problems/duplicate-name,
+            /problems/not-a-bu-admin.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./common.yaml#/components/schemas/Problem
+  /business-units/{buId}:
+    get:
+      tags:
+      - Business units
+      operationId: getBusinessUnit
+      summary: Unit page
+      description: 'Contract ref 1.14 in the API Contracts doc.
+
+
+        Screens EA 25-28, 67.'
+      x-roles: *id007
+      x-brd:
+      - US-024
+      x-sprint: S2
+      parameters:
+      - &id008
+        $ref: ./common.yaml#/components/parameters/BuId
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessUnit'
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '403':
+          $ref: ./common.yaml#/components/responses/Forbidden
+        '404':
+          $ref: ./common.yaml#/components/responses/NotFound
+  /bu-admins:
+    get:
+      tags:
+      - BU Admins
+      operationId: listBuAdmins
+      summary: BU Admins and their units
+      description: 'Contract ref 1.15 in the API Contracts doc.
+
+
+        Pending BU Admin invites come from listInvites. Screen EA 13.'
+      x-roles: *id007
+      x-brd:
+      - US-036
+      x-sprint: S2
+      parameters:
+      - *id004
+      - *id005
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                - page
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/BuAdmin'
+                  page:
+                    $ref: ./common.yaml#/components/schemas/PageInfo
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '403':
+          $ref: ./common.yaml#/components/responses/Forbidden
+  /bu-admins/{userId}/business-units:
+    put:
+      tags:
+      - BU Admins
+      operationId: setBuAdminUnits
+      summary: Set a BU Admin's units
+      description: 'Contract ref 1.16 in the API Contracts doc.
+
+
+        Adding a unit that has a pending BU Admin invite cancels that invite. Sets business_unit.bu_admin_user_id.
+        Removing units follows removeBuAdmin rules. Audit (users). Screen EA 15.'
+      x-roles: *id007
+      x-brd:
+      - US-027
+      - US-036
+      x-sprint: S2
+      parameters:
+      - $ref: '#/components/parameters/UserId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                bu_ids:
+                  type: array
+                  items:
+                    $ref: ./common.yaml#/components/schemas/Uuid
+              required:
+              - bu_ids
+      responses:
+        '200':
+          description: Saved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BuAdmin'
+        '400':
+          $ref: ./common.yaml#/components/responses/BadRequest
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '403':
+          $ref: ./common.yaml#/components/responses/Forbidden
+        '404':
+          $ref: ./common.yaml#/components/responses/NotFound
+        '409':
+          description: 'A unit is run by another BU Admin. Problem types: /problems/unit-has-bu-admin.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./common.yaml#/components/schemas/Problem
+  /bu-admins/{userId}/remove:
+    post:
+      tags:
+      - BU Admins
+      operationId: removeBuAdmin
+      summary: Remove a BU Admin from one or more units
+      description: 'Contract ref 1.17 in the API Contracts doc.
+
+
+        Sets user_unit_role.removed_at; those units get bu_admin_user_id = null ("No BU Admin"). Account and history
+        kept. All units removed: every session revoked at once. replacement_invite_email runs createInvite for those
+        units. Audit (users). Screens EA 16-18, 70-73.'
+      x-roles: *id007
+      x-brd:
+      - US-027
+      - US-036
+      - US-051
+      x-sprint: S2
+      parameters:
+      - $ref: '#/components/parameters/UserId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                bu_ids:
+                  type: array
+                  items:
+                    $ref: ./common.yaml#/components/schemas/Uuid
+                replacement_invite_email:
+                  type: string
+                  format: email
+              required:
+              - bu_ids
+      responses:
+        '204':
+          description: Removed
+        '400':
+          $ref: ./common.yaml#/components/responses/BadRequest
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '403':
+          $ref: ./common.yaml#/components/responses/Forbidden
+        '404':
+          $ref: ./common.yaml#/components/responses/NotFound
+  /business-units/{buId}/technicians:
+    get:
+      tags:
+      - Technicians
+      operationId: listTechnicians
+      summary: Technicians of a unit
+      description: 'Contract ref 1.18 in the API Contracts doc.
+
+
+        Screen BU 25.'
+      x-roles: &id009
+      - bu_admin
+      x-brd:
+      - US-036
+      x-sprint: S2
+      x-decision-pending: 'O-13: how the API learns Keycloak lock state.'
+      parameters:
+      - *id008
+      - *id004
+      - *id005
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                - page
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Technician'
+                  page:
+                    $ref: ./common.yaml#/components/schemas/PageInfo
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '403':
+          $ref: ./common.yaml#/components/responses/Forbidden
+  /business-units/{buId}/technicians/{userId}/remove:
+    post:
+      tags:
+      - Technicians
+      operationId: removeTechnician
+      summary: Remove a technician from a unit
+      description: 'Contract ref 1.19 in the API Contracts doc.
+
+
+        Sets user_unit_role.removed_at and revokes the user''s sessions for that unit (checked within 60 s). Open
+        review_assignment rows become removed (user_removed), so those scans return to the BU Admin queue. Scans
+        and decisions keep their name. Audit (users). Screen BU 27.'
+      x-roles: *id009
+      x-brd:
+      - US-036
+      - US-051
+      x-sprint: S2
+      parameters:
+      - *id008
+      - $ref: '#/components/parameters/UserId'
+      responses:
+        '204':
+          description: Removed
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '403':
+          $ref: ./common.yaml#/components/responses/Forbidden
+        '404':
+          $ref: ./common.yaml#/components/responses/NotFound
+components:
+  securitySchemes:
+    keycloakBearer:
+      $ref: ./common.yaml#/components/securitySchemes/keycloakBearer
+  parameters:
+    InviteId:
+      name: inviteId
+      in: path
+      required: true
+      schema:
+        $ref: ./common.yaml#/components/schemas/Uuid
+    UserId:
+      name: userId
+      in: path
+      required: true
+      schema:
+        $ref: ./common.yaml#/components/schemas/Uuid
+  schemas:
+    Role:
+      type: string
+      enum:
+      - enterprise_admin
+      - bu_admin
+      - field_technician
+    UserStatus:
+      type: string
+      enum:
+      - invited
+      - active
+      - removed
+    InviteStatus:
+      type: string
+      enum:
+      - pending
+      - accepted
+      - expired
+      - cancelled
+    UnitRef:
+      type: object
+      properties:
+        bu_id:
+          $ref: ./common.yaml#/components/schemas/Uuid
+        name:
+          type: string
+      required:
+      - bu_id
+      - name
+    UnitRole:
+      type: object
+      properties:
+        bu_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        name:
+          type:
+          - string
+          - 'null'
+        role:
+          $ref: '#/components/schemas/Role'
+        is_primary:
+          type: boolean
+        assigned_by_name:
+          type:
+          - string
+          - 'null'
+      required:
+      - bu_id
+      - role
+      - is_primary
+    Me:
+      type: object
+      properties:
+        user_id:
+          $ref: ./common.yaml#/components/schemas/Uuid
+        full_name:
+          type: string
+        email:
+          type: string
+          format: email
+        phone_number:
+          type:
+          - string
+          - 'null'
+          description: E.164, technicians only
+        status:
+          $ref: '#/components/schemas/UserStatus'
+        tenant_name:
+          type: string
+          description: Read-only Customer header in the mobile location picker.
+        units:
+          type: array
+          items:
+            $ref: '#/components/schemas/UnitRole'
+        active_bu_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        last_bu_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+      required:
+      - user_id
+      - full_name
+      - email
+      - status
+      - tenant_name
+      - units
+      - active_bu_id
+      - last_bu_id
+    InvitePreview:
+      type: object
+      properties:
+        role:
+          $ref: '#/components/schemas/Role'
+        email:
+          type: string
+          format: email
+        units:
+          type: array
+          items:
+            $ref: '#/components/schemas/UnitRef'
+        invited_by_name:
+          type: string
+        expires_at:
+          $ref: ./common.yaml#/components/schemas/Timestamp
+      required:
+      - role
+      - email
+      - units
+      - invited_by_name
+      - expires_at
+    Invite:
+      type: object
+      properties:
+        invite_id:
+          $ref: ./common.yaml#/components/schemas/Uuid
+        email:
+          type: string
+          format: email
+        role:
+          $ref: '#/components/schemas/Role'
+        units:
+          type: array
+          items:
+            $ref: '#/components/schemas/UnitRef'
+        invited_by_name:
+          type: string
+        created_at:
+          $ref: ./common.yaml#/components/schemas/Timestamp
+        expires_at:
+          $ref: ./common.yaml#/components/schemas/Timestamp
+        status:
+          $ref: '#/components/schemas/InviteStatus'
+      required:
+      - invite_id
+      - email
+      - role
+      - units
+      - invited_by_name
+      - created_at
+      - expires_at
+      - status
+    BusinessUnit:
+      type: object
+      properties:
+        bu_id:
+          $ref: ./common.yaml#/components/schemas/Uuid
+        name:
+          type: string
+        facility_name:
+          type: string
+        bu_admin:
+          $ref: '#/components/schemas/UserRef'
+        waiting_count:
+          type: integer
+        escalated_count:
+          type: integer
+        delegated_count:
+          type: integer
+        locations_status:
+          type: string
+          enum:
+          - not_published
+          - published
+      required:
+      - bu_id
+      - name
+      - facility_name
+      - bu_admin
+      - locations_status
+    UserRef:
+      type:
+      - object
+      - 'null'
+      properties:
+        user_id:
+          $ref: ./common.yaml#/components/schemas/Uuid
+        full_name:
+          type: string
+      description: Null = "No BU Admin".
+    BuAdmin:
+      type: object
+      properties:
+        user_id:
+          $ref: ./common.yaml#/components/schemas/Uuid
+        full_name:
+          type: string
+        email:
+          type: string
+          format: email
+        units:
+          type: array
+          items:
+            $ref: '#/components/schemas/UnitRef'
+        status:
+          $ref: '#/components/schemas/UserStatus'
+        last_active_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+      required:
+      - user_id
+      - full_name
+      - email
+      - units
+      - status
+      - last_active_at
+    Technician:
+      type: object
+      properties:
+        user_id:
+          $ref: ./common.yaml#/components/schemas/Uuid
+        full_name:
+          type: string
+        email:
+          type: string
+          format: email
+        status:
+          $ref: '#/components/schemas/UserStatus'
+        sign_in_locked_until:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          description: 'OPEN O-13: lock state lives in Keycloak.'
+        units:
+          type: array
+          items:
+            $ref: '#/components/schemas/UnitRef'
+        scans_this_month:
+          type: integer
+        active_batch_no:
+          type:
+          - string
+          - 'null'
+        last_active_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+      required:
+      - user_id
+      - full_name
+      - email
+      - status
+      - sign_in_locked_until
+      - units
+      - scans_this_month
+      - active_batch_no
+      - last_active_at

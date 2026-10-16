@@ -1,0 +1,2099 @@
+openapi: 3.1.0
+info:
+  title: Pixorex V1 API - Slice S4, workflow and review
+  version: 0.3.2
+  contact:
+    name: Pixorex backend team (Amzur)
+  summary: My Scans, self-review, decisions, override, delegation, escalation, alerts, audit log, quota and retention.
+  description: 'Release Plan v2, Sprint 4 outcome: "Full scan-to-approval cycle is complete. Technician self-review
+    mandatory. Rejection returns to original technician with category-based rework path."
+
+
+    Data model: V3 Domain 5 (revision, revision_field, review_decision, review_batch, review_assignment, escalation)
+    and Domain 6 (notification, audit_log, quota_usage, retention_config).
+
+
+    Rules:
+
+    - Revisions and decisions are insert-only. Each decision targets the current revision.
+
+    - Nobody decides their own scan (403 /problems/own-scan; also a DB trigger).
+
+    - First decider wins (409 /problems/already-decided).
+
+    - Retake is a new scan in Slice S3 with retake_of_scan_id.
+
+    - Escalations are created by a scheduled job after 24 h; batch no-progress alerts after 1 day and 1 week; no
+    endpoints for these.'
+servers:
+- url: /api/v1
+security:
+- keycloakBearer: []
+tags:
+- name: My Scans
+- name: Review
+- name: Delegation
+- name: Escalation
+- name: Notifications
+- name: Audit
+- name: Quota
+- name: Retention
+paths:
+  /me/scans:
+    get:
+      tags:
+      - My Scans
+      operationId: listMyScans
+      summary: Technician's own scans by tab
+      description: 'Contract ref 3.1 in the API Contracts doc.
+
+
+        Needs action = ready_to_review, rejected, failed, retake_required; In progress = uploading, extracting,
+        waiting_for_approval; Approved = approved. q searches name, serial and bin. Screens T 14, 26, 47-51, 56,
+        62-64, 67, 70, 73.'
+      x-roles: &id001
+      - field_technician
+      x-brd:
+      - US-012b
+      - US-016
+      - US-031
+      x-sprint: S4
+      x-decision-pending: 'O-3: Release Plan status names differ from V3. O-10: Release Plan also wants My Scans
+        on the web dashboard.'
+      parameters:
+      - name: bu_id
+        in: query
+        required: false
+        schema:
+          $ref: ./common.yaml#/components/schemas/Uuid
+      - name: tab
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - all
+          - needs_action
+          - in_progress
+          - approved
+      - name: review_status
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: equipment_type_id
+        in: query
+        required: false
+        schema:
+          $ref: ./common.yaml#/components/schemas/Uuid
+      - name: from
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date
+      - name: to
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date
+      - name: q
+        in: query
+        required: false
+        schema:
+          type: string
+      - &id002
+        $ref: ./common.yaml#/components/parameters/Cursor
+      - &id003
+        $ref: ./common.yaml#/components/parameters/Limit
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                - page
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/MyScan'
+                  page:
+                    $ref: ./common.yaml#/components/schemas/PageInfo
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '403':
+          $ref: ./common.yaml#/components/responses/Forbidden
+  /scans/{scanId}/revisions:
+    post:
+      tags:
+      - My Scans
+      operationId: submitRevision
+      summary: Submit self-review, or fix and resubmit after a rejection
+      description: 'Contract ref 3.2 in the API Contracts doc.
+
+
+        Scan must be ready_to_review (draft) or rejected. origin = rejection_fix after a rejection, and resubmit_to_user_id
+        = who rejected. Progress before submit stays on the phone. Audit (review). Screens T 57-61, 69-70, 80.'
+      x-roles: *id001
+      x-brd:
+      - US-012
+      - US-012c
+      - US-013
+      - US-031
+      x-sprint: S4
+      parameters:
+      - &id006
+        $ref: ./common.yaml#/components/parameters/IdempotencyKey
+      - &id004
+        $ref: '#/components/parameters/ScanId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RevisionInput'
+      responses:
+        '201':
+          description: Revision created; waiting_for_approval
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Revision'
+        '400':
+          $ref: ./common.yaml#/components/responses/BadRequest
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '403':
+          description: 'Not your scan. Problem types: /problems/forbidden.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./common.yaml#/components/schemas/Problem
+        '404':
+          $ref: ./common.yaml#/components/responses/NotFound
+        '409':
+          description: 'Wrong state, a flagged field has no verdict, or a required field is empty without submit_anyway.
+            Problem types: /problems/invalid-state, /problems/flags-not-reviewed, /problems/required-fields-empty.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./common.yaml#/components/schemas/Problem
+  /business-units/{buId}/review-queue:
+    get:
+      tags:
+      - Review
+      operationId: getReviewQueue
+      summary: Review queue with tab counts
+      description: 'Contract ref 3.3 in the API Contracts doc.
+
+
+        Counts also feed the BU Admin home cards. Screens BU 03, 05, 08, 10.'
+      x-roles: &id009
+      - bu_admin
+      - enterprise_admin
+      x-brd:
+      - US-012b
+      - US-031
+      x-sprint: S4
+      parameters:
+      - &id007
+        $ref: ./common.yaml#/components/parameters/BuId
+      - name: filter
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - waiting
+          - over_1d
+          - over_1w
+          - delegated
+          - decided_by_technicians
+      - *id002
+      - *id003
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewQueue'
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '403':
+          $ref: ./common.yaml#/components/responses/Forbidden
+  /scans/{scanId}/review:
+    get:
+      tags:
+      - Review
+      operationId: getScanReview
+      summary: AI value vs technician value
+      description: 'Contract ref 3.4 in the API Contracts doc.
+
+
+        Admins of the unit, or the technician assigned to it. Screens BU 07, 20, 22; EA 05; T 75.'
+      x-roles: &id005
+      - field_technician
+      - bu_admin
+      - enterprise_admin
+      x-brd:
+      - US-012b
+      - US-031
+      x-sprint: S4
+      parameters:
+      - *id004
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScanReview'
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '403':
+          description: 'Own scan, or no right to review it. Problem types: /problems/own-scan, /problems/forbidden.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./common.yaml#/components/schemas/Problem
+        '404':
+          $ref: ./common.yaml#/components/responses/NotFound
+  /scans/{scanId}/decisions:
+    post:
+      tags:
+      - Review
+      operationId: decideScan
+      summary: Approve or reject the current revision
+      description: 'Contract ref 3.5 in the API Contracts doc.
+
+
+        reject_category required when rejecting (400). Resolves an open escalation. An admin deciding a delegated
+        scan marks its assignment removed (admin_decided) and alerts the technician (scan_removed_from_batch). Alerts
+        the scan''s technician (scan_approved / scan_rejected). Audit (review). Screens BU 07, 20-21; EA 05-07;
+        T 75-76.'
+      x-roles: *id005
+      x-brd:
+      - US-012b
+      - US-013
+      - US-031
+      x-sprint: S4
+      x-decision-pending: 'O-9: Release Plan lets the reviewer edit values; V3 does not. O-21: whether the reject
+        note is required.'
+      parameters:
+      - *id006
+      - *id004
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DecisionInput'
+      responses:
+        '201':
+          description: Decision recorded
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  decision_id:
+                    $ref: ./common.yaml#/components/schemas/Uuid
+                  review_status:
+                    type: string
+                required:
+                - decision_id
+                - review_status
+        '400':
+          $ref: ./common.yaml#/components/responses/BadRequest
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '403':
+          description: 'Own scan, or not assigned to you. Problem types: /problems/own-scan, /problems/forbidden.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./common.yaml#/components/schemas/Problem
+        '404':
+          $ref: ./common.yaml#/components/responses/NotFound
+        '409':
+          description: 'Someone decided first, or scan not waiting for approval. Problem types: /problems/already-decided,
+            /problems/invalid-state.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./common.yaml#/components/schemas/Problem
+  /business-units/{buId}/technician-decisions:
+    get:
+      tags:
+      - Review
+      operationId: listTechnicianDecisions
+      summary: Decisions made by delegated technicians
+      description: 'Contract ref 3.6 in the API Contracts doc.
+
+
+        Screen BU 19.'
+      x-roles: &id008
+      - bu_admin
+      x-brd:
+      - none
+      x-brd-note: No BRD story found in the earlier contract mapping; feature comes from V3 data model + 13 Oct
+        screens. Confirm the story ID.
+      x-sprint: S4
+      parameters:
+      - *id007
+      - name: decision
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - approved
+          - rejected
+      - *id002
+      - *id003
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                - page
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TechnicianDecision'
+                  page:
+                    $ref: ./common.yaml#/components/schemas/PageInfo
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '403':
+          $ref: ./common.yaml#/components/responses/Forbidden
+  /decisions/{decisionId}/override:
+    post:
+      tags:
+      - Review
+      operationId: overrideDecision
+      summary: Override a delegated technician's decision
+      description: 'Contract ref 3.7 in the API Contracts doc.
+
+
+        Inserts a new decision with overrides_decision_id; the old one stops being current. Screens show only approval
+        to rejection. Alerts the delegated technician (decision_overridden). Audit (override). Screens BU 22-23;
+        T 77.'
+      x-roles: *id008
+      x-brd:
+      - none
+      x-brd-note: No BRD story found in the earlier contract mapping; feature comes from V3 data model + 13 Oct
+        screens. Confirm the story ID.
+      x-sprint: S4
+      x-decision-pending: 'O-21: whether the note is required.'
+      parameters:
+      - *id006
+      - $ref: '#/components/parameters/DecisionId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DecisionInput'
+      responses:
+        '201':
+          description: New decision recorded
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  decision_id:
+                    $ref: ./common.yaml#/components/schemas/Uuid
+                required:
+                - decision_id
+        '400':
+          $ref: ./common.yaml#/components/responses/BadRequest
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '403':
+          $ref: ./common.yaml#/components/responses/Forbidden
+        '404':
+          $ref: ./common.yaml#/components/responses/NotFound
+        '409':
+          description: 'Decision is not current, or not made by a delegated technician. Problem types: /problems/invalid-state.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./common.yaml#/components/schemas/Problem
+  /business-units/{buId}/delegates:
+    get:
+      tags:
+      - Delegation
+      operationId: listDelegates
+      summary: Technicians who can take a batch
+      description: 'Contract ref 3.8 in the API Contracts doc.
+
+
+        Screens BU 06, 09, 11; EA 08.'
+      x-roles: *id009
+      x-brd:
+      - none
+      x-brd-note: No BRD story found in the earlier contract mapping; feature comes from V3 data model + 13 Oct
+        screens. Confirm the story ID.
+      x-sprint: S4
+      x-decision-pending: 'O-18: V3 has is_trusted_reviewer but no screen sets it; screens list every technician
+        of the unit.'
+      parameters:
+      - *id007
+      - name: scan_ids
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            $ref: ./common.yaml#/components/schemas/Uuid
+        style: form
+        explode: false
+      - *id002
+      - *id003
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                - page
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Delegate'
+                  page:
+                    $ref: ./common.yaml#/components/schemas/PageInfo
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '403':
+          $ref: ./common.yaml#/components/responses/Forbidden
+  /business-units/{buId}/review-batches:
+    post:
+      tags:
+      - Delegation
+      operationId: createReviewBatch
+      summary: Delegate 1 to 50 scans as one batch
+      description: 'Contract ref 3.9 in the API Contracts doc.
+
+
+        The technician''s own scans are left out. Alerts the technician (batch_delegated); an EA delegating also
+        alerts the BU Admin (ea_delegated_in_unit). Audit (review). Screens BU 06, 09, 11, 14; EA 08-09, 32-35.'
+      x-roles: *id009
+      x-brd:
+      - none
+      x-brd-note: No BRD story found in the earlier contract mapping; feature comes from V3 data model + 13 Oct
+        screens. Confirm the story ID.
+      x-sprint: S4
+      parameters:
+      - *id006
+      - *id007
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                assigned_to:
+                  $ref: ./common.yaml#/components/schemas/Uuid
+                scan_ids:
+                  type: array
+                  items:
+                    $ref: ./common.yaml#/components/schemas/Uuid
+              required:
+              - assigned_to
+              - scan_ids
+      responses:
+        '201':
+          description: Batch created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  batch_id:
+                    $ref: ./common.yaml#/components/schemas/Uuid
+                  batch_no:
+                    type: string
+                  assigned_scan_ids:
+                    type: array
+                    items:
+                      $ref: ./common.yaml#/components/schemas/Uuid
+                  excluded:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Excluded'
+                required:
+                - batch_id
+                - batch_no
+                - assigned_scan_ids
+                - excluded
+        '400':
+          $ref: ./common.yaml#/components/responses/BadRequest
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '403':
+          $ref: ./common.yaml#/components/responses/Forbidden
+        '409':
+          description: 'A scan is not waiting for approval or is already in an open batch. Problem types: /problems/already-assigned,
+            /problems/invalid-state.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./common.yaml#/components/schemas/Problem
+    get:
+      tags:
+      - Delegation
+      operationId: listReviewBatches
+      summary: Batches of a unit
+      description: 'Contract ref 3.10 in the API Contracts doc.
+
+
+        Screen BU 13.'
+      x-roles: *id009
+      x-brd:
+      - none
+      x-brd-note: No BRD story found in the earlier contract mapping; feature comes from V3 data model + 13 Oct
+        screens. Confirm the story ID.
+      x-sprint: S4
+      parameters:
+      - *id007
+      - name: status
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - active
+          - completed
+          - taken_back
+      - *id002
+      - *id003
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                - page
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Batch'
+                  page:
+                    $ref: ./common.yaml#/components/schemas/PageInfo
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '403':
+          $ref: ./common.yaml#/components/responses/Forbidden
+  /review-batches/{batchId}:
+    get:
+      tags:
+      - Delegation
+      operationId: getReviewBatch
+      summary: One batch with its scans
+      description: 'Contract ref 3.11 in the API Contracts doc.
+
+
+        Admins of the unit, or the assigned technician. Screens BU 13; T 74.'
+      x-roles: *id005
+      x-brd:
+      - none
+      x-brd-note: No BRD story found in the earlier contract mapping; feature comes from V3 data model + 13 Oct
+        screens. Confirm the story ID.
+      x-sprint: S4
+      parameters:
+      - &id010
+        $ref: '#/components/parameters/BatchId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  batch:
+                    $ref: '#/components/schemas/Batch'
+                  assignments:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Assignment'
+                required:
+                - batch
+                - assignments
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '403':
+          $ref: ./common.yaml#/components/responses/Forbidden
+        '404':
+          $ref: ./common.yaml#/components/responses/NotFound
+  /review-batches/{batchId}/reassign:
+    post:
+      tags:
+      - Delegation
+      operationId: reassignReviewBatch
+      summary: Give a batch to another technician
+      description: 'Contract ref 3.12 in the API Contracts doc.
+
+
+        Closes open assignments (reassigned) and opens new ones; the new technician''s own scans are left out. Alerts
+        (batch_reassigned). Audit (review). Screens BU 15-16.'
+      x-roles: *id009
+      x-brd:
+      - none
+      x-brd-note: No BRD story found in the earlier contract mapping; feature comes from V3 data model + 13 Oct
+        screens. Confirm the story ID.
+      x-sprint: S4
+      parameters:
+      - *id010
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                assigned_to:
+                  $ref: ./common.yaml#/components/schemas/Uuid
+              required:
+              - assigned_to
+      responses:
+        '200':
+          description: Reassigned
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  batch_id:
+                    $ref: ./common.yaml#/components/schemas/Uuid
+                  assigned_to:
+                    $ref: ./common.yaml#/components/schemas/Uuid
+                  excluded:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Excluded'
+                required:
+                - batch_id
+                - assigned_to
+                - excluded
+        '400':
+          $ref: ./common.yaml#/components/responses/BadRequest
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '403':
+          $ref: ./common.yaml#/components/responses/Forbidden
+        '404':
+          $ref: ./common.yaml#/components/responses/NotFound
+        '409':
+          description: 'Batch not active. Problem types: /problems/invalid-state.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./common.yaml#/components/schemas/Problem
+  /review-batches/{batchId}/take-back:
+    post:
+      tags:
+      - Delegation
+      operationId: takeBackReviewBatch
+      summary: Take a batch back
+      description: 'Contract ref 3.13 in the API Contracts doc.
+
+
+        Open assignments become removed (taken_back); batch taken_back; saves take_back_message. Alerts (batch_taken_back).
+        Audit (review). Screens BU 17-18.'
+      x-roles: *id009
+      x-brd:
+      - none
+      x-brd-note: No BRD story found in the earlier contract mapping; feature comes from V3 data model + 13 Oct
+        screens. Confirm the story ID.
+      x-sprint: S4
+      parameters:
+      - *id010
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                message:
+                  type:
+                  - string
+                  - 'null'
+      responses:
+        '204':
+          description: Taken back
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '403':
+          $ref: ./common.yaml#/components/responses/Forbidden
+        '404':
+          $ref: ./common.yaml#/components/responses/NotFound
+        '409':
+          description: 'Batch not active. Problem types: /problems/invalid-state.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./common.yaml#/components/schemas/Problem
+  /review-batches/{batchId}/remind:
+    post:
+      tags:
+      - Delegation
+      operationId: remindReviewBatch
+      summary: Send a reminder to the batch technician
+      description: 'Contract ref 3.14 in the API Contracts doc.
+
+
+        Sets reminded_at. Alerts (batch_reminder). Screen BU 13.'
+      x-roles: *id009
+      x-brd:
+      - none
+      x-brd-note: No BRD story found in the earlier contract mapping; feature comes from V3 data model + 13 Oct
+        screens. Confirm the story ID.
+      x-sprint: S4
+      parameters:
+      - *id010
+      responses:
+        '200':
+          description: Reminded
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  reminded_at:
+                    $ref: ./common.yaml#/components/schemas/Timestamp
+                required:
+                - reminded_at
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '403':
+          $ref: ./common.yaml#/components/responses/Forbidden
+        '404':
+          $ref: ./common.yaml#/components/responses/NotFound
+        '409':
+          description: 'Batch not active. Problem types: /problems/invalid-state.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./common.yaml#/components/schemas/Problem
+  /me/review-batches:
+    get:
+      tags:
+      - Delegation
+      operationId: listMyReviewBatches
+      summary: Active batches assigned to me
+      description: 'Contract ref 3.15 in the API Contracts doc.
+
+
+        Screen T 74.'
+      x-roles: *id001
+      x-brd:
+      - none
+      x-brd-note: No BRD story found in the earlier contract mapping; feature comes from V3 data model + 13 Oct
+        screens. Confirm the story ID.
+      x-sprint: S4
+      parameters:
+      - *id002
+      - *id003
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                - page
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Batch'
+                  page:
+                    $ref: ./common.yaml#/components/schemas/PageInfo
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '403':
+          $ref: ./common.yaml#/components/responses/Forbidden
+  /escalations:
+    get:
+      tags:
+      - Escalation
+      operationId: listEscalations
+      summary: Escalated scans across units
+      description: 'Contract ref 3.16 in the API Contracts doc.
+
+
+        Created by the scheduled job once a scan has waited 24 h. Screens EA 04, 29-31.'
+      x-roles: &id011
+      - enterprise_admin
+      x-brd:
+      - none
+      x-brd-note: No BRD story found in the earlier contract mapping; feature comes from V3 data model + 13 Oct
+        screens. Confirm the story ID.
+      x-sprint: S4
+      parameters:
+      - name: bu_id
+        in: query
+        required: false
+        schema:
+          $ref: ./common.yaml#/components/schemas/Uuid
+      - name: reason
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - not_approved_24h
+          - no_bu_admin
+      - name: open
+        in: query
+        required: false
+        schema:
+          type: boolean
+      - *id002
+      - *id003
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                - page
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Escalation'
+                  page:
+                    $ref: ./common.yaml#/components/schemas/PageInfo
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '403':
+          $ref: ./common.yaml#/components/responses/Forbidden
+  /business-units/{buId}/escalations/remind:
+    post:
+      tags:
+      - Escalation
+      operationId: remindBuAdmin
+      summary: Remind a unit's BU Admin about escalated scans
+      description: 'Contract ref 3.17 in the API Contracts doc.
+
+
+        Sets reminded_at on the unit''s open escalations and alerts its BU Admin (escalation_reminder). Audit (escalation).
+        Screens EA 36-37.'
+      x-roles: *id011
+      x-brd:
+      - none
+      x-brd-note: No BRD story found in the earlier contract mapping; feature comes from V3 data model + 13 Oct
+        screens. Confirm the story ID.
+      x-sprint: S4
+      parameters:
+      - *id007
+      responses:
+        '200':
+          description: Reminded
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  reminded_count:
+                    type: integer
+                required:
+                - reminded_count
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '403':
+          $ref: ./common.yaml#/components/responses/Forbidden
+        '404':
+          $ref: ./common.yaml#/components/responses/NotFound
+        '409':
+          description: 'Unit has no BU Admin. Problem types: /problems/no-bu-admin.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./common.yaml#/components/schemas/Problem
+  /scans:
+    get:
+      tags:
+      - Review
+      operationId: listAllScans
+      summary: Scans across all units
+      description: 'Contract ref 3.18 in the API Contracts doc.
+
+
+        Screens EA 20, 38-50, 68.'
+      x-roles: *id011
+      x-brd:
+      - US-012b
+      - US-016
+      x-sprint: S4
+      parameters:
+      - name: bu_id
+        in: query
+        required: false
+        schema:
+          $ref: ./common.yaml#/components/schemas/Uuid
+      - name: review_status
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: delegated
+        in: query
+        required: false
+        schema:
+          type: boolean
+      - name: q
+        in: query
+        required: false
+        description: Searches record_no, equipment type name, serial and technician name (as in 3.1).
+        schema:
+          type: string
+      - name: from
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date
+      - name: to
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date
+      - *id002
+      - *id003
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                - page
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ScanRow'
+                  page:
+                    $ref: ./common.yaml#/components/schemas/PageInfo
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '403':
+          $ref: ./common.yaml#/components/responses/Forbidden
+  /me/notifications:
+    get:
+      tags:
+      - Notifications
+      operationId: listNotifications
+      summary: My alerts (bell panel; also emailed, no push)
+      description: 'Contract ref 3.19 in the API Contracts doc.
+
+
+        Screens EA 24; BU 04; T 68, 77.'
+      x-roles: *id005
+      x-brd:
+      - US-012b
+      - US-021
+      x-sprint: S4
+      parameters:
+      - name: unread_only
+        in: query
+        required: false
+        schema:
+          type: boolean
+      - *id002
+      - *id003
+      responses:
+        '200':
+          description: OK, newest first
+          content:
+            application/json:
+              schema:
+                allOf:
+                - type: object
+                  required:
+                  - items
+                  - page
+                  properties:
+                    items:
+                      type: array
+                      items:
+                        $ref: '#/components/schemas/Notification'
+                    page:
+                      $ref: ./common.yaml#/components/schemas/PageInfo
+                - type: object
+                  properties:
+                    unread_count:
+                      type: integer
+                  required:
+                  - unread_count
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '403':
+          $ref: ./common.yaml#/components/responses/Forbidden
+  /me/notifications/{notificationId}/read:
+    post:
+      tags:
+      - Notifications
+      operationId: markNotificationRead
+      summary: Mark one alert read
+      description: 'Contract ref 3.20 in the API Contracts doc.
+
+
+        Screens EA 24, BU 04.'
+      x-roles: *id005
+      x-brd:
+      - US-012b
+      x-sprint: S4
+      parameters:
+      - $ref: '#/components/parameters/NotificationId'
+      responses:
+        '204':
+          description: Done
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '403':
+          $ref: ./common.yaml#/components/responses/Forbidden
+        '404':
+          $ref: ./common.yaml#/components/responses/NotFound
+  /me/notifications/read-all:
+    post:
+      tags:
+      - Notifications
+      operationId: markAllNotificationsRead
+      summary: Mark all alerts read
+      description: 'Contract ref 3.21 in the API Contracts doc.
+
+
+        Screens EA 24, BU 04.'
+      x-roles: *id005
+      x-brd:
+      - US-012b
+      x-sprint: S4
+      responses:
+        '204':
+          description: Done
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '403':
+          $ref: ./common.yaml#/components/responses/Forbidden
+  /audit-log:
+    get:
+      tags:
+      - Audit
+      operationId: listAuditLog
+      summary: Read the insert-only audit log
+      description: 'Contract ref 3.22 in the API Contracts doc.
+
+
+        No write endpoint exists. Screens EA 22, 51-66, 69.'
+      x-roles: *id011
+      x-brd:
+      - US-044
+      - US-045
+      x-sprint: S4
+      parameters:
+      - name: bu_id
+        in: query
+        required: false
+        schema:
+          $ref: ./common.yaml#/components/schemas/Uuid
+      - name: category
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: from
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date
+      - name: to
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date
+      - *id002
+      - *id003
+      responses:
+        '200':
+          description: OK, newest first
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                - page
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AuditEntry'
+                  page:
+                    $ref: ./common.yaml#/components/schemas/PageInfo
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '403':
+          $ref: ./common.yaml#/components/responses/Forbidden
+  /business-units/{buId}/quota:
+    get:
+      tags:
+      - Quota
+      operationId: getQuota
+      summary: Scan quota usage for a month
+      description: Contract ref 3.23 in the API Contracts doc.
+      x-roles: *id009
+      x-brd:
+      - US-021
+      - US-037
+      x-sprint: S4
+      x-decision-pending: 'O-7: who reads it and where the limit lives (V3 stores usage only; Release Plan wants
+        limits per BU and per business process). No screen.'
+      parameters:
+      - *id007
+      - name: month
+        in: query
+        required: false
+        schema:
+          type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Quota'
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '403':
+          $ref: ./common.yaml#/components/responses/Forbidden
+        '404':
+          $ref: ./common.yaml#/components/responses/NotFound
+    put:
+      tags:
+      - Quota
+      operationId: setQuota
+      summary: Set the monthly scan limit
+      description: Contract ref 3.24 in the API Contracts doc.
+      x-roles: *id009
+      x-brd:
+      - US-037
+      x-sprint: S4
+      x-decision-pending: 'O-7: limit column, unit and per-process limits not in V3. No screen.'
+      parameters:
+      - *id007
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                limit:
+                  type: integer
+              required:
+              - limit
+      responses:
+        '200':
+          description: Saved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Quota'
+        '400':
+          $ref: ./common.yaml#/components/responses/BadRequest
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '403':
+          $ref: ./common.yaml#/components/responses/Forbidden
+        '404':
+          $ref: ./common.yaml#/components/responses/NotFound
+  /retention-config:
+    get:
+      tags:
+      - Retention
+      operationId: getRetentionConfig
+      summary: Retention settings
+      description: Contract ref 3.25 in the API Contracts doc.
+      x-roles: *id011
+      x-brd:
+      - US-046
+      - US-046b
+      x-sprint: S4
+      x-decision-pending: 'O-8: Release Plan says Super Admin sets these; V3 has no such role and no screen.'
+      parameters:
+      - name: bu_id
+        in: query
+        required: false
+        schema:
+          $ref: ./common.yaml#/components/schemas/Uuid
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/RetentionItem'
+                required:
+                - items
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '403':
+          $ref: ./common.yaml#/components/responses/Forbidden
+    put:
+      tags:
+      - Retention
+      operationId: setRetentionConfig
+      summary: Change retention settings
+      description: 'Contract ref 3.26 in the API Contracts doc.
+
+
+        Audit (retention).'
+      x-roles: *id011
+      x-brd:
+      - US-046
+      - US-046b
+      x-sprint: S4
+      x-decision-pending: 'O-8: who may call this.'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                items:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/RetentionItem'
+              required:
+              - items
+      responses:
+        '200':
+          description: Saved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/RetentionItem'
+                required:
+                - items
+        '400':
+          description: 'Value below the approved floor. Problem types: /problems/below-retention-floor, /problems/validation.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./common.yaml#/components/schemas/Problem
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '403':
+          $ref: ./common.yaml#/components/responses/Forbidden
+components:
+  securitySchemes:
+    keycloakBearer:
+      $ref: ./common.yaml#/components/securitySchemes/keycloakBearer
+  parameters:
+    ScanId:
+      name: scanId
+      in: path
+      required: true
+      schema:
+        $ref: ./common.yaml#/components/schemas/Uuid
+    DecisionId:
+      name: decisionId
+      in: path
+      required: true
+      schema:
+        $ref: ./common.yaml#/components/schemas/Uuid
+    BatchId:
+      name: batchId
+      in: path
+      required: true
+      schema:
+        $ref: ./common.yaml#/components/schemas/Uuid
+    NotificationId:
+      name: notificationId
+      in: path
+      required: true
+      schema:
+        $ref: ./common.yaml#/components/schemas/Uuid
+  schemas:
+    RejectCategory:
+      type: string
+      enum:
+      - image_unclear
+      - data_correction_needed
+      - wrong_equipment_type
+      - other
+    MyScan:
+      type: object
+      properties:
+        scan_id:
+          $ref: ./common.yaml#/components/schemas/Uuid
+        record_no:
+          type: string
+        equipment_type_name:
+          type: string
+        location_path:
+          type: string
+        processing_status:
+          type: string
+        review_status:
+          type: string
+        attempts_used:
+          type: integer
+        reject_category:
+          type:
+          - string
+          - 'null'
+        updated_at:
+          $ref: ./common.yaml#/components/schemas/Timestamp
+      required:
+      - scan_id
+      - record_no
+      - equipment_type_name
+      - location_path
+      - processing_status
+      - review_status
+      - attempts_used
+      - reject_category
+      - updated_at
+    RevisionFieldInput:
+      type: object
+      properties:
+        field_key:
+          type: string
+        verification_state:
+          type: string
+          enum:
+          - accepted
+          - corrected
+          - unreadable
+          - left_empty
+        value:
+          type:
+          - string
+          - 'null'
+          description: Required for corrected
+        unreadable_reason:
+          type:
+          - string
+          - 'null'
+          enum:
+          - label_worn
+          - not_on_nameplate
+          - covered_or_unreachable
+          - other
+          - null
+          description: Required for unreadable
+        note:
+          type:
+          - string
+          - 'null'
+          description: Required for reason other
+      required:
+      - field_key
+      - verification_state
+    RevisionInput:
+      type: object
+      properties:
+        fields:
+          type: array
+          items:
+            $ref: '#/components/schemas/RevisionFieldInput'
+        submit_anyway:
+          type: boolean
+          description: Must be true to send required fields as left_empty
+      required:
+      - fields
+    Revision:
+      type: object
+      properties:
+        revision_id:
+          $ref: ./common.yaml#/components/schemas/Uuid
+        revision_no:
+          type: integer
+        origin:
+          type: string
+          enum:
+          - technician_review
+          - rejection_fix
+        empty_required_fields:
+          type: array
+          items:
+            type: string
+        review_status:
+          type: string
+      required:
+      - revision_id
+      - revision_no
+      - origin
+      - empty_required_fields
+      - review_status
+    QueueItem:
+      type: object
+      properties:
+        scan_id:
+          $ref: ./common.yaml#/components/schemas/Uuid
+        record_no:
+          type: string
+        equipment_type_name:
+          type: string
+        captured_by_name:
+          type: string
+        location_path:
+          type: string
+        flag_count:
+          type: integer
+        corrected_count:
+          type: integer
+        unreadable_count:
+          type: integer
+        waiting_since:
+          $ref: ./common.yaml#/components/schemas/Timestamp
+        batch_no:
+          type:
+          - string
+          - 'null'
+        assigned_to_name:
+          type:
+          - string
+          - 'null'
+      required:
+      - scan_id
+      - record_no
+      - equipment_type_name
+      - captured_by_name
+      - location_path
+      - flag_count
+      - corrected_count
+      - unreadable_count
+      - waiting_since
+      - batch_no
+      - assigned_to_name
+    ReviewQueue:
+      type: object
+      properties:
+        counts:
+          $ref: '#/components/schemas/QueueCounts'
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/QueueItem'
+        page:
+          $ref: ./common.yaml#/components/schemas/PageInfo
+      required:
+      - counts
+      - items
+      - page
+    QueueCounts:
+      type: object
+      properties:
+        waiting:
+          type: integer
+        over_1d:
+          type: integer
+        over_1w:
+          type: integer
+        delegated:
+          type: integer
+        decided_by_technicians:
+          type: integer
+        approved_this_week:
+          type: integer
+          description: Scans of the unit whose current decision is approved and was made since Monday
+            00:00 UTC (review_decision.decided_at). Feeds the BU Admin home card.
+      required:
+      - waiting
+      - over_1d
+      - over_1w
+      - delegated
+      - decided_by_technicians
+      - approved_this_week
+    ReviewField:
+      type: object
+      properties:
+        field_key:
+          type: string
+        label:
+          type: string
+        ai_value:
+          type:
+          - string
+          - 'null'
+        confidence:
+          type:
+          - number
+          - 'null'
+        flag_reasons:
+          type: array
+          items:
+            type: string
+        technician_value:
+          type:
+          - string
+          - 'null'
+        verification_state:
+          type: string
+        unreadable_reason:
+          type:
+          - string
+          - 'null'
+        note:
+          type:
+          - string
+          - 'null'
+      required:
+      - field_key
+      - label
+      - ai_value
+      - confidence
+      - flag_reasons
+      - technician_value
+      - verification_state
+      - unreadable_reason
+      - note
+    Decision:
+      type: object
+      properties:
+        decision_id:
+          $ref: ./common.yaml#/components/schemas/Uuid
+        revision_id:
+          $ref: ./common.yaml#/components/schemas/Uuid
+        decision:
+          type: string
+          enum:
+          - approved
+          - rejected
+        reject_category:
+          type:
+          - string
+          - 'null'
+        note:
+          type:
+          - string
+          - 'null'
+        decided_by_name:
+          type: string
+        decider_role:
+          type: string
+          enum:
+          - bu_admin
+          - enterprise_admin
+          - delegated_technician
+        is_current:
+          type: boolean
+        overrides_decision_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        decided_at:
+          $ref: ./common.yaml#/components/schemas/Timestamp
+      required:
+      - decision_id
+      - revision_id
+      - decision
+      - reject_category
+      - note
+      - decided_by_name
+      - decider_role
+      - is_current
+      - overrides_decision_id
+      - decided_at
+    ScanReview:
+      type: object
+      properties:
+        scan_id:
+          $ref: ./common.yaml#/components/schemas/Uuid
+        record_no:
+          type: string
+        equipment_type_name:
+          type: string
+        location_path:
+          type: string
+        captured_by_name:
+          type: string
+        photos:
+          type: array
+          items:
+            type: object
+        current_revision:
+          $ref: '#/components/schemas/Revision'
+        fields:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReviewField'
+        decisions:
+          type: array
+          items:
+            $ref: '#/components/schemas/Decision'
+      required:
+      - scan_id
+      - record_no
+      - equipment_type_name
+      - location_path
+      - captured_by_name
+      - photos
+      - current_revision
+      - fields
+      - decisions
+    DecisionInput:
+      type: object
+      properties:
+        decision:
+          type: string
+          enum:
+          - approved
+          - rejected
+        reject_category:
+          $ref: '#/components/schemas/RejectCategory'
+        note:
+          type:
+          - string
+          - 'null'
+      required:
+      - decision
+    TechnicianDecision:
+      type: object
+      properties:
+        decision_id:
+          $ref: ./common.yaml#/components/schemas/Uuid
+        scan_id:
+          $ref: ./common.yaml#/components/schemas/Uuid
+        record_no:
+          type: string
+        decided_by_name:
+          type: string
+        decision:
+          type: string
+        reject_category:
+          type:
+          - string
+          - 'null'
+        decided_at:
+          $ref: ./common.yaml#/components/schemas/Timestamp
+        overridden:
+          type: boolean
+      required:
+      - decision_id
+      - scan_id
+      - record_no
+      - decided_by_name
+      - decision
+      - reject_category
+      - decided_at
+      - overridden
+    Delegate:
+      type: object
+      properties:
+        user_id:
+          $ref: ./common.yaml#/components/schemas/Uuid
+        full_name:
+          type: string
+        open_review_count:
+          type: integer
+        own_scans_in_selection:
+          type: integer
+      required:
+      - user_id
+      - full_name
+      - open_review_count
+      - own_scans_in_selection
+    Excluded:
+      type: object
+      properties:
+        scan_id:
+          $ref: ./common.yaml#/components/schemas/Uuid
+        reason:
+          type: string
+          enum:
+          - own_scan
+      required:
+      - scan_id
+      - reason
+    Batch:
+      type: object
+      properties:
+        batch_id:
+          $ref: ./common.yaml#/components/schemas/Uuid
+        batch_no:
+          type: string
+        assigned_to_name:
+          type: string
+        created_by_name:
+          type: string
+        scan_count:
+          type: integer
+        decided_count:
+          type: integer
+        created_at:
+          $ref: ./common.yaml#/components/schemas/Timestamp
+        reminded_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        status:
+          type: string
+          enum:
+          - active
+          - completed
+          - taken_back
+      required:
+      - batch_id
+      - batch_no
+      - assigned_to_name
+      - created_by_name
+      - scan_count
+      - decided_count
+      - created_at
+      - reminded_at
+      - status
+    Assignment:
+      type: object
+      properties:
+        scan_id:
+          $ref: ./common.yaml#/components/schemas/Uuid
+        record_no:
+          type: string
+        status:
+          type: string
+          enum:
+          - assigned
+          - decided
+          - removed
+        removed_reason:
+          type:
+          - string
+          - 'null'
+          enum:
+          - taken_back
+          - reassigned
+          - admin_decided
+          - user_removed
+          - null
+      required:
+      - scan_id
+      - record_no
+      - status
+      - removed_reason
+    Escalation:
+      type: object
+      properties:
+        escalation_id:
+          $ref: ./common.yaml#/components/schemas/Uuid
+        scan_id:
+          $ref: ./common.yaml#/components/schemas/Uuid
+        record_no:
+          type: string
+        bu_id:
+          $ref: ./common.yaml#/components/schemas/Uuid
+        bu_name:
+          type: string
+        equipment_type_name:
+          type: string
+          description: From scan.equipment_type_id.
+        captured_by_name:
+          type: string
+          description: From scan.technician_id.
+        reason:
+          type: string
+          enum:
+          - not_approved_24h
+          - no_bu_admin
+        escalated_at:
+          $ref: ./common.yaml#/components/schemas/Timestamp
+        reminded_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        batch_no:
+          type:
+          - string
+          - 'null'
+      required:
+      - escalation_id
+      - scan_id
+      - record_no
+      - bu_id
+      - bu_name
+      - equipment_type_name
+      - captured_by_name
+      - reason
+      - escalated_at
+      - reminded_at
+      - batch_no
+    ScanRow:
+      type: object
+      properties:
+        scan_id:
+          $ref: ./common.yaml#/components/schemas/Uuid
+        record_no:
+          type: string
+        bu_name:
+          type: string
+        equipment_type_name:
+          type: string
+        captured_by_name:
+          type: string
+        location_path:
+          type: string
+        review_status:
+          type: string
+        captured_at:
+          $ref: ./common.yaml#/components/schemas/Timestamp
+        reviewed_by:
+          description: Decider of the current review_decision; null while undecided.
+          oneOf:
+          - type: 'null'
+          - type: object
+            properties:
+              name:
+                type: string
+              overrode_name:
+                type:
+                - string
+                - 'null'
+                description: Decider of the decision this one overrode (overrides_decision_id).
+            required:
+            - name
+            - overrode_name
+        assignment:
+          description: The open review_assignment and its review_batch; null when not delegated.
+          oneOf:
+          - type: 'null'
+          - type: object
+            properties:
+              batch_no:
+                type: string
+              assigned_to_name:
+                type: string
+            required:
+            - batch_no
+            - assigned_to_name
+        escalation_reason:
+          description: Reason of the scan's open escalation; null when not escalated.
+          type:
+          - string
+          - 'null'
+          enum:
+          - not_approved_24h
+          - no_bu_admin
+          - null
+      required:
+      - scan_id
+      - record_no
+      - bu_name
+      - equipment_type_name
+      - captured_by_name
+      - location_path
+      - review_status
+      - captured_at
+      - reviewed_by
+      - assignment
+      - escalation_reason
+    Notification:
+      type: object
+      properties:
+        notification_id:
+          $ref: ./common.yaml#/components/schemas/Uuid
+        kind:
+          $ref: '#/components/schemas/NotificationKind'
+        title:
+          type: string
+        body:
+          type:
+          - string
+          - 'null'
+          description: Grey second line under the title (notification.body); null when there is none.
+        bu_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        object_type:
+          type: string
+        object_id:
+          $ref: ./common.yaml#/components/schemas/Uuid
+        created_at:
+          $ref: ./common.yaml#/components/schemas/Timestamp
+        read_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        emailed_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          description: Set once the email went out; the panel shows "also emailed" only then.
+      required:
+      - notification_id
+      - kind
+      - title
+      - body
+      - bu_id
+      - object_type
+      - object_id
+      - created_at
+      - read_at
+      - emailed_at
+    NotificationKind:
+      type: string
+      enum:
+      - scan_waiting_1d
+      - scan_waiting_1w
+      - scans_escalated
+      - unit_no_bu_admin
+      - escalation_reminder
+      - batch_delegated
+      - batch_no_progress
+      - batch_reminder
+      - batch_reassigned
+      - batch_taken_back
+      - scan_removed_from_batch
+      - scan_approved
+      - scan_rejected
+      - decision_overridden
+      - ea_delegated_in_unit
+      - invite_expired
+      - export_ready
+    AuditEntry:
+      type: object
+      properties:
+        occurred_at:
+          $ref: ./common.yaml#/components/schemas/Timestamp
+        actor_type:
+          type: string
+          enum:
+          - user
+          - system
+        actor_name:
+          type:
+          - string
+          - 'null'
+        bu_name:
+          type:
+          - string
+          - 'null'
+        category:
+          type: string
+          enum:
+          - sign_in
+          - users
+          - locations
+          - equipment_types
+          - review
+          - override
+          - escalation
+          - export
+          - retention
+        summary:
+          type: string
+          description: Readable sentence written with the row (audit_log.summary), shown as "What happened".
+        action:
+          type: string
+          description: Machine code of the action.
+        object_type:
+          type: string
+        object_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        details:
+          type: object
+      required:
+      - occurred_at
+      - actor_type
+      - category
+      - summary
+      - action
+      - object_type
+    Quota:
+      type: object
+      properties:
+        period_month:
+          type: string
+        scans_used:
+          type: integer
+        limit:
+          type:
+          - integer
+          - 'null'
+          description: 'OPEN O-7: V3 has no limit column'
+        alert_level_sent:
+          type: integer
+          enum:
+          - 0
+          - 80
+          - 95
+          - 100
+      required:
+      - period_month
+      - scans_used
+    RetentionItem:
+      type: object
+      properties:
+        data_kind:
+          type: string
+        keep_days:
+          type: integer
+        bu_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+          description: Null = tenant default
+      required:
+      - data_kind
+      - keep_days

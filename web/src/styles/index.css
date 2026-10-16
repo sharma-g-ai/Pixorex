@@ -1,0 +1,57 @@
+@import 'tailwindcss';
+
+/*
+ * Pixorex design tokens, taken from the design canvas (docs/design/README.md).
+ * Use them through Tailwind classes (bg-brand-navy, text-ink-muted, border-line,
+ * ...); never hardcode colours or fonts in components.
+ */
+@theme {
+  --font-sans: 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+
+  /* Brand */
+  --color-brand-accent: #f07d22;
+  --color-brand-navy: #2e3192;
+  --color-brand-navy-dark: #1b1e5e;
+  --color-brand-navy-soft: #eaebf8;
+  --color-brand-navy-tint: #f5f6fd;
+
+  /* Text */
+  --color-ink: #14161a;
+  --color-ink-muted: #5b6672;
+  --color-ink-subtle: #9aa1ab;
+
+  /* Surfaces and lines */
+  --color-surface: #ffffff;
+  --color-page: #f4f5f8;
+  --color-line: #e5e9ec;
+  --color-line-soft: #eff1f3;
+  --color-line-strong: #d7dce1; /* form fields, secondary buttons */
+
+  /* Status */
+  --color-danger: #c0392b;
+  --color-danger-strong: #8b291d;
+  --color-danger-soft: #fdecea;
+  --color-warning: #b4540a;
+  --color-warning-soft: #fcefd9;
+  --color-info-soft: #eaf0fb;
+  --color-success: #2c7a30;
+  --color-success-soft: #e4f5e5;
+  --color-table-head: #fafbfc;
+
+  /* Text sizes used by the canvas (text-label, text-body, ...) */
+  --text-label: 10.5px; /* uppercase section labels */
+  --text-caption: 11px;
+  --text-meta: 11.5px;
+  --text-small: 12.5px; /* subtitles, secondary lines */
+  --text-body-sm: 13px;
+  --text-body: 13.5px; /* menu items, body text */
+  --text-card-title: 15px;
+  --text-unit-title: 15.5px;
+  --text-page-title: 20px;
+  --text-stat: 26px; /* big numbers on "Needs you" cards */
+}
+
+body {
+  @apply bg-page font-sans text-ink;
+}

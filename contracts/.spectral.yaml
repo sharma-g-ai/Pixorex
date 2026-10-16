@@ -1,0 +1,36 @@
+extends: ["spectral:oas"]
+rules:
+  # Every operation must list allowed roles and BRD stories.
+  pixorex-x-roles:
+    description: Operation must declare x-roles.
+    given: "$.paths[*][get,post,put,patch,delete]"
+    severity: error
+    then:
+      field: x-roles
+      function: truthy
+  pixorex-x-brd:
+    description: Operation must link BRD stories in x-brd.
+    given: "$.paths[*][get,post,put,patch,delete]"
+    severity: error
+    then:
+      field: x-brd
+      function: truthy
+  # Paths are lowercase kebab-case with camelCase params.
+  pixorex-path-kebab:
+    description: Path segments must be kebab-case.
+    given: "$.paths[*]~"
+    severity: error
+    then:
+      function: pattern
+      functionOptions:
+        match: "^(/([a-z0-9-]+|\\{[a-zA-Z]+\\}))+$"
+  # Errors must use RFC 9457 problem+json.
+  pixorex-error-problem-json:
+    description: 4xx/5xx inline responses must use application/problem+json.
+    given: "$.paths[*][*].responses[?(@property >= '400')].content"
+    severity: error
+    then:
+      field: application/problem+json
+      function: truthy
+  operation-tag-defined: off
+  operation-description: off

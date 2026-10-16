@@ -1,0 +1,5 @@
+com.amzur.pixorex.keycloak.auth.PixorexIdentifierAuthenticatorFactory
+com.amzur.pixorex.keycloak.auth.PixorexAppGateAuthenticatorFactory
+com.amzur.pixorex.keycloak.auth.PixorexLockCheckAuthenticatorFactory
+com.amzur.pixorex.keycloak.auth.PixorexChannelAuthenticatorFactory
+com.amzur.pixorex.keycloak.auth.PixorexOtpAuthenticatorFactory
