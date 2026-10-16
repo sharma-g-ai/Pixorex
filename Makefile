@@ -1,4 +1,4 @@
-.PHONY: up down reset ps logs
+.PHONY: up down reset ps logs migrate seed
 
 up:     ## start the local stack
 	docker compose up -d
@@ -14,3 +14,9 @@ ps:     ## service health
 
 logs:   ## follow logs (make logs s=keycloak)
 	docker compose logs -f $(s)
+
+migrate: ## apply database migrations (runs once on `up` too)
+	docker compose run --rm migrate
+
+seed:   ## load the synthetic demo data (local only)
+	docker compose run --rm migrate python scripts/seed_synthetic.py

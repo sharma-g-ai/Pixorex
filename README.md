@@ -6,21 +6,35 @@ AI-powered industrial asset digitization for PPG Industries. Monorepo: `api/` (F
 
 ## Quick start (local, synthetic data only)
 
-```bash
-git clone <repo-url> && cd pixorex
-make up          # postgres, keycloak, minio, vault (dev), mailpit
-make ps          # all services healthy?
-```
+**You need:** Docker Desktop (running) and Node 24.
+
+**First time** (PowerShell, a few minutes):
+
+1. `git clone <repo-url>` and `cd pixorex`
+2. `.\scripts\setup-local.ps1`
+3. `cd web` then `npm run dev`
+4. Open http://localhost:5173 and sign in as `ea@demo.local` (Enterprise Admin) or `buadmin.p04@demo.local` (BU Admin).
+5. Get the 6-digit code from Mailpit: http://localhost:8025
+
+**Every day after that:**
+
+1. `docker compose up -d` (in the repo folder)
+2. `cd web` then `npm run dev`
+
+**Stop:** `Ctrl+C` in the web window, then `docker compose down` (data is kept).
+
+**Something wrong?** `docker compose ps` shows each service; `docker compose logs api` shows API errors. Running `.\scripts\setup-local.ps1` again is safe.
+
+**Real email (optional):** put the `PIXOREX_SMTP_*` values in `.env` (see `.env.example`), then run the setup script again. Codes and invites then go to real inboxes instead of Mailpit.
 
 | Service | URL |
 |---|---|
-| Keycloak admin | http://localhost:8080 (local-only admin credentials in docker-compose.yml) |
-| MinIO console | http://localhost:9001 |
-| Vault (dev) | http://localhost:8200 |
+| Web app | http://localhost:5173 |
+| API | http://localhost:8000/api/v1/ready |
 | Mailpit inbox | http://localhost:8025 |
-| PostgreSQL | localhost:5432, db `pixorex` |
-
-The API, worker, realm import and seed data arrive with the Sprint 2 tasks in `STATE.md` (PX-10-T01/T02, PX-01-T01, PX-04-T06).
+| Keycloak admin | http://localhost:8080/admin (`admin` / `local-only`) |
+| MinIO console | http://localhost:9001 |
+| PostgreSQL (app) | localhost:5433, db `pixorex`, user `postgres` / `local-only` |
 
 ## How we work
 
