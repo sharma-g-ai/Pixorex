@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Pixorex V1 API - Slice S2, Auth and RBAC
-  version: 0.3.0
+  version: 0.3.1
   contact:
     name: Pixorex backend team (Amzur)
   summary: Signed-in user, unit switching, phone change, invites, business units, BU Admins and technicians.
@@ -140,10 +140,12 @@ paths:
       - Session
       operationId: startPhoneChange
       summary: Start a mobile number change
+      deprecated: true
       description: 'Contract ref 1.4 in the API Contracts doc.
 
 
-        Screen T 16.'
+        Deprecated by D-08: phone change is a Keycloak application-initiated action and Keycloak sends and checks
+        the code. Kept until the mobile team confirms removal. Screen T 16.'
       x-roles: &id002
       - field_technician
       x-brd:
@@ -151,7 +153,6 @@ paths:
       x-brd-note: No BRD story found in the earlier contract mapping; feature comes from V3 data model + 13 Oct
         screens. Confirm the story ID.
       x-sprint: S2
-      x-decision-pending: 'O-12: who sends and checks the code (Keycloak or this API).'
       requestBody:
         required: true
         content:
@@ -194,9 +195,11 @@ paths:
       - Session
       operationId: verifyPhoneChange
       summary: Verify the new mobile number
+      deprecated: true
       description: 'Contract ref 1.5 in the API Contracts doc.
 
 
+        Deprecated by D-08: Keycloak checks the code; the API applies these effects from the Keycloak event listener.
         Saves phone_number and phone_verified_at, revokes every other user_session of the user, emails the user.
         Audit (users). Screens T 17-18.'
       x-roles: *id002
@@ -205,7 +208,6 @@ paths:
       x-brd-note: No BRD story found in the earlier contract mapping; feature comes from V3 data model + 13 Oct
         screens. Confirm the story ID.
       x-sprint: S2
-      x-decision-pending: 'O-12: who sends and checks the code.'
       requestBody:
         required: true
         content:
@@ -244,7 +246,8 @@ paths:
       description: 'Contract ref 1.6 in the API Contracts doc.
 
 
-        Screens T 03-04, BU 01.'
+        The web link carries the token in the URL fragment (/activate#token=...), so it never reaches a server
+        log (D-11). Screens T 03-04, BU 01.'
       x-roles:
       - public
       x-brd:
@@ -288,15 +291,16 @@ paths:
       description: 'Contract ref 1.7 in the API Contracts doc.
 
 
-        Single use. Creates or re-activates app_user and one user_unit_role per invite row with the same hash. Technicians
-        never get dashboard access. Audit (users). Screens T 03, 05; BU 01, 33.'
+        Single use. Creates or re-activates app_user and one user_unit_role per invite row with the same hash. Also
+        accepts every other pending invite for the same email and role in the tenant; the primary unit is the oldest
+        invite''s unit (D-09). Creates the Keycloak user with the email or phone not yet verified; Keycloak sends and
+        checks the code at the first sign-in, then the account becomes active (D-08). Technicians never get dashboard
+        access. Audit (users). Screens T 03, 05; BU 01, 33.'
       x-roles:
       - public
       x-brd:
       - US-049
       x-sprint: S2
-      x-decision-pending: 'O-12: who sends the activation code. O-23: which unit becomes is_primary, and whether
-        other pending invites for the same email are accepted too.'
       security: []
       requestBody:
         required: true
@@ -319,7 +323,8 @@ paths:
               - full_name
       responses:
         '201':
-          description: Accepted; client continues with the code step
+          description: Accepted. The client starts sign-in with the invited email or phone as login_hint; Keycloak
+            sends and checks the code (D-08).
           content:
             application/json:
               schema:

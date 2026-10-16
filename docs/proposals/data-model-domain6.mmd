@@ -1,0 +1,72 @@
+erDiagram
+    APP_USER ||--o{ AUDIT_LOG : "acts in"
+    APP_USER ||--o{ NOTIFICATION : "receives"
+    APP_USER ||--o{ EXPORT_JOB : "requests"
+    BUSINESS_UNIT ||--o{ QUOTA_USAGE : "counted in"
+    TENANT ||--o{ RETENTION_CONFIG : "configures"
+    TENANT ||--o{ OUTBOX_EVENT : "queues"
+
+    AUDIT_LOG {
+        uuid id PK
+        uuid tenant_id FK
+        uuid bu_id FK
+        text actor_type "user, system"
+        uuid actor_user_id FK
+        text category
+        text action "machine code"
+        text summary "readable sentence"
+        text object_type
+        uuid object_id
+        jsonb details
+        timestamptz occurred_at "partition key"
+    }
+    NOTIFICATION {
+        uuid id PK
+        uuid tenant_id FK
+        uuid recipient_user_id FK
+        uuid bu_id FK
+        text kind
+        text object_type
+        uuid object_id
+        text title
+        text body "second line, nullable"
+        timestamptz read_at
+        timestamptz emailed_at
+    }
+    EXPORT_JOB {
+        uuid id PK
+        uuid tenant_id FK
+        uuid bu_id FK
+        uuid requested_by FK
+        text export_kind "scans, audit_log"
+        jsonb filters_json
+        jsonb options_json "columns, photo links"
+        int row_count
+        text status "queued, ready, failed"
+        text file_key
+        timestamptz link_expires_at
+    }
+    QUOTA_USAGE {
+        uuid id PK
+        uuid tenant_id FK
+        uuid bu_id FK
+        date period_month
+        int scans_used
+        int alert_level_sent "0, 80, 95, 100"
+    }
+    RETENTION_CONFIG {
+        uuid id PK
+        uuid tenant_id FK
+        uuid bu_id FK "null = tenant default"
+        text data_kind
+        int keep_days
+    }
+    OUTBOX_EVENT {
+        uuid id PK
+        uuid tenant_id FK
+        text event_type
+        jsonb payload
+        text status "pending, done, failed"
+        int attempts
+        timestamptz next_run_at
+    }

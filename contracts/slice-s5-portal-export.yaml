@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Pixorex V1 API - Slice S5, export and portal
-  version: 0.3.0
+  version: 0.3.1
   contact:
     name: Pixorex backend team (Amzur)
   summary: CSV export of scans and the audit log. Client Portal is an open decision.
@@ -160,8 +160,16 @@ components:
       properties:
         columns:
           type: array
+          description: 'Scans exports only (audit exports ignore it). Always included: record_no, unit,
+            location, equipment type, captured by, captured at, review status. field_values adds one column
+            per field (value sent for approval); ai_vs_technician adds the AI value and confidence next to
+            each; review_decision adds decision, reject category, decided by and decided at.'
           items:
             type: string
+            enum:
+            - field_values
+            - ai_vs_technician
+            - review_decision
         include_photo_links:
           type: boolean
     ExportJob:

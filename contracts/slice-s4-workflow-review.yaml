@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Pixorex V1 API - Slice S4, workflow and review
-  version: 0.3.0
+  version: 0.3.2
   contact:
     name: Pixorex backend team (Amzur)
   summary: My Scans, self-review, decisions, override, delegation, escalation, alerts, audit log, quota and retention.
@@ -973,6 +973,12 @@ paths:
         required: false
         schema:
           type: boolean
+      - name: q
+        in: query
+        required: false
+        description: Searches record_no, equipment type name, serial and technician name (as in 3.1).
+        schema:
+          type: string
       - name: from
         in: query
         required: false
@@ -1539,12 +1545,17 @@ components:
           type: integer
         decided_by_technicians:
           type: integer
+        approved_this_week:
+          type: integer
+          description: Scans of the unit whose current decision is approved and was made since Monday
+            00:00 UTC (review_decision.decided_at). Feeds the BU Admin home card.
       required:
       - waiting
       - over_1d
       - over_1w
       - delegated
       - decided_by_technicians
+      - approved_this_week
     ReviewField:
       type: object
       properties:
@@ -1826,6 +1837,12 @@ components:
           $ref: ./common.yaml#/components/schemas/Uuid
         bu_name:
           type: string
+        equipment_type_name:
+          type: string
+          description: From scan.equipment_type_id.
+        captured_by_name:
+          type: string
+          description: From scan.technician_id.
         reason:
           type: string
           enum:
@@ -1848,6 +1865,8 @@ components:
       - record_no
       - bu_id
       - bu_name
+      - equipment_type_name
+      - captured_by_name
       - reason
       - escalated_at
       - reminded_at
@@ -1871,6 +1890,44 @@ components:
           type: string
         captured_at:
           $ref: ./common.yaml#/components/schemas/Timestamp
+        reviewed_by:
+          description: Decider of the current review_decision; null while undecided.
+          oneOf:
+          - type: 'null'
+          - type: object
+            properties:
+              name:
+                type: string
+              overrode_name:
+                type:
+                - string
+                - 'null'
+                description: Decider of the decision this one overrode (overrides_decision_id).
+            required:
+            - name
+            - overrode_name
+        assignment:
+          description: The open review_assignment and its review_batch; null when not delegated.
+          oneOf:
+          - type: 'null'
+          - type: object
+            properties:
+              batch_no:
+                type: string
+              assigned_to_name:
+                type: string
+            required:
+            - batch_no
+            - assigned_to_name
+        escalation_reason:
+          description: Reason of the scan's open escalation; null when not escalated.
+          type:
+          - string
+          - 'null'
+          enum:
+          - not_approved_24h
+          - no_bu_admin
+          - null
       required:
       - scan_id
       - record_no
@@ -1880,6 +1937,9 @@ components:
       - location_path
       - review_status
       - captured_at
+      - reviewed_by
+      - assignment
+      - escalation_reason
     Notification:
       type: object
       properties:
@@ -1889,6 +1949,11 @@ components:
           $ref: '#/components/schemas/NotificationKind'
         title:
           type: string
+        body:
+          type:
+          - string
+          - 'null'
+          description: Grey second line under the title (notification.body); null when there is none.
         bu_id:
           type:
           - string
@@ -1905,15 +1970,23 @@ components:
           - string
           - 'null'
           format: date-time
+        emailed_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          description: Set once the email went out; the panel shows "also emailed" only then.
       required:
       - notification_id
       - kind
       - title
+      - body
       - bu_id
       - object_type
       - object_id
       - created_at
       - read_at
+      - emailed_at
     NotificationKind:
       type: string
       enum:
@@ -1964,8 +2037,12 @@ components:
           - escalation
           - export
           - retention
+        summary:
+          type: string
+          description: Readable sentence written with the row (audit_log.summary), shown as "What happened".
         action:
           type: string
+          description: Machine code of the action.
         object_type:
           type: string
         object_id:
@@ -1979,6 +2056,7 @@ components:
       - occurred_at
       - actor_type
       - category
+      - summary
       - action
       - object_type
     Quota:

@@ -1,4 +1,4 @@
-# API contracts (OpenAPI 3.1), v0.3.0
+# API contracts (OpenAPI 3.1), v0.3.0 (S2, S5 at v0.3.1; S4 at v0.3.2)
 
 The interface between `web/`, `mobile/` and `api/`. The readable version is `docs/api-contracts.md`; each operation's description starts with "Contract ref n.n", which specs and tasks cite.
 
@@ -26,3 +26,9 @@ npx @stoplight/spectral-cli lint common.yaml slice-*.yaml           # lint
 npx @stoplight/prism-cli mock slice-s2-auth-rbac.yaml               # mock server on :4010
 npx @redocly/cli bundle slice-s2-auth-rbac.yaml -o s2.yaml          # one file for Postman / Swagger
 ```
+
+## Changes
+
+- **S4 v0.3.1 (16 Oct 2026):** fields the V3 data model already holds, needed by the dashboards. 3.3 `counts.approved_this_week`; 3.16 `equipment_type_name`, `captured_by_name`; 3.18 `q` filter and `reviewed_by`, `assignment`, `escalation_reason`. Same change in the Google Doc and `docs/api-contracts.md`.
+- **S4 v0.3.2, S5 v0.3.1 (16 Oct 2026):** after a data model change (new columns `audit_log.summary`, `notification.body`). 3.19 `body`, `emailed_at`; 3.22 `summary`; 4.1 `options.columns` limited to `field_values`, `ai_vs_technician`, `review_decision`. Full list: `docs/proposals/data-gaps-oct-2026.md`.
+- **S2 v0.3.1 (16 Oct 2026):** decisions D-08, D-09, D-11 (`docs/proposals/decisions-o12-o23.md`). 1.4–1.5 deprecated (Keycloak checks codes); 1.6 token in the URL fragment; 1.7 accepts all pending invites for the email and role, Keycloak sends the code.

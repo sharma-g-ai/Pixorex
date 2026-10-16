@@ -45,16 +45,16 @@ Lanes: **FSD-A** Foundation · **FSD-B** API & Security · **Divya** web · **Fl
 | PX-01-T06 | GET /me, PUT /me/active-unit, POST /me/sign-out (1.1–1.3) | A1 | FSD-B | todo | | D · needs O-11 |
 | PX-04-T07 | GET/POST /business-units, GET /business-units/{buId} (1.12–1.14) | A2 | FSD-A | todo | | D |
 | PX-01-T07 | POST/GET /invites, resend, cancel (1.8–1.11) | A1 | FSD-B | todo | | D |
-| PX-01-T08 | Invite preview + accept, Keycloak user creation (1.6–1.7) | A1 | FSD-B | todo | | D · activation part needs O-12, O-23 |
+| PX-01-T08 | Invite preview + accept, Keycloak user creation (1.6–1.7) | A1 | FSD-B | todo | | D · unblocked: D-08, D-09 |
 | PX-04-T08 | BU Admin list/assign/remove (1.15–1.17) | A1 | FSD-A | todo | | S |
 | PX-04-T09 | Technician list/remove + lock state from Keycloak (1.18–1.19) | A1 | FSD-A | todo | | S · needs O-13 |
-| PX-01-T09 | Phone change (1.4–1.5) | A0 | FSD-B | blocked | | S · O-12 |
+| PX-01-T09 | Phone change (1.4–1.5) | A0 | FSD-B | todo | | S · unblocked by D-08: Keycloak application-initiated action + event listener |
 | PX-01-T10 | Keycloak login theme matching MOB-01 / admin sign-in screens | A2 | Divya | todo | | D |
-| PX-01-T11 | Web: Vite + TS scaffold, typed client + mock server from OpenAPI | A2 | Divya | todo | | D · day 1 |
-| PX-01-T12 | Web: OIDC PKCE sign-in, token refresh, sign-out | A0 | Divya + architect | todo | | D |
-| PX-01-T13 | Web: role-gated shell (EA vs BU Admin nav), unit switcher | A2 | Divya | todo | | D |
-| PX-04-T10 | Web: EA-01 units overview + create unit + invite BU Admin | A2 | Divya | todo | | D |
-| PX-04-T11 | Web: BU-01 staff and invites | A2 | Divya | todo | | D |
+| PX-01-T11 | Web: Vite + TS scaffold, typed client + mock server from OpenAPI | A2 | Divya | in_review | | D · day 1 · TS pinned 5.9 (openapi-typescript needs TS 5); Prism run via npx (its deps fail npm audit) |
+| PX-01-T12 | Web: OIDC PKCE sign-in, token refresh, sign-out | A0 | Divya + architect | in_review | | D · D-11; tested against a certified OIDC server, re-test on the Keycloak realm (PX-01-T01) |
+| PX-01-T13 | Web: role-gated shell (EA vs BU Admin nav), unit switcher | A2 | Divya | in_review | | D · runs on the mock API until sign-in (PX-01-T12) |
+| PX-04-T10 | Web: EA-01 units overview + create unit + invite BU Admin | A2 | Divya | in_review | | D · unit cards show facility instead of technician count (not in contract 1.12) |
+| PX-04-T11 | Web: BU-01 staff and invites | A2 | Divya | in_review | | D · lock badge shows only if the API sends sign_in_locked_until (O-13) |
 | PX-01-T14 | Mobile: Flutter scaffold, secure storage, X-Device-Id, API client | A2 | Flutter | todo | | D · day 1 |
 | PX-01-T15 | Mobile: sign-in via system browser + PKCE (MOB-01), invite deep link | A0 | Flutter + architect | todo | | D |
 | PX-01-T16 | Mobile: Home + unit switch (MOB-02) on /me and /me/active-unit | A2 | Flutter | todo | | D |
@@ -78,9 +78,9 @@ Lanes: **FSD-A** Foundation · **FSD-B** API & Security · **Divya** web · **Fl
 |---|---|---|---|---|
 | P-1 | Tenant + first EA creation | Operator CLI (ARCHITECTURE §4.6) | Owner + TA | |
 | O-11 | Active unit: session vs token | `user_session.active_bu_id` + `X-Device-Id` | Manager / TA | |
-| O-12 | Activation and phone-change codes | Keycloak required actions, same authenticator and lock counter; API learns via event listener | Manager / TA | |
+| O-12 | Activation and phone-change codes | Keycloak required actions, same authenticator and lock counter; API learns via event listener | Manager / TA | **D-08** (16 Oct): as proposed |
 | O-13 | Lock state in BU-01 | Keycloak attack-detection admin API | Manager / TA | |
-| O-23 | Multi-unit activation, primary unit | Accept all pending invites for the email; primary = oldest invite's unit | You + Divya | |
+| O-23 | Multi-unit activation, primary unit | Accept all pending invites for the email; primary = oldest invite's unit | You + Divya | **D-09** (16 Oct): as proposed, same role only |
 | P-10 | bu_admin_user_id vs user_unit_role | Role row authoritative; checked by constraint trigger | TA | |
 | P-3 | SMS provider | Existing account — confirm DLT sender + OTP template approved | You | |
 | — | Email provider | SMTP adapter now (Mailpit); choose SES or SendGrid before a shared environment | TA | |
@@ -92,6 +92,7 @@ Lanes: **FSD-A** Foundation · **FSD-B** API & Security · **Divya** web · **Fl
 ## Decisions made this wave
 - 2026-10-14 — Monorepo; Keycloak-direct sign-in; email + SMS OTP; trunk-based, 80% floor; React + TS; Sonnet build / Opus review; local-only environments; demo on synthetic data stated up front.
 - 2026-10-14 — PRD V3 baseline adopted: 3 roles, no Client Portal, no SAML, frozen 31-table model, two approvals per PR (constitution v1.2).
+- 2026-10-16 — D-08, D-09, D-11 (O-12, O-23, web session); reasoning in `docs/proposals/decisions-o12-o23.md`. O-7 (scan limit) stays open: not on the screens.
 - 2026-10-15 — Dashboard decisions D-01 to D-07, delegated by the lead to the dashboard team ("implement the best way possible"); detail and reasoning in `docs/proposals/web-dashboard-stack.md`:
 
 | ID | Topic | Decision | Follow-up |
@@ -103,6 +104,9 @@ Lanes: **FSD-A** Foundation · **FSD-B** API & Security · **Divya** web · **Fl
 | D-05 | Who overrides a decision (PRD item 6) | BU Admin in units they run; EA in any unit | Update contract 3.7 `x-roles` (S4) |
 | D-06 | Audit log access | EA all units; BU Admin read + export for units they run (PRD wins for behaviour) | Update contracts 3.22, 4.1, SPEC-PX-07 REQ-07.01; unit-scoped RLS on `audit_log`; BU Audit log screen (S4) |
 | D-07 | Screen IDs | PRD ↔ prototype mapping in `docs/design/README.md`; tasks cite both | none |
+| D-08 | O-12: who sends and checks codes | Keycloak only (sign-in, activation, phone change); one brute-force counter, 5 wrong = 30 min temporary lock; API never stores codes; 1.4–1.5 deprecated in favour of a Keycloak application-initiated action | PX-01-T02/T03 prove wrong codes hit the counter; PX-01-T04 applies phone-change side effects |
+| D-09 | O-23: multi-unit activation | Accepting one invite accepts every pending invite for that email and role in the tenant; primary unit = oldest invite's unit | PX-01-T08 |
+| D-11 | Web session | OIDC code + PKCE via oidc-client-ts, tokens in sessionStorage, refresh tokens (no iframe), sign-out calls 1.3 then Keycloak; invite token in the URL fragment | Realm client `pixorex-web` in PX-01-T01 |
 
 ## Open questions (not blocking S2)
 - P-4 admin MFA · P-13 WAL-based RPO · P-14 OpenAI US/ZDR evidence · environment procurement (needed by S3–S4).
