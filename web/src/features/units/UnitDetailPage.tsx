@@ -1,14 +1,22 @@
+import { useState } from 'react'
 import { Link, useParams } from 'react-router'
 import { useBuAdmins } from '../../api/buAdmins'
 import { useBusinessUnits, type BusinessUnit } from '../../api/businessUnits'
 import { useEscalations } from '../../api/escalations'
+import { useInvites } from '../../api/invites'
+import { Alert } from '../../components/Alert'
 import { Badge } from '../../components/Badge'
+import { Button } from '../../components/Button'
 import { buttonClasses } from '../../components/buttonClasses'
 import { Card } from '../../components/Card'
 import { PageHeader } from '../../components/layout/PageHeader'
 import { Person } from '../../components/Person'
 import { StatTile } from '../../components/StatTile'
 import { RecentActivityCard } from '../auditLog/RecentActivityCard'
+import { EditUnitsDialog } from '../buAdmins/EditUnitsDialog'
+import { InviteBuAdminDialog } from '../buAdmins/InviteBuAdminDialog'
+import { RemoveBuAdminDialog } from '../buAdmins/RemoveBuAdminDialog'
+import { editOptions, inviteOptions, removeOptions } from '../buAdmins/unitOptions'
 import { waitingStatus } from '../review/reviewRules'
 
 /** One unit seen by the EA: its BU Admin, numbers, escalations and activity (canvas EA 25–28, 67). */
@@ -19,12 +27,13 @@ export function UnitDetailPage() {
 
   if (units.isPending) return <Card className="m-8">Loading the unit…</Card>
   if (!unit) return <Card className="m-8">This unit doesn't exist or was removed.</Card>
-  return <UnitDetail unit={unit} />
+  return <UnitDetail unit={unit} units={units.data ?? []} />
 }
 
-function UnitDetail({ unit }: { unit: BusinessUnit }) {
+function UnitDetail({ unit, units }: { unit: BusinessUnit; units: BusinessUnit[] }) {
   const q = `?unit=${unit.bu_id}`
   const escalated = unit.escalated_count ?? 0
+  const [notice, setNotice] = useState<string | null>(null)
 
   return (
     <>
@@ -38,7 +47,12 @@ function UnitDetail({ unit }: { unit: BusinessUnit }) {
         }
       />
       <div className="flex grow flex-col gap-5 overflow-y-auto px-8 pt-6 pb-8">
-        <AdminCard unit={unit} />
+        {notice && (
+          <Alert tone="info" role="status">
+            {notice}
+          </Alert>
+        )}
+        <AdminCard unit={unit} units={units} onDone={setNotice} />
         <div className="grid grid-cols-2 gap-3.5 lg:grid-cols-3">
           <StatTile value={unit.waiting_count ?? 0} label="waiting review" to={`/scans${q}`} />
           <StatTile
@@ -90,18 +104,50 @@ function UnitDetail({ unit }: { unit: BusinessUnit }) {
   )
 }
 
-function AdminCard({ unit }: { unit: BusinessUnit }) {
+interface AdminCardProps {
+  unit: BusinessUnit
+  units: BusinessUnit[]
+  onDone: (text: string) => void
+}
+
+/**
+ * The unit's BU Admin, with "Edit units" and "Remove" as on the canvas (EA 25; 1.16, 1.17).
+ * No BU Admin: "Assign BU Admin" invites one right here (contract 1.8).
+ */
+function AdminCard({ unit, units, onDone }: AdminCardProps) {
   const admins = useBuAdmins()
+  const invites = useInvites()
+  const [open, setOpen] = useState<'invite' | 'edit' | 'remove' | null>(null)
   const admin = admins.data?.find((a) => a.user_id === unit.bu_admin?.user_id)
   const others = admin?.units.filter((u) => u.bu_id !== unit.bu_id).map((u) => u.name) ?? []
+  const buAdminInvites = (invites.data ?? []).filter((i) => i.role === 'bu_admin')
+  const done = (text: string) => {
+    setOpen(null)
+    onDone(text)
+  }
 
   return (
     <Card
       title="BU Admin"
       action={
-        <Link to="/bu-admins" className={buttonClasses('secondary')}>
-          Manage
-        </Link>
+        admin ? (
+          <div className="flex gap-3.5">
+            <button type="button" className={buttonClasses('link')} onClick={() => setOpen('edit')}>
+              Edit units
+            </button>
+            <button
+              type="button"
+              className={buttonClasses('danger-link')}
+              onClick={() => setOpen('remove')}
+            >
+              Remove
+            </button>
+          </div>
+        ) : (
+          <Button variant="secondary" onClick={() => setOpen('invite')}>
+            Assign BU Admin
+          </Button>
+        )
       }
     >
       {unit.bu_admin?.full_name ? (
@@ -122,6 +168,31 @@ function AdminCard({ unit }: { unit: BusinessUnit }) {
         <p className="text-body text-danger-strong">
           <b>No BU Admin.</b> This unit's scans that wait over 24 hours come to you.
         </p>
+      )}
+      {open === 'invite' && (
+        <InviteBuAdminDialog
+          options={inviteOptions(units, buAdminInvites)}
+          initialUnitIds={[unit.bu_id]}
+          onClose={() => setOpen(null)}
+          onSent={(email) => done(`Invite sent to ${email}. The link works for 24 hours.`)}
+        />
+      )}
+      {admin && open === 'edit' && (
+        <EditUnitsDialog
+          admin={admin}
+          options={editOptions(admin, units, buAdminInvites)}
+          onClose={() => setOpen(null)}
+          onSaved={(name) => done(`Units of ${name} were updated.`)}
+          onRemove={() => setOpen('remove')}
+        />
+      )}
+      {admin && open === 'remove' && (
+        <RemoveBuAdminDialog
+          admin={admin}
+          options={removeOptions(admin, units)}
+          onClose={() => setOpen(null)}
+          onRemoved={done}
+        />
       )}
     </Card>
   )

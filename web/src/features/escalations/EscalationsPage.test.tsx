@@ -21,12 +21,17 @@ vi.mock('../../api/businessUnits', async (importOriginal) => ({
       {
         bu_id: 'p04',
         name: 'Plant 04',
-        bu_admin: { full_name: 'R. Kowalski' },
+        bu_admin: { user_id: 'rk', full_name: 'R. Kowalski' },
         escalated_count: 2,
       },
       { bu_id: 'p11', name: 'Plant 11', bu_admin: null, escalated_count: 1 },
     ],
   }),
+}))
+vi.mock('../../api/invites', async (importOriginal) => ({
+  ...(await importOriginal<object>()),
+  useInvites: () => ({ data: [], isPending: false, isError: false }),
+  useCreateInvite: () => ({ mutateAsync: vi.fn() }),
 }))
 vi.mock('../../api/review', () => ({
   useCreateBatch: () => ({ mutateAsync: createBatch }),
@@ -99,8 +104,17 @@ describe('Escalated scans (contracts 3.16, 3.17)', () => {
     expect(p04.getByText('9 days')).toBeInTheDocument()
     expect(p04.getByText('Over 24 h with R. Kowalski')).toBeInTheDocument()
     const p11 = within(screen.getByRole('region', { name: 'Plant 11' }))
-    expect(p11.getByRole('link', { name: 'Assign BU Admin' })).toHaveAttribute('href', '/bu-admins')
+    expect(p11.getByRole('button', { name: 'Assign BU Admin' })).toBeInTheDocument()
     expect(screen.getByRole('tab', { name: /All units/ })).toHaveTextContent('· 3')
+  })
+
+  it('GIVEN Assign BU Admin THEN the invite dialog opens with that unit ticked (canvas)', () => {
+    page()
+    const p11 = within(screen.getByRole('region', { name: 'Plant 11' }))
+    fireEvent.click(p11.getByRole('button', { name: 'Assign BU Admin' }))
+    const dialog = within(screen.getByRole('dialog'))
+    expect(dialog.getByRole('checkbox', { name: /Plant 11/ })).toBeChecked()
+    expect(dialog.getByRole('checkbox', { name: /Plant 04/ })).toBeDisabled()
   })
 
   it('GIVEN Remind THEN the BU Admin is reminded and the page says so', () => {

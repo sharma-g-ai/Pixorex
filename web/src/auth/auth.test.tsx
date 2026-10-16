@@ -3,6 +3,7 @@ import { MemoryRouter } from 'react-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { readAuthConfig } from './authConfig'
 import { AuthGate } from './AuthGate'
+import { SignedOutPage } from './AuthPages'
 import { completeSignIn, handleUnauthorized, safeReturnPath } from './session'
 
 describe('auth config (D-11)', () => {
@@ -149,5 +150,27 @@ describe('AuthGate', () => {
     expect(
       await screen.findByRole('heading', { name: "We couldn't reach sign-in" }),
     ).toBeInTheDocument()
+  })
+})
+
+describe('after sign-out (canvas: straight to sign-in)', () => {
+  beforeEach(() => signIn.mockReset().mockResolvedValue(undefined))
+  const signedOut = (mode: 'oidc' | 'mock') =>
+    render(
+      <MemoryRouter>
+        <SignedOutPage mode={mode} />
+      </MemoryRouter>,
+    )
+
+  it('GIVEN Keycloak THEN goes straight to sign-in, no signed-out page', async () => {
+    signedOut('oidc')
+    await waitFor(() => expect(signIn).toHaveBeenCalledWith('/'))
+    expect(screen.queryByRole('heading', { name: "You're signed out" })).not.toBeInTheDocument()
+  })
+
+  it('GIVEN mock mode (no sign-in screen) THEN shows the signed-out card', () => {
+    signedOut('mock')
+    expect(screen.getByRole('heading', { name: "You're signed out" })).toBeInTheDocument()
+    expect(signIn).not.toHaveBeenCalled()
   })
 })

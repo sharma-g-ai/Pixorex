@@ -10,6 +10,33 @@ export function readInviteToken(hash: string, search: string): string {
   return (fromHash ?? fromQuery ?? '').trim()
 }
 
+/** Survives React Strict Mode remount after the hash is stripped (D-11). */
+let inviteTokenCache = ''
+
+/**
+ * Read the token from the URL, cache it, and strip it from the address bar.
+ * On remount (Strict Mode) the cache still has the token.
+ */
+export function takeInviteToken(
+  hash: string = window.location.hash,
+  search: string = window.location.search,
+): string {
+  const fromUrl = readInviteToken(hash, search)
+  if (fromUrl) {
+    inviteTokenCache = fromUrl
+    if (typeof window !== 'undefined' && (window.location.hash || window.location.search)) {
+      window.history.replaceState(null, '', window.location.pathname)
+    }
+    return fromUrl
+  }
+  return inviteTokenCache
+}
+
+/** Test helper: clear the in-memory invite token between cases. */
+export function clearInviteTokenCache(): void {
+  inviteTokenCache = ''
+}
+
 const deadLinkCodes = ['invite-expired', 'invite-used', 'invite-cancelled']
 
 /** The link itself no longer works (expired, used, cancelled), as opposed to a fixable error. */

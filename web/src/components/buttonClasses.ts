@@ -20,5 +20,6 @@ const variants: Record<ButtonVariant, string> = {
  * <Link className={buttonClasses('primary')} to="...">.
  */
 export function buttonClasses(variant: ButtonVariant = 'primary'): string {
-  return `inline-flex items-center gap-2 whitespace-nowrap text-body font-semibold disabled:cursor-not-allowed disabled:opacity-60 ${variants[variant]}`
+  // justify-center: full-width buttons (activation, sign-in cards) keep their label centred.
+  return `inline-flex items-center justify-center gap-2 whitespace-nowrap text-body font-semibold disabled:cursor-not-allowed disabled:opacity-60 ${variants[variant]}`
 }

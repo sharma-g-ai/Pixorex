@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { useNavigate } from 'react-router'
 import { z } from 'zod'
@@ -14,7 +14,7 @@ import { AuthCard } from '../../components/layout/AuthCard'
 import { fullNameField } from '../../lib/validation'
 import { timeLeft } from '../../lib/time'
 import { zodResolver } from '../../lib/zodResolver'
-import { inviteProblem, isDeadInvite, readInviteToken } from './inviteLink'
+import { inviteProblem, isDeadInvite, takeInviteToken } from './inviteLink'
 
 const schema = z.object({ full_name: fullNameField() })
 type Values = z.infer<typeof schema>
@@ -25,12 +25,7 @@ type Values = z.infer<typeof schema>
  */
 export function ActivatePage() {
   // Read once, then take the token out of the address bar and history (D-11).
-  const [token] = useState(() => readInviteToken(window.location.hash, window.location.search))
-  useEffect(() => {
-    if (window.location.hash || window.location.search) {
-      window.history.replaceState(null, '', window.location.pathname)
-    }
-  }, [])
+  const [token] = useState(() => takeInviteToken())
 
   const preview = useInvitePreview(token)
 

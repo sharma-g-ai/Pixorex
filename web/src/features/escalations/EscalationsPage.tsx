@@ -1,18 +1,20 @@
 import { useState } from 'react'
-import { Link, useSearchParams } from 'react-router'
+import { useSearchParams } from 'react-router'
 import { useBusinessUnits, type BusinessUnit } from '../../api/businessUnits'
 import { ApiError, errorMessage, problemCode } from '../../api/client'
 import { useEscalations, useRemindBuAdmin } from '../../api/escalations'
 import type { ExportJob } from '../../api/exports'
+import { useInvites } from '../../api/invites'
 import { Alert } from '../../components/Alert'
 import { Badge } from '../../components/Badge'
 import { Button } from '../../components/Button'
-import { buttonClasses } from '../../components/buttonClasses'
 import { Card } from '../../components/Card'
 import { LoadMore } from '../../components/LoadMore'
 import { PageHeader } from '../../components/layout/PageHeader'
 import { Tabs } from '../../components/Tabs'
 import { waitedFor } from '../../lib/time'
+import { InviteBuAdminDialog } from '../buAdmins/InviteBuAdminDialog'
+import { inviteOptions } from '../buAdmins/unitOptions'
 import { ExportDialog } from '../exports/ExportDialog'
 import { ExportJobNotice } from '../exports/ExportJobNotice'
 import { DelegateBatchDialog } from '../review/DelegateBatchDialog'
@@ -24,6 +26,7 @@ import { UnitEscalationsView } from './UnitEscalationsView'
 export function EscalationsPage() {
   const escalations = useEscalations()
   const units = useBusinessUnits()
+  const invites = useInvites()
   const [params] = useSearchParams()
   const [current, setCurrent] = useState(params.get('unit') ?? 'all')
   const [notice, setNotice] = useState<string | null>(null)
@@ -35,6 +38,8 @@ export function EscalationsPage() {
   const [batchesMade, setBatchesMade] = useState(0)
   const [exporting, setExporting] = useState(false)
   const [exportJob, setExportJob] = useState<ExportJob | null>(null)
+  // The unit whose "Assign BU Admin" opened the invite dialog.
+  const [assigning, setAssigning] = useState<string | null>(null)
 
   const groups = groupByUnit(escalations.items)
   const unitOf = (buId: string) => units.data?.find((u) => u.bu_id === buId)
@@ -116,6 +121,7 @@ export function EscalationsPage() {
                   unit={unitOf(g.buId)}
                   onReview={() => setCurrent(g.buId)}
                   onRemind={() => remind(g.buId, unitOf(g.buId))}
+                  onAssign={() => setAssigning(g.buId)}
                   onDelegate={() =>
                     delegate(
                       g,
@@ -140,6 +146,20 @@ export function EscalationsPage() {
             setDelegating(null)
             setBatchesMade((n) => n + 1)
             setNotice(message)
+          }}
+        />
+      )}
+      {assigning && (
+        <InviteBuAdminDialog
+          options={inviteOptions(
+            units.data ?? [],
+            (invites.data ?? []).filter((i) => i.status === 'pending'),
+          )}
+          initialUnitIds={[assigning]}
+          onClose={() => setAssigning(null)}
+          onSent={(email) => {
+            setAssigning(null)
+            setNotice(`Invite sent to ${email}. The link works for 24 hours.`)
           }}
         />
       )}
@@ -197,6 +217,7 @@ interface EscalationCardProps {
   unit?: BusinessUnit
   onReview: () => void
   onRemind: () => void
+  onAssign: () => void
   onDelegate: () => void
 }
 
@@ -206,6 +227,7 @@ function EscalationCard({
   unit,
   onReview,
   onRemind,
+  onAssign,
   onDelegate,
 }: EscalationCardProps) {
   const admin = unit?.bu_admin?.full_name
@@ -246,9 +268,9 @@ function EscalationCard({
       <div className="mt-auto flex flex-wrap gap-2">
         <Button onClick={onReview}>Review</Button>
         {noAdmin ? (
-          <Link to="/bu-admins" className={buttonClasses('secondary')}>
+          <Button variant="secondary" onClick={onAssign}>
             Assign BU Admin
-          </Link>
+          </Button>
         ) : (
           <Button variant="secondary" onClick={onRemind}>
             Remind {admin ?? 'BU Admin'}

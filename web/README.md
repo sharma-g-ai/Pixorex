@@ -4,19 +4,28 @@ React + TypeScript (strict) + Vite, Tailwind. Node 24 (`.nvmrc`). Stack: decisio
 
 ## Run
 
+**Real API + Keycloak (Phase E — preferred):**
+
 ```bash
+# terminal 1 — FastAPI (see api/README.md); Postgres on host :5433, Keycloak up
+cd ../api && .\.venv\Scripts\Activate.ps1 && uvicorn app.main:app --reload --port 8000
+
+# terminal 2 — web
 npm install
-npm run api:mock   # terminal 1: mock API from the contracts on :4010
-npm run dev        # terminal 2: app on http://localhost:5173 (/api/v1 goes to the mock)
+# .env.local: VITE_OIDC_AUTHORITY + VITE_OIDC_CLIENT_ID (see .env.example)
+npm run dev        # http://localhost:5173 — /api/v1 proxies to :8000
 ```
+
+**Prism mock (no FastAPI):** set `VITE_API_PROXY_TARGET=http://127.0.0.1:4010` in `.env.local`, then `npm run api:mock` and `npm run dev`.
 
 ## Sign-in (D-11)
 
-Keycloak, OIDC Authorization Code + PKCE (`oidc-client-ts`). Settings in `.env.example`:
+Keycloak, OIDC Authorization Code + PKCE (`oidc-client-ts`). Settings in `.env.example` / `.env.local`:
 
-- **Development without Keycloak:** leave `VITE_OIDC_AUTHORITY` empty. The app skips sign-in and the dev proxy sends a placeholder token to the mock.
-- **With Keycloak:** set `VITE_OIDC_AUTHORITY` and `VITE_OIDC_CLIENT_ID` in `.env.local` (git-ignored) or the build environment. The `pixorex-web` client needs redirect URI `<origin>/auth/callback`, post-logout URI `<origin>/signed-out`, web origin `<origin>`, PKCE S256 required, refresh tokens on.
-- **Production builds** without these settings refuse to run.
+- **With Keycloak + real API:** set `VITE_OIDC_AUTHORITY` and `VITE_OIDC_CLIENT_ID`. Proxy defaults to FastAPI `:8000`.
+- **Development without Keycloak:** leave OIDC vars empty (mock auth). Still need Prism or FastAPI for `/me`.
+- **Production builds** without OIDC settings refuse to run.
+- Keycloak client `pixorex-web`: redirect `<origin>/auth/callback`, post-logout `<origin>/signed-out`, web origin `<origin>`, PKCE S256.
 
 Public routes: `/auth/callback`, `/signed-out`, `/activate` (invite links, token in the `#` fragment). Everything else needs a session. Tokens stay in `sessionStorage`.
 

@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router'
 import { describe, expect, it, vi } from 'vitest'
 import { UnitDetailPage } from './UnitDetailPage'
@@ -18,10 +18,24 @@ vi.mock('../../api/businessUnits', async (importOriginal) => ({
         delegated_count: 60,
         locations_status: 'published',
       },
+      {
+        bu_id: 'p12',
+        name: 'PPG Plant 12 — Adhesives',
+        facility_name: 'Atlanta',
+        bu_admin: null,
+        locations_status: 'published',
+      },
     ],
   }),
 }))
+vi.mock('../../api/invites', async (importOriginal) => ({
+  ...(await importOriginal<object>()),
+  useInvites: () => ({ data: [], isPending: false, isError: false }),
+  useCreateInvite: () => ({ mutateAsync: vi.fn() }),
+}))
 vi.mock('../../api/buAdmins', () => ({
+  useSetBuAdminUnits: () => ({ mutateAsync: vi.fn() }),
+  useRemoveBuAdmin: () => ({ mutateAsync: vi.fn() }),
   useBuAdmins: () => ({
     data: [
       {
@@ -94,5 +108,25 @@ describe('EA unit page (canvas EA 25)', () => {
   it('GIVEN an unknown unit THEN says so', () => {
     page('/overview/units/nope')
     expect(screen.getByText(/doesn't exist or was removed/)).toBeInTheDocument()
+  })
+})
+
+describe('EA unit page: BU Admin card (canvas EA 25)', () => {
+  it('GIVEN a BU Admin THEN Edit units and Remove open their dialogs on this page', () => {
+    page('/overview/units/p04')
+    expect(screen.queryByRole('link', { name: 'Manage' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Edit units' }))
+    expect(screen.getByRole('dialog')).toHaveTextContent('R. Kowalski')
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: /Cancel/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Remove' }))
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+  })
+  it('GIVEN no BU Admin THEN Assign BU Admin opens the invite with this unit ticked', () => {
+    page('/overview/units/p12')
+    expect(screen.queryByRole('link', { name: 'Manage' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Assign BU Admin' }))
+    const dialog = within(screen.getByRole('dialog'))
+    expect(dialog.getByRole('checkbox', { name: /Plant 12/ })).toBeChecked()
+    expect(dialog.getByRole('checkbox', { name: /Plant 04/ })).toBeDisabled()
   })
 })

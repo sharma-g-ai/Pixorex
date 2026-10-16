@@ -3,7 +3,7 @@ import { MemoryRouter, Route, Routes } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ApiError } from '../../api/client'
 import { ActivatePage } from './ActivatePage'
-import { readInviteToken } from './inviteLink'
+import { clearInviteTokenCache, readInviteToken } from './inviteLink'
 
 const accept = vi.fn()
 let preview: { isPending: boolean; isError: boolean; data?: unknown; error?: unknown }
@@ -42,6 +42,7 @@ beforeEach(() => {
 })
 afterEach(() => {
   vi.useRealTimers()
+  clearInviteTokenCache()
   window.history.replaceState(null, '', '/')
 })
 
