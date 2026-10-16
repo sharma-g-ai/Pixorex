@@ -22,7 +22,7 @@ A field technician photographs an equipment nameplate (1–4 photos), the AI Inf
 |---|---|---|
 | Mobile app | Flutter (iOS 16+, Android 10+), `mobile/` | Technician only: sign-in, unit switch, capture, offline queue (AES-256, hardware-backed key), My Scans, delegated review. Root/jailbreak detection, certificate pinning |
 | Web dashboard | React + TypeScript (Vite), `web/` | Enterprise Admin and BU Admin surfaces (EA-01–04, BU-01–05). No portal route |
-| Backend API | Python 3.11 + FastAPI, `api/` | `/api/v1`, 76 endpoints in 4 slices. No sign-in endpoints |
+| Backend API | Python 3.12 + FastAPI, `api/` | `/api/v1`, 76 endpoints in 4 slices. No sign-in endpoints |
 | Workers | Same codebase, separate process | Outbox worker, extraction runner, scheduled jobs (escalation, batch alerts, retention, export builds) |
 | Identity | Keycloak 24.x, `keycloak/` | One-time-code sign-in, lockout, sessions; realm config as code |
 | Database | PostgreSQL 18 | 31 tables in 6 domains (frozen V3 model); RLS on every tenant-owned table |

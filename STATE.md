@@ -17,6 +17,8 @@ The Sprint Deliverables plan says "BU Admin via SSO" and "Reviewer role". PRD V3
 
 Lanes: **FSD-A** Foundation · **FSD-B** API & Security · **Divya** web · **Flutter** mobile · **DevOps** stack + CI. D = demo-critical; S = may slip to S3.
 
+**Plan change (16 Oct):** Vishnu owns the web end to end (dashboard and the API behind it), Iswarya owns Keycloak, Amrutha owns mobile. Task rows below still show the old lanes until reassigned.
+
 ## Task board
 
 | Task ID | Title | Grade | Operator | Status | PR | Notes |
@@ -92,6 +94,7 @@ Lanes: **FSD-A** Foundation · **FSD-B** API & Security · **Divya** web · **Fl
 ## Decisions made this wave
 - 2026-10-14 — Monorepo; Keycloak-direct sign-in; email + SMS OTP; trunk-based, 80% floor; React + TS; Sonnet build / Opus review; local-only environments; demo on synthetic data stated up front.
 - 2026-10-14 — PRD V3 baseline adopted: 3 roles, no Client Portal, no SAML, frozen 31-table model, two approvals per PR (constitution v1.2).
+- 2026-10-16 — Python pinned to 3.12 instead of 3.11 (approved by the lead); CONSTITUTION v1.4.
 - 2026-10-16 — D-08, D-09, D-11 (O-12, O-23, web session); reasoning in `docs/proposals/decisions-o12-o23.md`. O-7 (scan limit) stays open: not on the screens.
 - 2026-10-15 — Dashboard decisions D-01 to D-07, delegated by the lead to the dashboard team ("implement the best way possible"); detail and reasoning in `docs/proposals/web-dashboard-stack.md`:
 
