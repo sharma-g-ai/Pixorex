@@ -46,8 +46,8 @@ INSERT INTO scan (id, tenant_id, bu_id, process_id, record_no, client_capture_id
  ('60000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-00000000000a', '10000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000001', 'REC-1', '61000000-0000-0000-0000-000000000001', '30000000-0000-0000-0000-000000000003', '50000000-0000-0000-0000-000000000001', '54000000-0000-0000-0000-000000000001', '42000000-0000-0000-0000-000000000001', 'F4', now());
 INSERT INTO revision (id, tenant_id, scan_id, revision_no, origin, values_json, submitted_by) VALUES
  ('70000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-00000000000a', '60000000-0000-0000-0000-000000000001', 1, 'technician_review', '{"serial":"X1"}', '30000000-0000-0000-0000-000000000003');
-INSERT INTO audit_log (tenant_id, bu_id, actor_type, category, action) VALUES
- ('00000000-0000-0000-0000-00000000000a', '10000000-0000-0000-0000-000000000001', 'system', 'review', 'seed');
+INSERT INTO audit_log (tenant_id, bu_id, actor_type, category, action, summary) VALUES
+ ('00000000-0000-0000-0000-00000000000a', '10000000-0000-0000-0000-000000000001', 'system', 'review', 'seed', 'Seed row for the baseline checks');
 
 -- ---------- helper ----------
 CREATE OR REPLACE FUNCTION pg_temp.expect_error(p_sql text, p_state text, p_label text) RETURNS void

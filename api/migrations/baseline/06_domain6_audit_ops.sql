@@ -18,7 +18,8 @@ CREATE TABLE audit_log (
   category      text NOT NULL
                 CHECK (category IN ('sign_in', 'users', 'locations', 'equipment_types', 'review',
                                     'override', 'escalation', 'export', 'retention')),
-  action        text NOT NULL,
+  action        text NOT NULL,                 -- machine code, e.g. user.removed_from_unit
+  summary       text NOT NULL,                 -- readable sentence for the audit log screen, frozen
   object_type   text,
   object_id     uuid,
   details       jsonb,
@@ -71,6 +72,7 @@ CREATE TABLE notification (
   object_type       text,
   object_id         uuid,
   title             text NOT NULL,
+  body              text,                        -- grey second line in the bell panel
   read_at           timestamptz,
   emailed_at        timestamptz,
   created_at        timestamptz NOT NULL DEFAULT now(),
