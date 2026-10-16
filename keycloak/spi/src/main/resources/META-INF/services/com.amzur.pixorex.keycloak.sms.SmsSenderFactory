@@ -1,0 +1,3 @@
+com.amzur.pixorex.keycloak.sms.MailpitSmsSenderFactory
+com.amzur.pixorex.keycloak.sms.LogSmsSenderFactory
+com.amzur.pixorex.keycloak.sms.AmzurSmsSenderFactory

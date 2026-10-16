@@ -29,8 +29,10 @@ mobile/.dart_tool/
 mobile/build/
 mobile/.flutter-plugins*
 
-# Keycloak SPI build
+# Keycloak SPI build and local exports
 keycloak/**/target/
+keycloak/providers/*.jar
+keycloak/export/
 
 # OS / editor
 .DS_Store

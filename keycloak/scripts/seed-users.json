@@ -1,0 +1,24 @@
+{
+  "_comment": "SYNTHETIC test users only (CONSTITUTION: no real people, emails or numbers). username = app_user_id, as the API will create them.",
+  "tenantId": "7e1d2c3b-0000-4000-8000-00000000a001",
+  "users": [
+    { "key": "ea", "username": "7e1d2c3b-0000-4000-8000-000000000001", "email": "ea@demo.local", "firstName": "Erin", "lastName": "Admin",
+      "enabled": true, "emailVerified": false, "phone": null, "phoneVerified": null, "roles": ["pixorex-web"],
+      "note": "Enterprise Admin, invited (first email code activates)" },
+    { "key": "buadmin", "username": "7e1d2c3b-0000-4000-8000-000000000002", "email": "buadmin.p04@demo.local", "firstName": "Bo", "lastName": "Plant04",
+      "enabled": true, "emailVerified": true, "phone": null, "phoneVerified": null, "roles": ["pixorex-web"],
+      "note": "BU Admin Plant 04, active" },
+    { "key": "tech1", "username": "7e1d2c3b-0000-4000-8000-000000000003", "email": "tech1@demo.local", "firstName": "Tara", "lastName": "Tech",
+      "enabled": true, "emailVerified": true, "phone": "+15550100001", "phoneVerified": true, "roles": ["pixorex-mobile"],
+      "note": "Technician, active (SMS or email)" },
+    { "key": "tech2", "username": "7e1d2c3b-0000-4000-8000-000000000004", "email": "tech2@demo.local", "firstName": "Theo", "lastName": "Invited",
+      "enabled": true, "emailVerified": true, "phone": "+15550100002", "phoneVerified": false, "roles": ["pixorex-mobile"],
+      "note": "Technician, invited (SMS to the pending number only, activates)" },
+    { "key": "dual", "username": "7e1d2c3b-0000-4000-8000-000000000005", "email": "dual@demo.local", "firstName": "Dana", "lastName": "Dual",
+      "enabled": true, "emailVerified": true, "phone": "+15550100003", "phoneVerified": true, "roles": ["pixorex-web", "pixorex-mobile"],
+      "note": "Admin and technician (web: email, mobile: SMS or email)" },
+    { "key": "gone", "username": "7e1d2c3b-0000-4000-8000-000000000006", "email": "gone@demo.local", "firstName": "Gus", "lastName": "Removed",
+      "enabled": false, "emailVerified": true, "phone": null, "phoneVerified": null, "roles": [],
+      "note": "Removed from all units (disabled: nothing is ever sent)" }
+  ]
+}
