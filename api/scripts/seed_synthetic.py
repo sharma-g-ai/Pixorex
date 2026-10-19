@@ -121,6 +121,18 @@ INVITES = [("p11", "m.lopez@demo.local", "bu_admin", _kc(1))]
 
 
 def seed(conn: psycopg.Connection) -> None:
+    # Prompt versions are platform-owned and global (PRD FR-3.5); publishing a type binds the
+    # newest one. This placeholder lets types be published locally. It is not a real prompt:
+    # the AI Inference Proxy and its prompts are still to be built (OPEN P-14).
+    conn.execute(
+        "INSERT INTO prompt_version (id, model_name, instructions) VALUES (%s, %s, %s)"
+        " ON CONFLICT (id) DO NOTHING",
+        (
+            _id("prompt/local"),
+            "synthetic-local",
+            "SYNTHETIC LOCAL PLACEHOLDER. Not a real extraction prompt.",
+        ),
+    )
     for tenant_id, name in TENANTS:
         conn.execute(
             "INSERT INTO tenant (id, name, package, status) VALUES (%s, %s, 'standard', 'active')"

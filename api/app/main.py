@@ -13,7 +13,18 @@ from app.core.correlation import CorrelationMiddleware
 from app.core.db import create_pool
 from app.core.logging import configure_logging
 from app.core.problems import install_problem_handlers
-from app.routers import business_units, invites, me, operations
+from app.routers import (
+    activity,
+    business_units,
+    equipment_types,
+    exports,
+    invites,
+    locations,
+    me,
+    operations,
+    review,
+    staff,
+)
 
 API_PREFIX = "/api/v1"
 
@@ -52,6 +63,17 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
     install_problem_handlers(app)
     app.add_middleware(CorrelationMiddleware)
-    for router in (operations.router, me.router, invites.router, business_units.router):
+    for router in (
+        operations.router,
+        me.router,
+        invites.router,
+        business_units.router,
+        staff.router,
+        locations.router,
+        equipment_types.router,
+        activity.router,
+        review.router,
+        exports.router,
+    ):
         app.include_router(router, prefix=API_PREFIX)
     return app

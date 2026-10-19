@@ -70,12 +70,17 @@ async def is_bu_admin(conn: Conn, user_id: UUID) -> bool:
     return await cur.fetchone() is not None
 
 
-async def admins_page(conn: Conn, *, after: list[str] | None, limit: int) -> list[dict[str, Any]]:
-    """People holding an active bu_admin role, with their units."""
+async def admins_page(
+    conn: Conn, *, after: list[str] | None, limit: int, user_id: UUID | None = None
+) -> list[dict[str, Any]]:
+    """People holding an active bu_admin role, with their units (or just one person)."""
     keyset, params = "", []
     if after:
         keyset = " AND (u.full_name, u.id) > (%s, %s::uuid)"
         params = after
+    if user_id:
+        keyset += " AND u.id = %s"
+        params = [*params, str(user_id)]
     cur = await conn.execute(
         "SELECT u.id AS user_id, u.full_name, u.email, u.status, u.last_active_at,"
         " json_agg(json_build_object('bu_id', bu.id, 'name', bu.name) ORDER BY bu.name) AS units"
@@ -88,3 +93,12 @@ async def admins_page(conn: Conn, *, after: list[str] | None, limit: int) -> lis
         [*params, limit + 1],
     )
     return await cur.fetchall()
+
+
+async def all_visible(conn: Conn, bu_ids: list[UUID]) -> bool:
+    """Every id is a unit of this tenant the caller may see (RLS)."""
+    cur = await conn.execute(
+        "SELECT count(*) AS n FROM business_unit WHERE id = ANY(%s)", (bu_ids,)
+    )
+    row = await cur.fetchone()
+    return row is not None and int(row["n"]) == len(set(bu_ids))

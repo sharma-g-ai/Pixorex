@@ -54,6 +54,11 @@ class Caller:
         if not self.is_ea and not self.units("bu_admin"):
             raise ProblemError(403, "forbidden")
 
+    def require_bu_admin_of(self, bu_id: UUID) -> None:
+        """Contract x-roles [bu_admin]: the caller runs this unit."""
+        if bu_id not in self.units("bu_admin"):
+            raise ProblemError(403, "forbidden")
+
 
 @dataclass(frozen=True)
 class Session:

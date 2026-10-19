@@ -152,3 +152,66 @@ async def add_role(
         " ON CONFLICT (user_id, bu_id) WHERE removed_at IS NULL DO NOTHING",
         (tenant_id, user_id, bu_id, role, is_primary, assigned_by),
     )
+
+
+async def units_with_role(conn: Conn, user_id: UUID, role: str) -> set[UUID]:
+    cur = await conn.execute(
+        "SELECT bu_id FROM user_unit_role WHERE user_id = %s AND role = %s AND removed_at IS NULL",
+        (user_id, role),
+    )
+    return {r["bu_id"] for r in await cur.fetchall()}
+
+
+async def other_roles_in(conn: Conn, user_id: UUID, bu_ids: list[UUID], role: str) -> list[UUID]:
+    """Units where the person already holds a different active role."""
+    cur = await conn.execute(
+        "SELECT bu_id FROM user_unit_role WHERE user_id = %s AND bu_id = ANY(%s)"
+        " AND role <> %s AND removed_at IS NULL",
+        (user_id, bu_ids, role),
+    )
+    return [r["bu_id"] for r in await cur.fetchall()]
+
+
+async def remove_roles(conn: Conn, user_id: UUID, bu_ids: list[UUID], role: str) -> list[UUID]:
+    """Ends the roles (history kept). The 0002 trigger clears business_unit.bu_admin_user_id."""
+    cur = await conn.execute(
+        "UPDATE user_unit_role SET removed_at = now(), is_primary = false"
+        " WHERE user_id = %s AND bu_id = ANY(%s) AND role = %s AND removed_at IS NULL"
+        " RETURNING bu_id",
+        (user_id, bu_ids, role),
+    )
+    return [r["bu_id"] for r in await cur.fetchall()]
+
+
+async def active_role_count(conn: Conn, user_id: UUID) -> int:
+    cur = await conn.execute(
+        "SELECT count(*) AS n FROM user_unit_role WHERE user_id = %s AND removed_at IS NULL",
+        (user_id,),
+    )
+    row = await cur.fetchone()
+    return int(row["n"]) if row else 0
+
+
+async def ensure_primary(conn: Conn, user_id: UUID) -> None:
+    """After a removal, the oldest remaining role becomes primary if none is."""
+    await conn.execute(
+        "UPDATE user_unit_role SET is_primary = true WHERE id = ("
+        " SELECT id FROM user_unit_role WHERE user_id = %(u)s AND removed_at IS NULL"
+        " ORDER BY created_at LIMIT 1)"
+        " AND NOT EXISTS (SELECT 1 FROM user_unit_role WHERE user_id = %(u)s"
+        " AND is_primary AND removed_at IS NULL)",
+        {"u": user_id},
+    )
+
+
+async def mark_removed(conn: Conn, user_id: UUID) -> None:
+    await conn.execute("UPDATE app_user SET status = 'removed' WHERE id = %s", (user_id,))
+
+
+async def revoke_sessions(conn: Conn, user_id: UUID, bu_id: UUID | None = None) -> None:
+    """All live sessions, or only those working in one unit."""
+    await conn.execute(
+        "UPDATE user_session SET revoked_at = now()"
+        " WHERE user_id = %s AND revoked_at IS NULL AND (%s::uuid IS NULL OR active_bu_id = %s)",
+        (user_id, bu_id, bu_id),
+    )

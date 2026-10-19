@@ -114,3 +114,13 @@ async def page(
         [*params, *having_params, *keyset_params, limit + 1],
     )
     return await cur.fetchall()
+
+
+async def cancel_pending_for_units(conn: Conn, bu_ids: list[UUID], role: str) -> list[UUID]:
+    """Contract 1.16: giving a unit to a BU Admin cancels that unit's pending invites."""
+    cur = await conn.execute(
+        "UPDATE invite SET status = 'cancelled'"
+        " WHERE bu_id = ANY(%s) AND role = %s AND status = 'pending' RETURNING id",
+        (bu_ids, role),
+    )
+    return [r["id"] for r in await cur.fetchall()]
