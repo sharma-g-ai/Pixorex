@@ -57,10 +57,16 @@ uv run ruff check . && uv run ruff format --check . && uv run mypy && uv run pyt
 | `migrations/versions/0002_*.py` | `invite_scope()` and the BU Admin sync trigger (SECURITY DEFINER) | New draft; replaces connecting as the owner role |
 | `migrations/baseline/08_roles_grants.sql`, `09_rls.sql` | Grants and RLS | Drafts |
 | `app/auth/signed_urls.py` | Signed MinIO links: review photos (15 min), large exports (1 hour) (BC-09) | New draft |
+| `app/auth/keycloak_events.py` | HMAC check of Keycloak's audit events (`POST /internal/keycloak-events`); `keycloak_admin.brute_force_status` for the lock row | New draft |
 
 ## Open points
 
 - `Idempotency-Key` is required on creates but not stored: the data model has no table for it.
+- Scans (2.21): the contract sends `photo_count`, but the data model has no column for it. Until one is added, photo numbers are checked against 1-4 and upload-complete needs photos 1..n with no gap.
+- Scans are counted in `quota_usage`, but never refused with 402: where the unit's monthly limit is stored is PRD open item 9.
+- The 429 rate limit (100 requests a minute per tenant) is not built.
+- Keycloak events (`/internal/keycloak-events`, outside `/api/v1`): sign-in, failure, session end and lock rows are written. Not built: the reconciliation job that re-reads Keycloak's stored events (docs/keycloak.md 8.4), and phone change (Keycloak doesn't send that event yet). Deployed ingress must block `/internal/`.
+- AI extraction: upload-complete queues attempt 1 and an `extraction.run` outbox event. The worker leaves those events waiting until the Portkey runner is built.
 - Invite emails are sent by the API right after commit, not through the outbox: the outbox payload would store the raw link token (contract 1.8 says outbox; decide).
 - Not built yet: DLP (A0, OPEN O-14), AI suggestions (Portkey: waiting on library, key and model), the retention job (needs decisions; it should also delete old export files from MinIO).
 
