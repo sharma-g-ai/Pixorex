@@ -77,7 +77,12 @@ if ($envValues['PIXOREX_SMTP_HOST'] -and $envValues['PIXOREX_SMTP_HOST'] -ne 'ma
     }
     Invoke-KcAdmin -Method Put -Path '' -Body @{ smtpServer = $smtp } | Out-Null
 } else {
-    Write-Host "`nEmail stays local: codes and invites arrive in Mailpit (http://localhost:8025)."
+    Step 'Local email: Keycloak sends codes to Mailpit'
+    # Same values as keycloak/realm/realm-pixorex.json; also undoes an earlier real-email setup.
+    $smtp = @{ host = 'mailpit'; port = '1025'; from = 'no-reply@pixorex.local'; fromDisplayName = 'Pixorex'
+               auth = 'false'; starttls = 'false'; ssl = 'false' }
+    Invoke-KcAdmin -Method Put -Path '' -Body @{ smtpServer = $smtp } | Out-Null
+    Write-Host 'Codes and invites arrive in Mailpit (http://localhost:8025).'
 }
 
 Step 'Restarting the API with the .env values'

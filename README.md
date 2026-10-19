@@ -6,6 +6,8 @@ AI-powered industrial asset digitization for PPG Industries. Monorepo: `api/` (F
 
 ## Quick start (local, synthetic data only)
 
+Full guide with checks and fixes: [docs/local-setup.md](docs/local-setup.md).
+
 **You need:** Docker Desktop (running) and Node 24.
 
 **First time** (PowerShell, a few minutes):

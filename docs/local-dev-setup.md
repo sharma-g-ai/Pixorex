@@ -1,5 +1,7 @@
 # Local development setup — Keycloak, API, and Web
 
+> **Outdated:** this describes the earlier API setup. Use [local-setup.md](local-setup.md) instead.
+
 End-to-end guide to run **Keycloak**, the **FastAPI** Slice S2 API, and the **React** admin dashboard on one Windows laptop. Synthetic / local-only credentials only; never commit `.env` or secrets.
 
 Related docs: `keycloak/README.md`, `api/README.md`, `web/README.md`, `docs/keycloak-implementation-e2e.md`, `docs/api-slice-s2-invite-signin-plan.md`.
