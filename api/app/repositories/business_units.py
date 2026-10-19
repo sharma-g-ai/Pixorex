@@ -8,9 +8,27 @@ from app.repositories.rows import returned_id
 
 _UNIT = (
     "SELECT bu.id AS bu_id, bu.name, bu.facility_name, a.id AS admin_id,"
-    " a.full_name AS admin_name, coalesce(l.status, 'not_published') AS locations_status"
+    " a.full_name AS admin_name, coalesce(l.status, 'not_published') AS locations_status,"
+    " (SELECT count(*) FROM scan s WHERE s.bu_id = bu.id"
+    "   AND s.review_status = 'waiting_for_approval') AS waiting_count,"
+    " (SELECT count(*) FROM escalation e WHERE e.bu_id = bu.id"
+    "   AND e.resolved_at IS NULL) AS escalated_count,"
+    " (SELECT count(*) FROM review_assignment ra JOIN review_batch rb ON rb.id = ra.batch_id"
+    "   WHERE rb.bu_id = bu.id AND ra.status = 'assigned') AS delegated_count,"
+    " (SELECT count(*) FROM user_unit_role t WHERE t.bu_id = bu.id"
+    "   AND t.role = 'field_technician' AND t.removed_at IS NULL) AS technician_count,"
+    " (SELECT count(*) FROM scan s WHERE s.bu_id = bu.id"
+    "   AND s.created_at >= date_trunc('month', now())) AS scans_this_month,"
+    # Vacant: since the last BU Admin left, or since the unit was created (canvas EA 28).
+    " CASE WHEN bu.bu_admin_user_id IS NULL"
+    "   THEN coalesce(prev.removed_at, bu.created_at) END AS vacant_since,"
+    " prev.user_id AS prev_id, prev.full_name AS prev_name"
     " FROM business_unit bu"
     " LEFT JOIN app_user a ON a.id = bu.bu_admin_user_id"
+    " LEFT JOIN LATERAL (SELECT r.removed_at, r.user_id, u.full_name FROM user_unit_role r"
+    "   JOIN app_user u ON u.id = r.user_id WHERE bu.bu_admin_user_id IS NULL"
+    "   AND r.bu_id = bu.id AND r.role = 'bu_admin' AND r.removed_at IS NOT NULL"
+    "   ORDER BY r.removed_at DESC LIMIT 1) prev ON true"
     " LEFT JOIN location_hierarchy_version l ON l.bu_id = bu.id"
 )
 

@@ -16,6 +16,8 @@ vi.mock('../../api/businessUnits', async (importOriginal) => ({
         waiting_count: 23,
         escalated_count: 9,
         delegated_count: 60,
+        technician_count: 14,
+        scans_this_month: 212,
         locations_status: 'published',
       },
       {
@@ -23,6 +25,8 @@ vi.mock('../../api/businessUnits', async (importOriginal) => ({
         name: 'PPG Plant 12 — Adhesives',
         facility_name: 'Atlanta',
         bu_admin: null,
+        vacant_since: '2026-10-04T09:30:00Z',
+        previous_bu_admin: { user_id: 'mo', full_name: 'M. Ortiz' },
         locations_status: 'published',
       },
     ],
@@ -85,6 +89,11 @@ describe('EA unit page (canvas EA 25)', () => {
   it('GIVEN a unit THEN shows its BU Admin, numbers and links filtered to the unit', () => {
     page('/overview/units/p04')
     expect(screen.getByRole('heading', { name: 'PPG Plant 04 — Coatings' })).toBeInTheDocument()
+    expect(screen.getByText('Overview › Unit · 14 technicians')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /212\s*scans this month/ })).toHaveAttribute(
+      'href',
+      '/scans?unit=p04',
+    )
     expect(screen.getByText('r.kowalski@ppg.com · also runs Plant 05')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /9\s*over 24 h/ })).toHaveAttribute(
       'href',
@@ -124,6 +133,7 @@ describe('EA unit page: BU Admin card (canvas EA 25)', () => {
   it('GIVEN no BU Admin THEN Assign BU Admin opens the invite with this unit ticked', () => {
     page('/overview/units/p12')
     expect(screen.queryByRole('link', { name: 'Manage' })).not.toBeInTheDocument()
+    expect(screen.getByText('Since 4 Oct · M. Ortiz removed')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Assign BU Admin' }))
     const dialog = within(screen.getByRole('dialog'))
     expect(dialog.getByRole('checkbox', { name: /Plant 12/ })).toBeChecked()

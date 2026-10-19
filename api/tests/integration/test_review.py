@@ -3,7 +3,11 @@ escalations and the all-scans list."""
 
 import uuid
 from typing import Any
+from urllib.parse import parse_qs, urlparse
 
+from pydantic import SecretStr
+
+from app.core.storage import StorageConfig
 from tests.integration.conftest import Api
 from tests.integration.helpers import BO, DANA, ERIN, TARA, THEO
 from tests.integration.scans import escalate, waiting_scan
@@ -399,3 +403,89 @@ def test_no_reminder_when_nothing_is_escalated(api: Api, owner_sql: Any) -> None
         (DANA,),
     )[0][0]
     assert after == before
+
+
+def test_unit_cards_count_waiting_escalated_and_delegated(api: Api, owner_sql: Any) -> None:
+    def card() -> dict[str, Any]:
+        units = api.get("/business-units?limit=100", ERIN).json()["items"]
+        return next(u for u in units if u["bu_id"] == P04)
+
+    before = card()
+    one, two = waiting_scan(owner_sql, TARA), waiting_scan(owner_sql, TARA)
+    escalate(owner_sql, one["scan_id"])
+    api.post(
+        f"/business-units/{P04}/review-batches",
+        BO,
+        headers=_key(),
+        json={"assigned_to": THEO, "scan_ids": [two["scan_id"]]},
+    )
+    after = card()
+    assert after["waiting_count"] == before["waiting_count"] + 2
+    assert after["escalated_count"] == before["escalated_count"] + 1
+    assert after["delegated_count"] == before["delegated_count"] + 1
+
+
+def test_unit_cards_show_technicians_scans_this_month_and_vacancy(api: Api, owner_sql: Any) -> None:
+    def card(bu: str) -> dict[str, Any]:
+        units = api.get("/business-units?limit=100", ERIN).json()["items"]
+        return next(u for u in units if u["bu_id"] == bu)
+
+    before = card(P04)
+    waiting_scan(owner_sql, TARA)
+    after = card(P04)
+    assert after["scans_this_month"] == before["scans_this_month"] + 1
+    technicians = owner_sql(
+        "SELECT count(*) FROM user_unit_role WHERE bu_id = %s AND role = 'field_technician'"
+        " AND removed_at IS NULL",
+        (P04,),
+    )[0][0]
+    assert after["technician_count"] == technicians >= 1
+    assert (after["vacant_since"], after["previous_bu_admin"]) == (None, None)
+
+    unit = api.post(
+        "/business-units",
+        ERIN,
+        headers=_key(),
+        json={
+            "name": f"Plant {uuid.uuid4().hex[:6]}",
+            "facility_name": "X",
+            "bu_admin": {"invite_email": f"{uuid.uuid4().hex[:6]}@example.com"},
+        },
+    ).json()["bu_id"]
+    fresh = card(unit)
+    assert fresh["vacant_since"] and fresh["previous_bu_admin"] is None
+    assert (fresh["technician_count"], fresh["scans_this_month"]) == (0, 0)
+    # Its last BU Admin left on 4 Oct: the card says since when, and who.
+    owner_sql(
+        "INSERT INTO user_unit_role (tenant_id, user_id, bu_id, role, removed_at)"
+        " SELECT tenant_id, %s, %s, 'bu_admin', '2026-10-04T09:30:00Z' FROM business_unit"
+        " WHERE id = %s",
+        (DANA, unit, unit),
+    )
+    left = card(unit)
+    assert left["vacant_since"].startswith("2026-10-04T09:30:00")
+    assert left["previous_bu_admin"]["user_id"] == DANA
+
+
+def test_review_photos_get_15_minute_links_only_for_reviewers(api: Api, owner_sql: Any) -> None:
+    scan = waiting_scan(owner_sql, TARA)
+    key = f"photos/{scan['scan_id']}/1.jpg"
+    owner_sql(
+        "INSERT INTO scan_photo (tenant_id, scan_id, photo_no, object_key, sha256)"
+        " SELECT tenant_id, id, 1, %s, repeat('a', 64) FROM scan WHERE id = %s",
+        (key, scan["scan_id"]),
+    )
+    path = f"/scans/{scan['scan_id']}/review"
+    assert "url" not in api.get(path, BO).json()["photos"][0]  # no storage set up
+    api.client.app.state.storage = StorageConfig(  # type: ignore[attr-defined]
+        internal_url="http://minio:9000",
+        public_url="http://localhost:9000",
+        access_key="k",
+        secret_key=SecretStr("s"),
+        bucket="pixorex",
+    )
+    photo = api.get(path, BO).json()["photos"][0]
+    link = urlparse(photo["url"])
+    assert (photo["photo_no"], link.netloc, link.path) == (1, "localhost:9000", f"/pixorex/{key}")
+    assert parse_qs(link.query)["X-Amz-Expires"] == ["900"]
+    assert api.get(path, TARA).status_code == 403  # their own scan: no review, no link

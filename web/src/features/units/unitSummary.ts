@@ -1,5 +1,11 @@
 import type { BusinessUnit } from '../../api/businessUnits'
 
+/** "1 technician", "14 technicians". */
+export function technicianCount(unit: BusinessUnit): string {
+  const n = unit.technician_count ?? 0
+  return `${n} ${n === 1 ? 'technician' : 'technicians'}`
+}
+
 /** Names of the other units run by this unit's BU Admin ("Also runs ..."). */
 export function otherUnitsOfAdmin(units: BusinessUnit[], unit: BusinessUnit): string[] {
   const adminId = unit.bu_admin?.user_id

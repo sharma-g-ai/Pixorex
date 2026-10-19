@@ -1,16 +1,29 @@
 import { Link } from 'react-router'
 import type { BusinessUnit } from '../../api/businessUnits'
+import type { Invite } from '../../api/invites'
 import { Person } from '../../components/Person'
+import { timeAgo } from '../../lib/time'
+import { technicianCount } from './unitSummary'
 
 interface UnitCardProps {
   unit: BusinessUnit
   /** Other units the same BU Admin runs. */
   alsoRuns: string[]
+  /** When the BU Admin was last active, if known. */
+  adminLastActive?: string | null
+  /** No BU Admin: the latest invite for the seat, if any. */
+  invite?: Invite | null
 }
 
 /** One unit on the EA overview (canvas: EA 03 unit cards). */
-export function UnitCard({ unit, alsoRuns }: UnitCardProps) {
+export function UnitCard({ unit, alsoRuns, adminLastActive, invite }: UnitCardProps) {
   const admin = unit.bu_admin?.user_id ? unit.bu_admin : null
+  const adminDetail =
+    alsoRuns.length > 0
+      ? `Also runs ${alsoRuns.join(', ')}`
+      : adminLastActive
+        ? `Active ${timeAgo(adminLastActive)}`
+        : undefined
 
   return (
     <article
@@ -19,7 +32,7 @@ export function UnitCard({ unit, alsoRuns }: UnitCardProps) {
     >
       <div>
         <h3 className="text-unit-title font-bold">{unit.name}</h3>
-        <p className="truncate text-small text-ink-subtle">{unit.facility_name}</p>
+        <p className="truncate text-small text-ink-subtle">{technicianCount(unit)}</p>
       </div>
 
       {admin ? (
@@ -27,14 +40,14 @@ export function UnitCard({ unit, alsoRuns }: UnitCardProps) {
           <div className="mb-1.5 text-caption font-bold tracking-wider text-ink-subtle uppercase">
             BU Admin
           </div>
-          <Person
-            name={admin.full_name ?? ''}
-            detail={alsoRuns.length > 0 ? `Also runs ${alsoRuns.join(', ')}` : undefined}
-          />
+          <Person name={admin.full_name ?? ''} detail={adminDetail} />
         </div>
       ) : (
         <div className="rounded-lg bg-danger-soft px-3 py-2.5 text-small text-danger-strong">
-          <b>No BU Admin.</b> Its scans that wait over 24 hours come to you.
+          <b>No BU Admin.</b>{' '}
+          {invite?.status === 'pending'
+            ? `Invite to ${invite.email} pending`
+            : 'Its scans that wait over 24 hours come to you.'}
         </div>
       )}
 

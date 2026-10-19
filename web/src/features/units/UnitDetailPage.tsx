@@ -18,6 +18,9 @@ import { InviteBuAdminDialog } from '../buAdmins/InviteBuAdminDialog'
 import { RemoveBuAdminDialog } from '../buAdmins/RemoveBuAdminDialog'
 import { editOptions, inviteOptions, removeOptions } from '../buAdmins/unitOptions'
 import { waitingStatus } from '../review/reviewRules'
+import { shortDate, waitedFor } from '../../lib/time'
+import { technicianCount } from './unitSummary'
+import { latestAdminInvite } from './vacantUnits'
 
 /** One unit seen by the EA: its BU Admin, numbers, escalations and activity (canvas EA 25–28, 67). */
 export function UnitDetailPage() {
@@ -39,7 +42,7 @@ function UnitDetail({ unit, units }: { unit: BusinessUnit; units: BusinessUnit[]
     <>
       <PageHeader
         title={unit.name}
-        subtitle={`Overview › Unit · ${unit.facility_name}`}
+        subtitle={`Overview › Unit · ${technicianCount(unit)}`}
         actions={
           <Link to="/overview" className={buttonClasses('link')}>
             ← Back to overview
@@ -53,7 +56,11 @@ function UnitDetail({ unit, units }: { unit: BusinessUnit; units: BusinessUnit[]
           </Alert>
         )}
         <AdminCard unit={unit} units={units} onDone={setNotice} />
-        <div className="grid grid-cols-2 gap-3.5 lg:grid-cols-3">
+        <div className="grid grid-cols-2 gap-3.5 lg:grid-cols-5">
+          <StatTile
+            value={unit.technician_count ?? 0}
+            label={unit.technician_count === 1 ? 'technician' : 'technicians'}
+          />
           <StatTile value={unit.waiting_count ?? 0} label="waiting review" to={`/scans${q}`} />
           <StatTile
             value={escalated}
@@ -61,6 +68,7 @@ function UnitDetail({ unit, units }: { unit: BusinessUnit; units: BusinessUnit[]
             to={escalated ? `/escalations${q}` : undefined}
             tone={escalated ? 'warning' : 'default'}
           />
+          <StatTile value={unit.scans_this_month ?? 0} label="scans this month" to={`/scans${q}`} />
           <StatTile value={unit.delegated_count ?? 0} label="in delegated batches" />
         </div>
         <div className="grid gap-5 lg:grid-cols-2">
@@ -121,6 +129,8 @@ function AdminCard({ unit, units, onDone }: AdminCardProps) {
   const admin = admins.data?.find((a) => a.user_id === unit.bu_admin?.user_id)
   const others = admin?.units.filter((u) => u.bu_id !== unit.bu_id).map((u) => u.name) ?? []
   const buAdminInvites = (invites.data ?? []).filter((i) => i.role === 'bu_admin')
+  const invite = latestAdminInvite(buAdminInvites, unit.bu_id)
+  const pending = !unit.bu_admin?.user_id && invite?.status === 'pending' ? invite : null
   const done = (text: string) => {
     setOpen(null)
     onDone(text)
@@ -144,9 +154,14 @@ function AdminCard({ unit, units, onDone }: AdminCardProps) {
             </button>
           </div>
         ) : (
-          <Button variant="secondary" onClick={() => setOpen('invite')}>
-            Assign BU Admin
-          </Button>
+          <div className="flex items-center gap-3">
+            {pending && (
+              <Badge tone="warning">{`Invite pending · ${waitedFor(pending.created_at)}`}</Badge>
+            )}
+            <Button variant="secondary" onClick={() => setOpen('invite')}>
+              Assign BU Admin
+            </Button>
+          </div>
         )
       }
     >
@@ -165,9 +180,23 @@ function AdminCard({ unit, units, onDone }: AdminCardProps) {
           )}
         </div>
       ) : (
-        <p className="text-body text-danger-strong">
-          <b>No BU Admin.</b> This unit's scans that wait over 24 hours come to you.
-        </p>
+        <div className="flex flex-col gap-3">
+          <div>
+            <p className="text-body font-bold text-danger-strong">No BU Admin</p>
+            {unit.vacant_since && (
+              <p className="text-small text-ink-subtle">
+                {`Since ${shortDate(unit.vacant_since)}`}
+                {unit.previous_bu_admin?.full_name &&
+                  ` · ${unit.previous_bu_admin.full_name} removed`}
+              </p>
+            )}
+          </div>
+          <Alert tone="info">
+            {pending
+              ? `Invite sent to ${pending.email}. Until someone accepts, ${unit.name}'s scans that wait over 24 hours come to you.`
+              : "This unit's scans that wait over 24 hours come to you."}
+          </Alert>
+        </div>
       )}
       {open === 'invite' && (
         <InviteBuAdminDialog

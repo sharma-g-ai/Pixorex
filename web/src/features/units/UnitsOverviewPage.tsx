@@ -1,5 +1,7 @@
 import { Link } from 'react-router'
+import { useBuAdmins } from '../../api/buAdmins'
 import { useBusinessUnits } from '../../api/businessUnits'
+import { useInvites } from '../../api/invites'
 import { buttonClasses } from '../../components/buttonClasses'
 import { Card } from '../../components/Card'
 import { PageHeader } from '../../components/layout/PageHeader'
@@ -7,11 +9,14 @@ import { useDashboard } from '../../app/DashboardContext'
 import { NeedsYouPanel } from './NeedsYouPanel'
 import { UnitCard } from './UnitCard'
 import { needsYou, otherUnitsOfAdmin } from './unitSummary'
+import { latestAdminInvite } from './vacantUnits'
 
 /** EA-01 Overview: every unit of the company and what needs the EA (canvas: EA 03). */
 export function UnitsOverviewPage() {
   const { me } = useDashboard()
   const units = useBusinessUnits()
+  const admins = useBuAdmins()
+  const invites = useInvites()
   const count = units.data?.length
 
   return (
@@ -49,6 +54,10 @@ export function UnitsOverviewPage() {
                   key={unit.bu_id}
                   unit={unit}
                   alsoRuns={otherUnitsOfAdmin(units.data, unit)}
+                  adminLastActive={
+                    admins.data?.find((a) => a.user_id === unit.bu_admin?.user_id)?.last_active_at
+                  }
+                  invite={latestAdminInvite(invites.data ?? [], unit.bu_id)}
                 />
               ))}
             </div>

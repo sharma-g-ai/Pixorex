@@ -457,6 +457,17 @@ export interface components {
             waiting_count?: number;
             escalated_count?: number;
             delegated_count?: number;
+            /** @description Technicians of the unit (canvas EA 03 card, EA 25-28). */
+            technician_count?: number;
+            /** @description Scans captured in the unit since the 1st of this month (UTC). */
+            scans_this_month?: number;
+            /**
+             * Format: date-time
+             * @description While the unit has no BU Admin, when the last one left (else when the unit was created). Null when it has one.
+             */
+            vacant_since?: string | null;
+            /** @description While vacant, the BU Admin who left ("Since 4 Oct · M. Ortiz removed"). */
+            previous_bu_admin?: components["schemas"]["UserRef"];
             /** @enum {string} */
             locations_status: "not_published" | "published";
         };

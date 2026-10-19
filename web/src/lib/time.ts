@@ -9,6 +9,11 @@ export function timeAgo(iso: string, now: Date = new Date()): string {
   if (diff < HOUR) return `${Math.floor(diff / MINUTE)} min ago`
   if (diff < DAY) return `${Math.floor(diff / HOUR)} h ago`
   if (diff < 2 * DAY) return 'yesterday'
+  return shortDate(iso)
+}
+
+/** A date like "4 Oct". */
+export function shortDate(iso: string): string {
   return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
 }
 

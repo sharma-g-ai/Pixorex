@@ -24,10 +24,13 @@ class BusinessUnit(BaseModel):
     name: str
     facility_name: str
     bu_admin: UserRef | None
-    # TODO (REQ-04.07 [confirm]): counts come from S3-S4 tables; 0 until scans exist.
-    waiting_count: int = 0
-    escalated_count: int = 0
-    delegated_count: int = 0
+    waiting_count: int  # scans waiting for approval
+    escalated_count: int  # open escalations
+    delegated_count: int  # scans in open delegated assignments
+    technician_count: int
+    scans_this_month: int
+    vacant_since: datetime | None  # set only while the unit has no BU Admin
+    previous_bu_admin: UserRef | None  # the BU Admin who left, while vacant
     locations_status: Literal["not_published", "published"]
 
 
@@ -74,6 +77,15 @@ def _unit(row: dict[str, Any]) -> BusinessUnit:
         facility_name=row["facility_name"],
         bu_admin=admin,
         locations_status=row["locations_status"],
+        waiting_count=row["waiting_count"],
+        escalated_count=row["escalated_count"],
+        delegated_count=row["delegated_count"],
+        technician_count=row["technician_count"],
+        scans_this_month=row["scans_this_month"],
+        vacant_since=row["vacant_since"],
+        previous_bu_admin=(
+            UserRef(user_id=row["prev_id"], full_name=row["prev_name"]) if row["prev_id"] else None
+        ),
     )
 
 

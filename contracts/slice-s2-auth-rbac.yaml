@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Pixorex V1 API - Slice S2, Auth and RBAC
-  version: 0.3.1
+  version: 0.3.2
   contact:
     name: Pixorex backend team (Amzur)
   summary: Signed-in user, unit switching, phone change, invites, business units, BU Admins and technicians.
@@ -1075,6 +1075,22 @@ components:
           type: integer
         delegated_count:
           type: integer
+        technician_count:
+          type: integer
+          description: Technicians of the unit (canvas EA 03 card, EA 25-28).
+        scans_this_month:
+          type: integer
+          description: Scans captured in the unit since the 1st of this month (UTC).
+        vacant_since:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          description: While the unit has no BU Admin, when the last one left (else when the unit
+            was created). Null when it has one.
+        previous_bu_admin:
+          $ref: '#/components/schemas/UserRef'
+          description: While vacant, the BU Admin who left ("Since 4 Oct · M. Ortiz removed").
         locations_status:
           type: string
           enum:
