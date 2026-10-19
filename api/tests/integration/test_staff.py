@@ -85,6 +85,7 @@ def test_dropping_a_unit_leaves_it_without_a_bu_admin(api: Api) -> None:
     assert [u["bu_id"] for u in saved.json()["units"]] == [second]
     assert saved.json()["status"] != "removed"  # still runs a unit (invited until first sign-in)
     assert _unit(api, first)["bu_admin"] is None
+    assert admin not in api.keycloak.disabled  # still has a unit → login stays
 
 
 def test_edit_units_rules(api: Api) -> None:
@@ -137,6 +138,7 @@ def test_removing_from_every_unit_removes_the_account_and_can_invite_a_replaceme
         "SELECT count(*) FROM user_session WHERE user_id = %s AND revoked_at IS NULL", (admin,)
     )
     assert sessions[0][0] == 0
+    assert admin in api.keycloak.disabled  # Keycloak login disabled (docs/keycloak.md §6.11)
 
 
 def test_remove_rules(api: Api) -> None:
@@ -183,10 +185,12 @@ def test_technicians_of_a_unit(api: Api, owner_sql: Any) -> None:
 def test_removing_a_technician(api: Api) -> None:
     tech = _new_technician(api, f"+1555012{uuid.uuid4().int % 10000:04d}")
     assert api.get("/me", token=make_token(tech)).status_code == 200
+    assert tech not in api.keycloak.disabled
     _problem(api.post(f"/business-units/{P05}/technicians/{tech}/remove", BO), 403, "forbidden")
     assert api.post(f"/business-units/{P04}/technicians/{tech}/remove", BO).status_code == 204
     assert tech not in [
         t["user_id"] for t in api.get(f"/business-units/{P04}/technicians", BO).json()["items"]
     ]
     _problem(api.get("/me", token=make_token(tech)), 403, "account-removed")  # no unit left
+    assert tech in api.keycloak.disabled  # last unit → IdP login disabled too
     _problem(api.post(f"/business-units/{P04}/technicians/{tech}/remove", BO), 404, "not-found")

@@ -13,8 +13,10 @@ router = APIRouter(tags=["Staff"])
 
 
 @router.put("/bu-admins/{user_id}/business-units", operation_id="setBuAdminUnits")
-async def set_admin_units(user_id: UUID, body: staff.AdminUnits, session: SignedIn) -> BuAdmin:
-    return await staff.set_admin_units(session, user_id, body.bu_ids)
+async def set_admin_units(
+    user_id: UUID, body: staff.AdminUnits, session: SignedIn, request: Request
+) -> BuAdmin:
+    return await staff.set_admin_units(session, request.app.state.keycloak, user_id, body.bu_ids)
 
 
 @router.post("/bu-admins/{user_id}/remove", operation_id="removeBuAdmin", status_code=204)
@@ -25,7 +27,7 @@ async def remove_admin(
     request: Request,
     background: BackgroundTasks,
 ) -> Response:
-    replacement = await staff.remove_admin(session, user_id, body)
+    replacement = await staff.remove_admin(session, request.app.state.keycloak, user_id, body)
     if replacement:
         email, token = replacement
         background.add_task(
@@ -46,6 +48,8 @@ async def list_technicians(
     operation_id="removeTechnician",
     status_code=204,
 )
-async def remove_technician(bu_id: UUID, user_id: UUID, session: SignedIn) -> Response:
-    await staff.remove_technician(session, bu_id, user_id)
+async def remove_technician(
+    bu_id: UUID, user_id: UUID, session: SignedIn, request: Request
+) -> Response:
+    await staff.remove_technician(session, request.app.state.keycloak, bu_id, user_id)
     return Response(status_code=204)

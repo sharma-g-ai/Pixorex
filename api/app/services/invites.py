@@ -8,7 +8,9 @@ from typing import Any, Literal
 from uuid import UUID
 
 from psycopg.errors import UniqueViolation
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel
+
+from app.core.emails import WorkEmail
 
 from app.auth.context import Session, scope_to_invite
 from app.auth.keycloak_admin import CrossTenantUserError, KeycloakAdmin, KeycloakUser
@@ -64,7 +66,7 @@ class InvitePage(BaseModel):
 
 class NewInvite(BaseModel):
     role: InviteRole
-    email: EmailStr
+    email: WorkEmail
     bu_ids: list[UUID]
 
 

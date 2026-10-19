@@ -28,10 +28,16 @@ class FakeJwks:
 class FakeKeycloak:
     def __init__(self) -> None:
         self.users: list[KeycloakUser] = []
+        self.disabled: list[str] = []
 
     async def ensure_user(self, user: KeycloakUser) -> str:
         self.users.append(user)
         return f"kc-{user.app_user_id}"
+
+    async def disable_login(
+        self, *, app_user_id: str, keycloak_user_id: str | None = None
+    ) -> None:
+        self.disabled.append(app_user_id)
 
 
 def make_token(user_id: str, tenant_id: str = TENANT_A, **overrides: Any) -> str:

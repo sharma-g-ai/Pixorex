@@ -100,6 +100,38 @@ class KeycloakAdmin:
         await self._add_realm_role(kc_id, user.realm_role)
         return kc_id
 
+    async def disable_login(
+        self, *, app_user_id: str, keycloak_user_id: str | None = None
+    ) -> None:
+        """Stop IdP sign-in immediately (docs/keycloak.md §6.11: full removal).
+
+        Sets enabled=false, ends SSO sessions, and revokes pixorex-mobile offline tokens.
+        No-op when the person never had a Keycloak user (invite never accepted).
+        """
+        found = await self._user(keycloak_user_id) if keycloak_user_id else None
+        if found is None:
+            found = await self._find(username=app_user_id)
+        if found is None:
+            return
+        kc_id = str(found["id"])
+        disabled = {**found, "enabled": False}
+        disabled.pop("id", None)  # Keycloak rejects id in the PUT body
+        updated = await self._call("PUT", f"/users/{kc_id}", json=disabled)
+        updated.raise_for_status()
+        logged_out = await self._call("POST", f"/users/{kc_id}/logout")
+        logged_out.raise_for_status()
+        # No mobile consent yet (web-only admin) → 404; that is fine.
+        consents = await self._call("DELETE", f"/users/{kc_id}/consents/pixorex-mobile")
+        if consents.status_code not in (204, 404):
+            consents.raise_for_status()
+
+    async def _user(self, keycloak_user_id: str) -> dict[str, Any] | None:
+        response = await self._call("GET", f"/users/{keycloak_user_id}")
+        if response.status_code == 404:
+            return None
+        response.raise_for_status()
+        return response.json()
+
     async def _find(self, **query: str) -> dict[str, Any] | None:
         response = await self._call("GET", "/users", params={**query, "exact": "true"})
         response.raise_for_status()
