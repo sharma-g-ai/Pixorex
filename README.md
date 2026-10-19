@@ -4,6 +4,8 @@ AI-powered industrial asset digitization for PPG Industries. Monorepo: `api/` (F
 
 **Read first, in this order:** `CONSTITUTION.md` → `ARCHITECTURE.md` → `STATE.md` → your spec in `specs/`.
 
+**Team status, who does what next, and open decisions:** [docs/handover.md](docs/handover.md). Mobile app developers: [docs/mobile-api.md](docs/mobile-api.md).
+
 ## Quick start (local, synthetic data only)
 
 Full guide with checks and fixes: [docs/local-setup.md](docs/local-setup.md).

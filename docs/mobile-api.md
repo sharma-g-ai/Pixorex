@@ -2,6 +2,8 @@
 
 For the Flutter app (technician screens). Written 19 Oct 2026 by the API side. The machine-readable source of truth is `contracts/*.yaml`; this page is the guide.
 
+**Team status and your task list:** [handover.md](handover.md).
+
 **Who owns what.** The API and the contracts belong to the API side; `mobile/` belongs to the app. If a screen needs data the API doesn't give, ask the API side and we change the contract first, then the code. Don't work around it.
 
 ---
