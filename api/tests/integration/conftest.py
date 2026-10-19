@@ -131,3 +131,7 @@ async def pool(database: dict[str, str]) -> AsyncIterator[Any]:
     await worker_pool.open()
     yield worker_pool
     await worker_pool.close()
+
+
+# Fixtures of the capture tests (a unit ready for scanning, fake photo storage).
+from tests.integration.capture_setup import unit, uploads  # noqa: E402, F401

@@ -40,6 +40,7 @@ services:
       PIXOREX_OIDC_ISSUER: ${KC_HOSTNAME:-http://localhost:8080}/realms/pixorex
       PIXOREX_OIDC_INTERNAL_URL: http://keycloak:8080/realms/pixorex
       PIXOREX_KEYCLOAK_ADMIN_SECRET: ${PIXOREX_KEYCLOAK_ADMIN_SECRET:-}
+      PIXOREX_KEYCLOAK_EVENTS_SECRET: ${PIXOREX_AUDIT_SECRET:-local-only-audit-secret}  # same as Keycloak's
       PIXOREX_MINIO_URL: http://minio:9000
       PIXOREX_MINIO_PUBLIC_URL: http://localhost:9000   # download links open in the browser
       PIXOREX_MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-pixorex-local}        # local only
@@ -116,8 +117,9 @@ services:
       KC_SPI_PIXOREX_SMS__AMZUR__SENDER: ${PIXOREX_SMS_SENDER:-}
       KC_SPI_PIXOREX_SMS__AMZUR__FORMAT: ${PIXOREX_SMS_FORMAT:-}
       KC_SPI_PIXOREX_SMS__AMZUR__BODY_TEMPLATE: ${PIXOREX_SMS_BODY_TEMPLATE:-}
-      # Audit events (PX-01-T04): the mock event-sink locally, the API's internal endpoint once it exists
-      KC_SPI_EVENTS_LISTENER__PIXOREX_AUDIT__ENDPOINT: ${PIXOREX_AUDIT_ENDPOINT:-http://event-sink:8888/internal/keycloak-events}
+      # Audit events (PX-01-T04) go to the API's internal endpoint; set
+      # PIXOREX_AUDIT_ENDPOINT=http://event-sink:8888/internal/keycloak-events to only print them.
+      KC_SPI_EVENTS_LISTENER__PIXOREX_AUDIT__ENDPOINT: ${PIXOREX_AUDIT_ENDPOINT:-http://api:8000/internal/keycloak-events}
       KC_SPI_EVENTS_LISTENER__PIXOREX_AUDIT__SECRET: ${PIXOREX_AUDIT_SECRET:-local-only-audit-secret}
     ports:                                                 # override in .env if 8080/9100 are taken locally
       - "${KC_HTTP_PORT:-8080}:8080"

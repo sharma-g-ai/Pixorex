@@ -19,11 +19,14 @@ from app.routers import (
     business_units,
     equipment_types,
     exports,
+    internal,
     invites,
     locations,
     me,
+    my_scans,
     operations,
     review,
+    scans,
     staff,
 )
 
@@ -82,6 +85,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         activity.router,
         review.router,
         exports.router,
+        scans.router,
+        my_scans.router,
     ):
         app.include_router(router, prefix=API_PREFIX)
+    # Keycloak's listener posts to /internal/keycloak-events (docs/keycloak.md 8.3), outside the
+    # public /api/v1 path so deployed ingress can block it.
+    app.include_router(internal.router)
     return app

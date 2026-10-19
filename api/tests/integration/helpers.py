@@ -28,10 +28,14 @@ class FakeJwks:
 class FakeKeycloak:
     def __init__(self) -> None:
         self.users: list[KeycloakUser] = []
+        self.lock: dict[str, Any] = {"disabled": False, "numFailures": 0}
 
     async def ensure_user(self, user: KeycloakUser) -> str:
         self.users.append(user)
         return f"kc-{user.app_user_id}"
+
+    async def brute_force_status(self, kc_id: str) -> dict[str, Any]:
+        return self.lock
 
 
 def make_token(user_id: str, tenant_id: str = TENANT_A, **overrides: Any) -> str:

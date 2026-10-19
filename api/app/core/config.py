@@ -37,6 +37,9 @@ class Settings(BaseSettings):
     oidc_clients: frozenset[str] = frozenset({"pixorex-web", "pixorex-mobile"})
     keycloak_admin_client_id: str = "pixorex-api-admin"
     keycloak_admin_secret: SecretStr | None = None
+    # Shared secret of Keycloak's audit event listener (docs/keycloak.md 8.3). Unset: the
+    # internal events endpoint answers 404.
+    keycloak_events_secret: SecretStr | None = None
 
     # Invite email. The link opens the web app (/activate#token=...).
     invite_base_url: AnyHttpUrl = AnyHttpUrl("http://localhost:5173")
@@ -50,6 +53,7 @@ class Settings(BaseSettings):
 
     @field_validator(
         "keycloak_admin_secret",
+        "keycloak_events_secret",
         "smtp_password",
         "smtp_user",
         "minio_access_key",

@@ -100,6 +100,14 @@ class KeycloakAdmin:
         await self._add_realm_role(kc_id, user.realm_role)
         return kc_id
 
+    async def brute_force_status(self, kc_id: str) -> dict[str, Any]:
+        """{numFailures, disabled, lastFailure (ms), lastIPFailure}: the temporary lock state
+        (docs/keycloak.md 5.3). Added for the lock audit row (5.4)."""
+        response = await self._call("GET", f"/attack-detection/brute-force/users/{kc_id}")
+        response.raise_for_status()
+        status: dict[str, Any] = response.json()
+        return status
+
     async def _find(self, **query: str) -> dict[str, Any] | None:
         response = await self._call("GET", "/users", params={**query, "exact": "true"})
         response.raise_for_status()
