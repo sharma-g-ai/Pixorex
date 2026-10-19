@@ -7,9 +7,11 @@ from uuid import UUID
 from psycopg.errors import UniqueViolation
 from pydantic import BaseModel, Field
 
+from app.auth import signed_urls
 from app.auth.context import Session
 from app.core.paging import PageInfo, decode_cursor, encode_cursor
 from app.core.problems import ProblemError
+from app.core.storage import StorageConfig
 from app.repositories import audit, notifications
 from app.repositories import review as repo
 
@@ -86,8 +88,8 @@ class ScanReview(BaseModel):
     equipment_type_name: str
     location_path: str
     captured_by_name: str
-    # TODO (A0, BC-09): each photo carries a 15-minute signed MinIO URL; not built yet, so
-    # photos come without "url" and the screen shows none.
+    # Each photo carries a 15-minute signed MinIO URL (A0 draft, BC-09). Without storage
+    # configured, photos come without "url" and the screen shows none.
     photos: list[dict[str, Any]]
     current_revision: Revision
     fields: list[ReviewField]
@@ -215,7 +217,17 @@ async def _reviewer(
     return scan, role
 
 
-async def scan_review(session: Session, scan_id: UUID) -> ScanReview:
+def _photo(row: dict[str, Any], storage: StorageConfig | None) -> dict[str, Any]:
+    photo: dict[str, Any] = {"photo_no": row["photo_no"]}
+    if storage is not None:
+        photo["url"] = signed_urls.photo_url(storage, row["object_key"])
+    return photo
+
+
+async def scan_review(
+    session: Session, scan_id: UUID, storage: StorageConfig | None = None
+) -> ScanReview:
+    """Photo links are signed only after the reviewer check above (BC-09)."""
     scan, _ = await _reviewer(session, scan_id)
     if scan["revision_id"] is None:
         raise ProblemError(404, "not-found", "Nothing has been submitted for review yet.")
@@ -225,7 +237,7 @@ async def scan_review(session: Session, scan_id: UUID) -> ScanReview:
         equipment_type_name=scan["equipment_type_name"],
         location_path=scan["location_path"],
         captured_by_name=scan["captured_by_name"],
-        photos=await repo.photos(session.conn, scan_id),
+        photos=[_photo(p, storage) for p in await repo.photos(session.conn, scan_id)],
         current_revision=Revision(
             revision_id=scan["revision_id"],
             revision_no=scan["revision_no"],

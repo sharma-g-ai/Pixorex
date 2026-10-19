@@ -75,14 +75,19 @@ def _setup_once(sql: Any) -> None:
 
 
 def waiting_scan(
-    sql: Any, technician: str, *, hours_waiting: float = 1, empty_required: bool = False
+    sql: Any,
+    technician: str,
+    *,
+    hours_waiting: float = 1,
+    empty_required: bool = False,
+    bu: str = P04,
 ) -> dict[str, str]:
     """A scan of Plant 04 waiting for approval. Serial is flagged (low confidence) and
     corrected; voltage accepted; phase unreadable."""
     _setup_once(sql)
     scan_id, record_no = str(uuid.uuid4()), f"REC-{uuid.uuid4().int % 10**8:08d}"
     submitted = datetime.now(UTC) - timedelta(hours=hours_waiting)
-    process = sql("SELECT id FROM business_process WHERE bu_id = %s AND is_default", (P04,))[0][0]
+    process = sql("SELECT id FROM business_process WHERE bu_id = %s AND is_default", (bu,))[0][0]
     sql(
         "INSERT INTO scan (id, tenant_id, bu_id, process_id, record_no, client_capture_id,"
         " technician_id, equipment_type_id, contract_id, location_node_id, location_path_snapshot,"
@@ -91,7 +96,7 @@ def waiting_scan(
         (
             scan_id,
             TENANT_A,
-            P04,
+            bu,
             process,
             record_no,
             str(uuid.uuid4()),

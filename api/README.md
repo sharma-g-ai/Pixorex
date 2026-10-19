@@ -13,6 +13,7 @@ uv sync
 export PIXOREX_DATABASE_URL="postgresql://pixorex_app:local-only@localhost:5432/pixorex"
 export PIXOREX_OIDC_ISSUER=http://localhost:8080/realms/pixorex
 export PIXOREX_MINIO_URL=http://localhost:9000
+export PIXOREX_MINIO_ACCESS_KEY=pixorex-local PIXOREX_MINIO_SECRET_KEY=local-only-minio  # large exports
 export PIXOREX_VAULT_URL=http://localhost:8200
 uv run uvicorn --factory app.main:create_app --reload
 ```
@@ -55,12 +56,17 @@ uv run ruff check . && uv run ruff format --check . && uv run mypy && uv run pyt
 | `app/auth/keycloak_admin.py` | Creates users in Keycloak on invite accept | Iswarya's code, ported; refuses another tenant's login |
 | `migrations/versions/0002_*.py` | `invite_scope()` and the BU Admin sync trigger (SECURITY DEFINER) | New draft; replaces connecting as the owner role |
 | `migrations/baseline/08_roles_grants.sql`, `09_rls.sql` | Grants and RLS | Drafts |
+| `app/auth/signed_urls.py` | Signed MinIO links: review photos (15 min), large exports (1 hour) (BC-09) | New draft |
 
 ## Open points
 
 - `Idempotency-Key` is required on creates but not stored: the data model has no table for it.
-- Invite emails are sent by the API after commit; contract 1.8 says the outbox worker (not built yet).
-- Unit counts (`waiting_count` and the rest) are 0 until the scan tables are in use (REQ-04.07).
+- Invite emails are sent by the API right after commit, not through the outbox: the outbox payload would store the raw link token (contract 1.8 says outbox; decide).
+- Not built yet: DLP (A0, OPEN O-14), AI suggestions (Portkey: waiting on library, key and model), the retention job (needs decisions; it should also delete old export files from MinIO).
+
+## Worker
+
+`python -m app.workers.runner` (Compose service `worker`, role `pixorex_worker`). Every 15 s it sends due outbox emails (retries with backoff, failed after 6 tries); it also builds exports over 1,000 rows into MinIO (`exports/<tenant>/<id>.csv`, rights checked again, `export_ready` alert; the job fails after 6 tries). Every 60 s it runs the jobs: 24-hour escalation, waiting-scan alerts (1 day, 1 week), stuck-batch alerts, invite expiry. Every bell notification also queues an email.
 
 ## Integration tests
 

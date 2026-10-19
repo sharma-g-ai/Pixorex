@@ -4,7 +4,7 @@ from datetime import date
 from typing import Annotated, Literal
 from uuid import UUID
 
-from fastapi import APIRouter, Header, Query, Response
+from fastapi import APIRouter, Header, Query, Request, Response
 
 from app.auth.context import SignedIn
 from app.core.paging import Cursor, Limit
@@ -27,8 +27,8 @@ async def review_queue(
 
 
 @router.get("/scans/{scan_id}/review", operation_id="getScanReview")
-async def scan_review(scan_id: UUID, session: SignedIn) -> review.ScanReview:
-    return await review.scan_review(session, scan_id)
+async def scan_review(scan_id: UUID, request: Request, session: SignedIn) -> review.ScanReview:
+    return await review.scan_review(session, scan_id, request.app.state.storage)
 
 
 @router.post("/scans/{scan_id}/decisions", operation_id="decideScan", status_code=201)

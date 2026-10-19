@@ -21,7 +21,11 @@ class Settings(BaseSettings):
     database_url: SecretStr
     db_pool_min: int = 1
     db_pool_max: int = 10
-    minio_url: AnyHttpUrl
+    minio_url: AnyHttpUrl  # how this service reaches MinIO
+    minio_public_url: AnyHttpUrl | None = None  # how browsers reach it (signed links)
+    minio_access_key: str | None = None
+    minio_secret_key: SecretStr | None = None
+    minio_bucket: str = "pixorex"
     vault_url: AnyHttpUrl
     readiness_timeout_s: float = 2.0
 
@@ -44,7 +48,14 @@ class Settings(BaseSettings):
     smtp_from: str = "no-reply@pixorex.local"
     smtp_from_name: str = "Pixorex"
 
-    @field_validator("keycloak_admin_secret", "smtp_password", "smtp_user", mode="before")
+    @field_validator(
+        "keycloak_admin_secret",
+        "smtp_password",
+        "smtp_user",
+        "minio_access_key",
+        "minio_secret_key",
+        mode="before",
+    )
     @classmethod
     def _empty_is_unset(cls, value: object) -> object:
         """Compose passes unset variables as empty strings."""

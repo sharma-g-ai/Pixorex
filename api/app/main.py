@@ -8,6 +8,7 @@ from fastapi import FastAPI
 
 from app.auth.keycloak_admin import KeycloakAdmin
 from app.auth.tokens import Jwks
+from app.core import storage
 from app.core.config import Settings, get_settings
 from app.core.correlation import CorrelationMiddleware
 from app.core.db import create_pool
@@ -37,6 +38,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         app.state.settings = settings
         app.state.pool = create_pool(settings)
+        app.state.storage = storage.config_from(
+            minio_url=settings.minio_url,
+            minio_public_url=settings.minio_public_url,
+            access_key=settings.minio_access_key,
+            secret_key=settings.minio_secret_key,
+            bucket=settings.minio_bucket,
+        )
         # Don't block start-up on the database; /ready reports it until it is reachable.
         await app.state.pool.open(wait=False)
         async with httpx.AsyncClient(timeout=settings.readiness_timeout_s) as http:

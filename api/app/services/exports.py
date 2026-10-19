@@ -1,7 +1,8 @@
 """CSV exports (contracts 4.1, 4.2, PRD FR-6.4, decision D-06).
 
-Up to 1,000 rows the CSV comes back in the request. Larger exports become a queued job.
-TODO (PX-10-T01 worker + MinIO): nothing builds queued files yet, so they stay queued.
+Up to 1,000 rows the CSV comes back in the request. Larger exports become a queued job: the
+worker builds the file into private storage (MinIO) and the requester gets a signed link
+that works for 1 hour.
 TODO (A0, BC-09, OPEN O-14): the DLP scan before delivery, and photo links, are not built."""
 
 import csv
@@ -12,8 +13,11 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
+from app.auth import signed_urls
 from app.auth.context import Session
+from app.core.db import Conn
 from app.core.problems import ProblemError
+from app.core.storage import StorageConfig
 from app.repositories import audit
 from app.repositories import exports as repo
 
@@ -80,15 +84,18 @@ def _csv(header: list[str], rows: list[list[Any]]) -> str:
     return out.getvalue()
 
 
-async def _scans_csv(
-    session: Session, units: list[UUID] | None, filters: dict[str, Any], columns: list[Column]
-) -> str:
-    rows = await repo.scans(session.conn, units, filters, DIRECT_LIMIT)
+async def scans_csv(
+    conn: Conn,
+    units: list[UUID] | None,
+    filters: dict[str, Any],
+    columns: list[Column],
+    limit: int | None = DIRECT_LIMIT,
+) -> tuple[str, int]:
+    """The CSV and its row count. limit None: every matching row (built files)."""
+    rows = await repo.scans(conn, units, filters, limit)
     keys = sorted({k for r in rows for k in (r["values_json"] or {})})
     ai = (
-        await repo.ai_values(session.conn, [r["id"] for r in rows])
-        if "ai_vs_technician" in columns
-        else {}
+        await repo.ai_values(conn, [r["id"] for r in rows]) if "ai_vs_technician" in columns else {}
     )
     header = [
         "Record no",
@@ -126,13 +133,18 @@ async def _scans_csv(
         if "review_decision" in columns:
             line += [r["decision"], r["reject_category"], r["decided_by"], r["decided_at"]]
         lines.append(line)
-    return _csv(header, lines)
+    return _csv(header, lines), len(rows)
 
 
-async def _audit_csv(session: Session, units: list[UUID] | None, filters: dict[str, Any]) -> str:
-    rows = await repo.audit(session.conn, units, filters, DIRECT_LIMIT)
+async def audit_csv(
+    conn: Conn,
+    units: list[UUID] | None,
+    filters: dict[str, Any],
+    limit: int | None = DIRECT_LIMIT,
+) -> tuple[str, int]:
+    rows = await repo.audit(conn, units, filters, limit)
     header = ["When", "Who", "Unit", "Category", "Summary", "Action", "Object"]
-    return _csv(
+    text = _csv(
         header,
         [
             [
@@ -147,6 +159,7 @@ async def _audit_csv(session: Session, units: list[UUID] | None, filters: dict[s
             for r in rows
         ],
     )
+    return text, len(rows)
 
 
 async def create(session: Session, body: ExportInput) -> tuple[str | None, ExportJob | None]:
@@ -162,11 +175,14 @@ async def create(session: Session, body: ExportInput) -> tuple[str | None, Expor
         count = await repo.count_audit(session.conn, units, filters)
     job: ExportJob | None = None
     csv_text: str | None = None
+    # A BU Admin's export belongs to their unit (D-06): the job, and its audit row, carry it
+    # so they can see both under RLS.
+    own_unit = body.filters.bu_id or (units[0] if units else None)
     if count > DIRECT_LIMIT:
         row = await repo.create_job(
             session.conn,
             tenant_id=caller.tenant_id,
-            bu_id=body.filters.bu_id,
+            bu_id=own_unit,
             user_id=caller.user_id,
             kind=body.export_kind,
             filters=filters,
@@ -175,16 +191,15 @@ async def create(session: Session, body: ExportInput) -> tuple[str | None, Expor
         )
         job = ExportJob(**row)
     elif body.export_kind == "scans":
-        csv_text = await _scans_csv(session, units, filters, body.options.columns)
+        csv_text, _ = await scans_csv(session.conn, units, filters, body.options.columns)
     else:
-        csv_text = await _audit_csv(session, units, filters)
+        csv_text, _ = await audit_csv(session.conn, units, filters)
     noun = "scans" if body.export_kind == "scans" else "audit log entries"
     await audit.record(
         session.conn,
         tenant_id=caller.tenant_id,
         actor_user_id=caller.user_id,
-        # A BU Admin's export belongs to their unit, so it shows in their audit log (D-06).
-        bu_id=body.filters.bu_id or (units[0] if units and len(units) == 1 else None),
+        bu_id=own_unit,
         category="export",
         action="export.queued" if job else "export.downloaded",
         summary=f"Exported {count} {noun} to CSV" + (" (queued)" if job else ""),
@@ -194,7 +209,11 @@ async def create(session: Session, body: ExportInput) -> tuple[str | None, Expor
     return csv_text, job
 
 
-async def get(session: Session, export_id: UUID) -> ExportJob:
+def file_name(kind: str) -> str:
+    return f"pixorex-{kind.replace('_', '-')}.csv"
+
+
+async def get(session: Session, export_id: UUID, storage: StorageConfig | None) -> ExportJob:
     """Contract 4.2: the requester only; a ready link works for 1 hour (409 link-expired)."""
     session.caller.require_admin()
     row = await repo.job(session.conn, export_id)
@@ -206,4 +225,10 @@ async def get(session: Session, export_id: UUID) -> ExportJob:
         and row["link_expires_at"] < datetime.now(UTC)
     ):
         raise ProblemError(409, "link-expired", "The download link has expired. Export again.")
-    return ExportJob(**row)
+    job = ExportJob(**row)
+    if row["status"] == "ready" and storage is not None:
+        # Authorization was checked above, on this request (BC-09).
+        job.download_url = signed_urls.export_download_url(
+            storage, row["file_key"], row["link_expires_at"], file_name(row["export_kind"])
+        )
+    return job

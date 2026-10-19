@@ -11,7 +11,7 @@ import os
 import subprocess
 import sys
 import uuid
-from collections.abc import Callable, Iterator
+from collections.abc import AsyncIterator, Callable, Iterator
 from pathlib import Path
 from typing import Any
 
@@ -19,7 +19,10 @@ import psycopg
 import pytest
 from fastapi.testclient import TestClient
 from psycopg.conninfo import conninfo_to_dict
+from psycopg.rows import dict_row
+from psycopg_pool import AsyncConnectionPool
 
+from app.core.db import Conn
 from app.main import create_app
 from app.services import mail
 from tests.conftest import make_settings
@@ -49,7 +52,11 @@ def database() -> Iterator[dict[str, str]]:
             [sys.executable, "scripts/seed_synthetic.py"],
         ):
             subprocess.run(command, cwd=API_DIR, env=env, check=True, capture_output=True)
-        yield {"app": f"postgresql://pixorex_app:local-only@{where}", "owner": owner}
+        yield {
+            "app": f"postgresql://pixorex_app:local-only@{where}",
+            "owner": owner,
+            "worker": f"postgresql://pixorex_worker:local-only@{where}",
+        }
     finally:
         with psycopg.connect(ADMIN_URL, autocommit=True) as admin:
             admin.execute(f"DROP DATABASE IF EXISTS {name} WITH (FORCE)")
@@ -113,3 +120,14 @@ def owner_sql(database: dict[str, str]) -> Callable[[str, tuple[Any, ...]], list
             return cur.fetchall() if cur.description else []
 
     return run
+
+
+@pytest.fixture
+async def pool(database: dict[str, str]) -> AsyncIterator[Any]:
+    """A connection pool as the worker role (pixorex_worker)."""
+    worker_pool: Any = AsyncConnectionPool(
+        database["worker"], connection_class=Conn, kwargs={"row_factory": dict_row}, open=False
+    )
+    await worker_pool.open()
+    yield worker_pool
+    await worker_pool.close()

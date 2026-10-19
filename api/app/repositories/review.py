@@ -107,7 +107,8 @@ async def had_assignment(conn: Conn, scan_id: UUID, user_id: UUID) -> bool:
 
 async def photos(conn: Conn, scan_id: UUID) -> list[dict[str, Any]]:
     cur = await conn.execute(
-        "SELECT photo_no FROM scan_photo WHERE scan_id = %s ORDER BY photo_no", (scan_id,)
+        "SELECT photo_no, object_key FROM scan_photo WHERE scan_id = %s ORDER BY photo_no",
+        (scan_id,),
     )
     return await cur.fetchall()
 

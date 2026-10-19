@@ -3,7 +3,7 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Header, Response
+from fastapi import APIRouter, Header, Request, Response
 from fastapi.responses import JSONResponse
 
 from app.auth.context import SignedIn
@@ -29,7 +29,7 @@ async def create_export(
     csv_text, job = await exports.create(session, body)
     if job is not None:
         return JSONResponse(job.model_dump(mode="json"), status_code=202)
-    name = f"pixorex-{body.export_kind.replace('_', '-')}.csv"
+    name = exports.file_name(body.export_kind)
     return Response(
         content=csv_text,
         media_type="text/csv; charset=utf-8",
@@ -38,5 +38,5 @@ async def create_export(
 
 
 @router.get("/exports/{export_id}", operation_id="getExport")
-async def get_export(export_id: UUID, session: SignedIn) -> exports.ExportJob:
-    return await exports.get(session, export_id)
+async def get_export(export_id: UUID, request: Request, session: SignedIn) -> exports.ExportJob:
+    return await exports.get(session, export_id, request.app.state.storage)

@@ -1,7 +1,6 @@
 # Local development stack — synthetic data only.
 # Credentials below are LOCAL-ONLY placeholders for throwaway containers. They are never
 # reused anywhere else; real secrets live in Vault (CONSTITUTION §2.10, SPEC-PX-10 REQ-10.03).
-# The worker service is added with the outbox (PX-10-T01).
 
 name: pixorex
 
@@ -42,6 +41,9 @@ services:
       PIXOREX_OIDC_INTERNAL_URL: http://keycloak:8080/realms/pixorex
       PIXOREX_KEYCLOAK_ADMIN_SECRET: ${PIXOREX_KEYCLOAK_ADMIN_SECRET:-}
       PIXOREX_MINIO_URL: http://minio:9000
+      PIXOREX_MINIO_PUBLIC_URL: http://localhost:9000   # download links open in the browser
+      PIXOREX_MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-pixorex-local}        # local only
+      PIXOREX_MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-local-only-minio}
       PIXOREX_VAULT_URL: http://vault:8200
       PIXOREX_INVITE_BASE_URL: ${PIXOREX_INVITE_BASE_URL:-http://localhost:5173}
       # Invite email: Mailpit unless .env sets a real provider (PIXOREX_SMTP_*).
@@ -56,6 +58,29 @@ services:
     depends_on:
       migrate: { condition: service_completed_successfully }
       mailpit: { condition: service_started }
+
+  worker:   # outbox emails, large exports and scheduled jobs (escalations, alerts, invite expiry)
+    build: ./api
+    command: ["python", "-m", "app.workers.runner"]
+    environment:
+      PIXOREX_WORKER_DATABASE_URL: postgresql://pixorex_worker:local-only@postgres:5432/pixorex
+      PIXOREX_INVITE_BASE_URL: ${PIXOREX_INVITE_BASE_URL:-http://localhost:5173}
+      PIXOREX_SMTP_HOST: ${PIXOREX_SMTP_HOST:-mailpit}
+      PIXOREX_SMTP_PORT: ${PIXOREX_SMTP_PORT:-1025}
+      PIXOREX_SMTP_USER: ${PIXOREX_SMTP_USER:-}
+      PIXOREX_SMTP_PASSWORD: ${PIXOREX_SMTP_PASSWORD:-}
+      PIXOREX_SMTP_STARTTLS: ${PIXOREX_SMTP_STARTTLS:-false}
+      PIXOREX_SMTP_FROM: ${PIXOREX_SMTP_FROM:-no-reply@pixorex.local}
+      PIXOREX_SMTP_FROM_NAME: ${PIXOREX_SMTP_FROM_NAME:-Pixorex}
+      PIXOREX_MINIO_URL: http://minio:9000   # builds exports over 1,000 rows into MinIO
+      PIXOREX_MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-pixorex-local}
+      PIXOREX_MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-local-only-minio}
+    healthcheck:
+      disable: true   # no HTTP port; "docker compose logs worker" shows it working
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      mailpit: { condition: service_started }
+      minio: { condition: service_healthy }
 
   keycloak-db:
     image: postgres:16

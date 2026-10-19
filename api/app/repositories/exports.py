@@ -6,6 +6,8 @@ from uuid import UUID
 
 from app.core.db import Conn
 
+BUILD_EVENT = "export.build"  # the worker builds files over 1,000 rows
+
 
 def _scan_where(
     units: list[UUID] | None, filters: dict[str, Any]
@@ -42,7 +44,7 @@ async def count_scans(conn: Conn, units: list[UUID] | None, filters: dict[str, A
 
 
 async def scans(
-    conn: Conn, units: list[UUID] | None, filters: dict[str, Any], limit: int
+    conn: Conn, units: list[UUID] | None, filters: dict[str, Any], limit: int | None
 ) -> list[dict[str, Any]]:
     where, params = _scan_where(units, filters)
     cur = await conn.execute(
@@ -112,7 +114,7 @@ async def count_audit(conn: Conn, units: list[UUID] | None, filters: dict[str, A
 
 
 async def audit(
-    conn: Conn, units: list[UUID] | None, filters: dict[str, Any], limit: int
+    conn: Conn, units: list[UUID] | None, filters: dict[str, Any], limit: int | None
 ) -> list[dict[str, Any]]:
     where, params = _audit_where(units, filters)
     cur = await conn.execute(
@@ -154,6 +156,11 @@ async def create_job(
     row = await cur.fetchone()
     if row is None:
         raise RuntimeError("INSERT ... RETURNING returned no row")
+    await conn.execute(
+        "INSERT INTO outbox_event (tenant_id, event_type, payload)"
+        " VALUES (%s, %s, jsonb_build_object('export_id', %s::text))",
+        (tenant_id, BUILD_EVENT, row["export_id"]),
+    )
     return row
 
 
@@ -164,3 +171,39 @@ async def job(conn: Conn, export_id: UUID) -> dict[str, Any] | None:
         (export_id,),
     )
     return await cur.fetchone()
+
+
+async def job_to_build(conn: Conn, export_id: UUID) -> dict[str, Any] | None:
+    cur = await conn.execute(
+        "SELECT j.id, j.tenant_id, j.bu_id, j.requested_by, j.export_kind, j.filters_json,"
+        " j.options_json, u.status AS requester_status FROM export_job j"
+        " JOIN app_user u ON u.id = j.requested_by"
+        " WHERE j.id = %s AND j.status = 'queued' FOR UPDATE OF j",
+        (export_id,),
+    )
+    return await cur.fetchone()
+
+
+async def roles_of(conn: Conn, user_id: UUID) -> list[dict[str, Any]]:
+    cur = await conn.execute(
+        "SELECT bu_id, role FROM user_unit_role WHERE user_id = %s AND removed_at IS NULL",
+        (user_id,),
+    )
+    return await cur.fetchall()
+
+
+async def mark_ready(conn: Conn, export_id: UUID, file_key: str, row_count: int) -> None:
+    """The link works for 1 hour from now (PRD FR-6.4)."""
+    await conn.execute(
+        "UPDATE export_job SET status = 'ready', file_key = %s, row_count = %s,"
+        " link_expires_at = now() + interval '1 hour', updated_at = now() WHERE id = %s",
+        (file_key, row_count, export_id),
+    )
+
+
+async def mark_failed(conn: Conn, export_id: UUID) -> None:
+    await conn.execute(
+        "UPDATE export_job SET status = 'failed', updated_at = now()"
+        " WHERE id = %s AND status = 'queued'",
+        (export_id,),
+    )
