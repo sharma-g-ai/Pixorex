@@ -25,11 +25,14 @@ _log = structlog.get_logger("pixorex.worker.outbox")
 Sender = Callable[..., Awaitable[None]]
 
 
-async def _claim(conn: Conn) -> dict[str, Any] | None:
+async def _claim(conn: Conn, event_types: list[str]) -> dict[str, Any] | None:
+    """Only events this worker can handle: others (e.g. AI extraction before its runner
+    exists) stay pending instead of failing."""
     cur = await conn.execute(
         "SELECT id, tenant_id, event_type, payload, attempts FROM outbox_event"
-        " WHERE status = 'pending' AND next_run_at <= now()"
-        " ORDER BY next_run_at LIMIT 1 FOR UPDATE SKIP LOCKED"
+        " WHERE status = 'pending' AND next_run_at <= now() AND event_type = ANY(%s)"
+        " ORDER BY next_run_at LIMIT 1 FOR UPDATE SKIP LOCKED",
+        (event_types,),
     )
     return await cur.fetchone()
 
@@ -75,7 +78,7 @@ async def run_due(
     handled = 0
     for _ in range(limit):
         async with pool.connection() as conn, conn.transaction():
-            event = await _claim(conn)
+            event = await _claim(conn, list(HANDLERS))
             if event is None:
                 return handled
             handler = HANDLERS.get(event["event_type"])

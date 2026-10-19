@@ -105,6 +105,13 @@ async def list_batches(
     return await delegation.list_batches(session, bu_id, status=status, cursor=cursor, limit=limit)
 
 
+@router.get("/me/review-batches", operation_id="listMyReviewBatches")
+async def my_batches(
+    session: SignedIn, cursor: Cursor = None, limit: Limit = 25
+) -> delegation.BatchPage:
+    return await delegation.my_batches(session, cursor=cursor, limit=limit)
+
+
 @router.get("/review-batches/{batch_id}", operation_id="getReviewBatch")
 async def get_batch(batch_id: UUID, session: SignedIn) -> delegation.BatchDetail:
     return await delegation.get_batch(session, batch_id)

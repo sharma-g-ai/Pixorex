@@ -232,6 +232,29 @@ async def list_batches(
     )
 
 
+async def my_batches(session: Session, *, cursor: str | None, limit: int) -> BatchPage:
+    """Contract 3.15: the active batches given to the calling technician."""
+    if not session.caller.units("field_technician"):
+        raise ProblemError(403, "forbidden")
+    rows = await repo.batches(
+        session.conn,
+        assigned_to=session.caller.user_id,
+        status="active",
+        after=decode_cursor(cursor, 2),
+        limit=limit,
+    )
+    more = len(rows) > limit
+    rows = rows[:limit]
+    return BatchPage(
+        items=[Batch(**r) for r in rows],
+        page=PageInfo(
+            next_cursor=encode_cursor(rows[-1]["created_at"].isoformat(), rows[-1]["batch_id"])
+            if more
+            else None
+        ),
+    )
+
+
 async def get_batch(session: Session, batch_id: UUID) -> BatchDetail:
     """Contract 3.11: admins of the unit, or the assigned technician."""
     row = await repo.batch(session.conn, batch_id)

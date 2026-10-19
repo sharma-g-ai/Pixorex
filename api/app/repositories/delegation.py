@@ -100,10 +100,23 @@ _BATCH = (
 
 
 async def batches(
-    conn: Conn, *, bu_id: UUID, status: str | None, after: list[str] | None, limit: int
+    conn: Conn,
+    *,
+    bu_id: UUID | None = None,
+    assigned_to: UUID | None = None,
+    status: str | None,
+    after: list[str] | None,
+    limit: int,
 ) -> list[dict[str, Any]]:
-    where: list[str] = ["b.bu_id = %s"]
-    params: list[object] = [bu_id]
+    """A unit's batches, or the batches given to one technician."""
+    where: list[str] = ["true"]
+    params: list[object] = []
+    if bu_id is not None:
+        where.append("b.bu_id = %s")
+        params.append(bu_id)
+    if assigned_to is not None:
+        where.append("b.assigned_to = %s")
+        params.append(assigned_to)
     if status:
         where.append("b.status = %s")
         params.append(status)
