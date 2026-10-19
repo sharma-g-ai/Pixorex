@@ -1,5 +1,5 @@
 import createClient from 'openapi-fetch'
-import { getAccessToken, handleUnauthorized } from '../auth/session'
+import { getAccessToken, handleAccountRemoved, handleUnauthorized } from '../auth/session'
 import { getDeviceId } from '../lib/deviceId'
 import type { components as CommonComponents } from './generated/common'
 import type { paths as S2Paths } from './generated/s2'
@@ -32,6 +32,16 @@ api.use({
     // Expired or revoked session: sign in again and come back here (loop-guarded).
     if (response.status === 401) {
       await handleUnauthorized(`${window.location.pathname}${window.location.search}`)
+      return response
+    }
+    // Removed from every unit: end IdP session; do not try to sign in again.
+    if (response.status === 403) {
+      try {
+        const problem = (await response.clone().json()) as Pick<Problem, 'type'>
+        if (problemCode(problem) === 'account-removed') await handleAccountRemoved()
+      } catch {
+        // Non-problem body: leave the 403 for the caller.
+      }
     }
     return response
   },

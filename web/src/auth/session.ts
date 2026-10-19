@@ -102,3 +102,17 @@ export async function handleUnauthorized(
   await um.signinRedirect({ state: { returnTo } satisfies SignInState })
   return true
 }
+
+/**
+ * The API said 403 account-removed: this person was removed from every unit. Clear local tokens
+ * and leave the app — do not sign in again (Keycloak login is disabled server-side).
+ */
+export async function handleAccountRemoved(
+  um: Pick<UserManager, 'removeUser'> | null = userManager(),
+  leave: (path: string) => void = (path) => {
+    window.location.replace(path)
+  },
+): Promise<void> {
+  if (um) await um.removeUser()
+  leave('/signed-out?reason=removed')
+}

@@ -29,6 +29,7 @@ class FakeKeycloak:
     def __init__(self) -> None:
         self.users: list[KeycloakUser] = []
         self.lock: dict[str, Any] = {"disabled": False, "numFailures": 0}
+        self.disabled: list[str] = []
 
     async def ensure_user(self, user: KeycloakUser) -> str:
         self.users.append(user)
@@ -36,6 +37,11 @@ class FakeKeycloak:
 
     async def brute_force_status(self, kc_id: str) -> dict[str, Any]:
         return self.lock
+
+    async def disable_login(
+        self, *, app_user_id: str, keycloak_user_id: str | None = None
+    ) -> None:
+        self.disabled.append(app_user_id)
 
 
 def make_token(user_id: str, tenant_id: str = TENANT_A, **overrides: Any) -> str:

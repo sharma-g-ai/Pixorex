@@ -18,6 +18,8 @@ class FakeKeycloak:
         self.users = users
         self.puts: list[dict[str, Any]] = []
         self.role_posts = 0
+        self.logouts: list[str] = []
+        self.consent_deletes: list[str] = []
 
     def __call__(self, request: httpx.Request) -> httpx.Response:
         path, method = request.url.path, request.method
@@ -36,9 +38,12 @@ class FakeKeycloak:
             body = json.loads(request.content)
             self.users.append({**body, "id": f"kc-{len(self.users)}"})
             return httpx.Response(201)
-        if "/users/" in path and method == "PUT":
-            self.puts.append(json.loads(request.content))
+        if path.endswith("/logout") and method == "POST":
+            self.logouts.append(path.rsplit("/users/", 1)[-1].removesuffix("/logout"))
             return httpx.Response(204)
+        if path.endswith("/consents/pixorex-mobile") and method == "DELETE":
+            self.consent_deletes.append(path)
+            return httpx.Response(404)  # web-only admin: no mobile consent yet
         if path.endswith("/role-mappings/realm") and method == "GET":
             return httpx.Response(200, json=[])
         if path.endswith("/role-mappings/realm/available"):
@@ -48,6 +53,15 @@ class FakeKeycloak:
             return httpx.Response(403)
         if path.endswith("/role-mappings/realm") and method == "POST":
             self.role_posts += 1
+            return httpx.Response(204)
+        # GET /users/{id} only (no further path segments).
+        if method == "GET" and "/users/" in path:
+            kc_id = path.rsplit("/users/", 1)[-1]
+            if "/" not in kc_id:
+                user = next((u for u in self.users if u["id"] == kc_id), None)
+                return httpx.Response(200, json=user) if user else httpx.Response(404)
+        if "/users/" in path and method == "PUT":
+            self.puts.append(json.loads(request.content))
             return httpx.Response(204)
         return httpx.Response(404)
 
@@ -113,3 +127,19 @@ async def test_a_new_person_is_created_with_the_app_user_id_as_username() -> Non
     assert fake.users[0]["username"] == DANA
     assert fake.users[0]["attributes"]["tenant_id"] == [TENANT]
     assert fake.role_posts == 1
+
+
+async def test_disable_login_turns_off_the_account_and_ends_sessions() -> None:
+    fake = FakeKeycloak([_dana()])
+    await _admin(fake).disable_login(app_user_id=DANA, keycloak_user_id="kc-dana")
+    assert fake.puts[-1]["enabled"] is False
+    assert fake.puts[-1].get("attributes", {}).get("app_user_id") == [DANA]
+    assert fake.logouts == ["kc-dana"]
+    assert any("pixorex-mobile" in p for p in fake.consent_deletes)
+
+
+async def test_disable_login_is_a_noop_when_the_person_never_activated() -> None:
+    fake = FakeKeycloak([])
+    await _admin(fake).disable_login(app_user_id=DANA)
+    assert fake.puts == []
+    assert fake.logouts == []
