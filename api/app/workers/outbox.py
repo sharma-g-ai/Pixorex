@@ -16,8 +16,9 @@ from app.auth.context import set_context
 from app.core.db import Conn, Pool
 from app.repositories.exports import BUILD_EVENT
 from app.repositories.notifications import EMAIL_EVENT
+from app.repositories.scans import EXTRACTION_EVENT
 from app.services import mail
-from app.workers import export_files
+from app.workers import export_files, extraction
 from app.workers.settings import WorkerSettings
 
 MAX_ATTEMPTS = 6
@@ -65,9 +66,13 @@ async def _email_notification(
     )
 
 
-HANDLERS = {EMAIL_EVENT: _email_notification, BUILD_EVENT: export_files.build}
+HANDLERS = {
+    EMAIL_EVENT: _email_notification,
+    BUILD_EVENT: export_files.build,
+    EXTRACTION_EVENT: extraction.run,
+}
 # Runs when an event is failed for good, so nothing waits on it for ever.
-ON_GIVE_UP = {BUILD_EVENT: export_files.give_up}
+ON_GIVE_UP = {BUILD_EVENT: export_files.give_up, EXTRACTION_EVENT: extraction.give_up}
 RETRYABLE = (OSError, smtplib.SMTPException, LookupError, BotoCoreError, ClientError)
 
 

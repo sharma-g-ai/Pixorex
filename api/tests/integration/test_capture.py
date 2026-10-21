@@ -120,7 +120,7 @@ async def test_photos_then_confirm_queues_attempt_one(
     assert attempts == [(1, "first", "queued")]
     _problem(_put(api, sid, 1), 409, "invalid-state")  # no more photos once confirmed
 
-    # No runner for the AI proxy yet: the worker leaves the event waiting, never failed.
+    # The AI isn't configured in this test: the worker keeps the event and retries it later.
     owner_sql(
         "UPDATE outbox_event SET next_run_at = now() - interval '1 second' WHERE status = 'pending'"
     )
@@ -139,7 +139,7 @@ async def test_photos_then_confirm_queues_attempt_one(
         " AND payload->>'scan_id' = %s",
         (sid,),
     )
-    assert event == [("pending", 0)]
+    assert event == [("pending", 1)]
 
 
 def test_a_retake_closes_the_original(api: Api, owner_sql: Any, unit: dict[str, str]) -> None:

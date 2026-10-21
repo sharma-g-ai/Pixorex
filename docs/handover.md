@@ -53,7 +53,7 @@ Branch: `feature/PX-02-mobile-api`. Read this first. It says what is done, what 
 - How a technician's invite link opens the app (deep link). Not decided yet. Needed for the activation screens (T 03–05).
 - Any screen that needs data the API doesn't give. Ask; don't work around it.
 
-**Not ready on the API side yet:** AI extraction. Scans stay "extracting" until it is built. Vishnu can set a test scan to "ready to review" with AI values so you can build the results screens.
+**AI extraction is running (21 Oct):** after upload-complete, poll `GET /scans/{scanId}` until it is `ready_to_review` (or `failed` / `retake_required`). The backend needs the Portkey values in `.env`.
 
 ---
 

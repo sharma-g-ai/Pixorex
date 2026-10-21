@@ -181,7 +181,7 @@ Your own scans, newest change first. Filters: `bu_id`, `tab`, `review_status`, `
 
 | Item | What it means for the app |
 |---|---|
-| **AI extraction is not running yet** (waiting for the AI service key) | After upload-complete, scans stay `extracting`. Ask the API side to move a test scan to `ready_to_review` with AI values if you need to build the results screens before then. |
+| AI extraction runs in the worker (21 Oct) | After upload-complete, poll `GET /scans/{scanId}`: usually `ready_to_review` in seconds, or `failed` (retry) / `retake_required` after 3 attempts. Needs the Portkey values in the backend's `.env`. |
 | Invite link opens the web page `/activate#token=…` | How a technician's link opens the app (deep link or app link) is **not decided**. Agree it with the API side before building T 03–05. |
 | Phone number change (1.4, 1.5) | Deprecated (D-08): done inside Keycloak as an application-initiated action. Keycloak doesn't send the event to the API yet (Iswarya). |
 | Photo link name | `view_url` in `GET /scans/{scanId}`, `url` in `GET /scans/{scanId}/review`, as each contract says. |

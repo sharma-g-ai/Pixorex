@@ -379,3 +379,91 @@ async def add_revision(
         (scan_id,),
     )
     return revision
+
+
+async def attempt_to_run(conn: Conn, attempt_id: UUID) -> dict[str, Any] | None:
+    """A queued attempt with its scan, locked; None if it already ran."""
+    cur = await conn.execute(
+        "SELECT a.id AS attempt_id, a.attempt_no, a.contract_id, s.id AS scan_id, s.bu_id,"
+        " s.review_status, s.processing_status, et.name AS type_name,"
+        " pv.instructions AS prompt_instructions"
+        " FROM extraction_attempt a JOIN scan s ON s.id = a.scan_id"
+        " JOIN extraction_contract c ON c.id = a.contract_id"
+        " JOIN prompt_version pv ON pv.id = c.prompt_version_id"
+        " JOIN equipment_type_version v ON v.id = c.type_version_id"
+        " JOIN equipment_type et ON et.id = v.equipment_type_id"
+        " WHERE a.id = %s AND a.status = 'queued' FOR UPDATE OF a, s",
+        (attempt_id,),
+    )
+    return await cur.fetchone()
+
+
+async def contract_fields(conn: Conn, contract_id: UUID) -> list[dict[str, Any]]:
+    cur = await conn.execute(
+        "SELECT fd.id, fd.field_key, fd.label, fd.data_type, fd.options, fd.is_required,"
+        " fd.is_critical, fd.format_rule, fd.flag_below_confidence::float AS flag_below"
+        " FROM extraction_contract c JOIN field_definition fd"
+        " ON fd.type_version_id = c.type_version_id WHERE c.id = %s ORDER BY fd.sort_order",
+        (contract_id,),
+    )
+    return await cur.fetchall()
+
+
+async def published_types(conn: Conn, bu_id: UUID) -> dict[str, UUID]:
+    """Name -> id of the unit's published types (for the type mismatch suggestion)."""
+    cur = await conn.execute(
+        "SELECT id, name FROM equipment_type WHERE bu_id = %s AND status = 'published'",
+        (bu_id,),
+    )
+    return {r["name"]: r["id"] for r in await cur.fetchall()}
+
+
+async def save_ai_value(
+    conn: Conn,
+    *,
+    tenant_id: UUID,
+    attempt_id: UUID,
+    field_id: UUID,
+    value: str | None,
+    confidence: float | None,
+    flags: list[str],
+) -> None:
+    await conn.execute(
+        "INSERT INTO ai_field_value (tenant_id, attempt_id, field_definition_id, value,"
+        " confidence, flag_reasons) VALUES (%s, %s, %s, %s, %s, %s)",
+        (tenant_id, attempt_id, field_id, value, confidence, flags),
+    )
+
+
+async def finish_attempt(
+    conn: Conn,
+    attempt_id: UUID,
+    *,
+    status: str,
+    detected_label: str | None = None,
+    suggested_type_id: UUID | None = None,
+    suggestion_confidence: float | None = None,
+    tokens_in: int | None = None,
+    tokens_out: int | None = None,
+) -> None:
+    await conn.execute(
+        "UPDATE extraction_attempt SET status = %s, detected_label = %s, suggested_type_id = %s,"
+        " suggestion_confidence = %s, tokens_in = %s, tokens_out = %s, updated_at = now()"
+        " WHERE id = %s",
+        (
+            status,
+            detected_label,
+            suggested_type_id,
+            suggestion_confidence,
+            tokens_in,
+            tokens_out,
+            attempt_id,
+        ),
+    )
+
+
+async def set_processing(conn: Conn, scan_id: UUID, status: str) -> None:
+    await conn.execute(
+        "UPDATE scan SET processing_status = %s, updated_at = now() WHERE id = %s",
+        (status, scan_id),
+    )

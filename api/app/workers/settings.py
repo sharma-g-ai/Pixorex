@@ -21,6 +21,13 @@ class WorkerSettings(BaseSettings):
     minio_secret_key: SecretStr | None = None
     minio_bucket: str = "pixorex"
 
+    # AI Inference Proxy (Portkey), for scan extraction. Unset key: extraction waits and
+    # retries, then the attempt fails.
+    portkey_url: AnyHttpUrl = AnyHttpUrl("https://api.portkey.ai/v1")
+    portkey_api_key: SecretStr | None = None
+    portkey_config_id: str | None = None
+    ai_timeout_s: float = 60.0
+
     invite_base_url: AnyHttpUrl = AnyHttpUrl("http://localhost:5173")  # the web app
     smtp_host: str = "localhost"
     smtp_port: int = 1025
@@ -33,7 +40,13 @@ class WorkerSettings(BaseSettings):
     local_smtp_port: int = 1025
 
     @field_validator(
-        "smtp_password", "smtp_user", "minio_access_key", "minio_secret_key", mode="before"
+        "smtp_password",
+        "smtp_user",
+        "minio_access_key",
+        "minio_secret_key",
+        "portkey_api_key",
+        "portkey_config_id",
+        mode="before",
     )
     @classmethod
     def _empty_is_unset(cls, value: object) -> object:

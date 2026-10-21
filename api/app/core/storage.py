@@ -72,3 +72,12 @@ def _put(config: StorageConfig, key: str, body: bytes, content_type: str) -> Non
 
 async def put(config: StorageConfig, key: str, body: bytes, content_type: str) -> None:
     await anyio.to_thread.run_sync(_put, config, key, body, content_type)
+
+
+def _get(config: StorageConfig, key: str) -> bytes:
+    body: bytes = client(config).get_object(Bucket=config.bucket, Key=key)["Body"].read()
+    return body
+
+
+async def get(config: StorageConfig, key: str) -> bytes:
+    return await anyio.to_thread.run_sync(_get, config, key)

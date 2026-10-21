@@ -80,9 +80,11 @@ services:
       PIXOREX_SMTP_FROM_NAME: ${PIXOREX_SMTP_FROM_NAME:-Pixorex}
       PIXOREX_LOCAL_SMTP_HOST: ${PIXOREX_LOCAL_SMTP_HOST:-mailpit}
       PIXOREX_LOCAL_SMTP_PORT: ${PIXOREX_LOCAL_SMTP_PORT:-1025}
-      PIXOREX_MINIO_URL: http://minio:9000   # builds exports over 1,000 rows into MinIO
+      PIXOREX_MINIO_URL: http://minio:9000   # builds exports over 1,000 rows into MinIO; reads scan photos
       PIXOREX_MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-pixorex-local}
       PIXOREX_MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-local-only-minio}
+      PIXOREX_PORTKEY_API_KEY: ${PIXOREX_PORTKEY_API_KEY:-}   # AI extraction of scans (from .env)
+      PIXOREX_PORTKEY_CONFIG_ID: ${PIXOREX_PORTKEY_CONFIG_ID:-}
     healthcheck:
       disable: true   # no HTTP port; "docker compose logs worker" shows it working
     depends_on:
