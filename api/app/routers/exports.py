@@ -7,7 +7,7 @@ from fastapi import APIRouter, Header, Request, Response
 from fastapi.responses import JSONResponse
 
 from app.auth.context import SignedIn
-from app.services import exports
+from app.services import exports, idempotency
 
 router = APIRouter(tags=["Exports"])
 
@@ -23,18 +23,22 @@ router = APIRouter(tags=["Exports"])
 )
 async def create_export(
     body: exports.ExportInput,
+    request: Request,
     session: SignedIn,
-    idempotency_key: Annotated[UUID, Header()],  # TODO (open point): required, not stored yet
+    idempotency_key: Annotated[UUID, Header()],
 ) -> Response:
-    csv_text, job = await exports.create(session, body)
-    if job is not None:
-        return JSONResponse(job.model_dump(mode="json"), status_code=202)
-    name = exports.file_name(body.export_kind)
-    return Response(
-        content=csv_text,
-        media_type="text/csv; charset=utf-8",
-        headers={"Content-Disposition": f'attachment; filename="{name}"'},
-    )
+    async def run() -> Response:
+        csv_text, job = await exports.create(session, body, request.app.state.storage)
+        if job is not None:
+            return JSONResponse(job.model_dump(mode="json"), status_code=202)
+        name = exports.file_name(body.export_kind)
+        return Response(
+            content=csv_text,
+            media_type="text/csv; charset=utf-8",
+            headers={"Content-Disposition": f'attachment; filename="{name}"'},
+        )
+
+    return await idempotency.once(session, request, idempotency_key, run)
 
 
 @router.get("/exports/{export_id}", operation_id="getExport")

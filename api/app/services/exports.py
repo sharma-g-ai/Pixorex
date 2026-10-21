@@ -3,7 +3,12 @@
 Up to 1,000 rows the CSV comes back in the request. Larger exports become a queued job: the
 worker builds the file into private storage (MinIO) and the requester gets a signed link
 that works for 1 hour.
-TODO (A0, BC-09, OPEN O-14): the DLP scan before delivery, and photo links, are not built."""
+
+Personal data is masked before delivery (services/dlp.py, agreed with the lead 19 Oct 2026):
+the exports are for what was extracted, not who did it.
+Photo links, when asked for, are signed for 1 hour (for a built file, from when it is built).
+OPEN O-14: the DLP result is not stored; its counts go into the export's audit row.
+OPEN (PRD open item 2): photo links point at files the retention job may delete later."""
 
 import csv
 import io
@@ -20,6 +25,7 @@ from app.core.problems import ProblemError
 from app.core.storage import StorageConfig
 from app.repositories import audit
 from app.repositories import exports as repo
+from app.services.dlp import Masker
 
 DIRECT_LIMIT = 1000
 Column = Literal["field_values", "ai_vs_technician", "review_decision"]
@@ -84,14 +90,23 @@ def _csv(header: list[str], rows: list[list[Any]]) -> str:
     return out.getvalue()
 
 
+async def masker_for(conn: Conn) -> Masker:
+    """Also masks the names of the company's users wherever they appear in text."""
+    return Masker(known_names=await repo.user_names(conn))
+
+
 async def scans_csv(
     conn: Conn,
     units: list[UUID] | None,
     filters: dict[str, Any],
     columns: list[Column],
+    masker: Masker,
+    *,
+    photo_links: StorageConfig | None = None,
     limit: int | None = DIRECT_LIMIT,
 ) -> tuple[str, int]:
-    """The CSV and its row count. limit None: every matching row (built files)."""
+    """The CSV and its row count. limit None: every matching row (built files).
+    photo_links: storage to sign each photo with (only when the option was asked for)."""
     rows = await repo.scans(conn, units, filters, limit)
     keys = sorted({k for r in rows for k in (r["values_json"] or {})})
     ai = (
@@ -113,6 +128,10 @@ async def scans_csv(
                 header += [f"{key} (AI)", f"{key} (AI confidence)"]
     if "review_decision" in columns:
         header += ["Decision", "Reject category", "Decided by", "Decided at"]
+    photos: dict[UUID, list[str]] = {}
+    if photo_links is not None:
+        header.append("Photo links (valid 1 hour)")
+        photos = await repo.photo_keys(conn, [r["id"] for r in rows])
     lines = []
     for r in rows:
         line = [
@@ -120,7 +139,7 @@ async def scans_csv(
             r["unit"],
             r["location"],
             r["equipment_type"],
-            r["captured_by"],
+            masker.name(r["captured_by"]),
             r["captured_at"],
             r["review_status"],
         ]
@@ -131,7 +150,16 @@ async def scans_csv(
                     found = ai.get(r["id"], {}).get(key, {})
                     line += [found.get("value"), found.get("confidence")]
         if "review_decision" in columns:
-            line += [r["decision"], r["reject_category"], r["decided_by"], r["decided_at"]]
+            line += [
+                r["decision"],
+                r["reject_category"],
+                masker.name(r["decided_by"]),
+                r["decided_at"],
+            ]
+        line = [masker.text(v) for v in line]  # photo links are added after masking
+        if photo_links is not None:
+            keys = photos.get(r["id"], [])
+            line.append(" ".join(signed_urls.export_photo_url(photo_links, k) for k in keys))
         lines.append(line)
     return _csv(header, lines), len(rows)
 
@@ -140,6 +168,8 @@ async def audit_csv(
     conn: Conn,
     units: list[UUID] | None,
     filters: dict[str, Any],
+    masker: Masker,
+    *,
     limit: int | None = DIRECT_LIMIT,
 ) -> tuple[str, int]:
     rows = await repo.audit(conn, units, filters, limit)
@@ -149,10 +179,10 @@ async def audit_csv(
         [
             [
                 r["occurred_at"],
-                r["who"] or "System",
-                r["unit"],
+                masker.name(r["who"] or "System"),
+                masker.text(r["unit"]),
                 r["category"],
-                r["summary"],
+                masker.text(r["summary"]),
                 r["action"],
                 f"{r['object_type'] or ''} {r['object_id'] or ''}".strip(),
             ]
@@ -162,7 +192,9 @@ async def audit_csv(
     return text, len(rows)
 
 
-async def create(session: Session, body: ExportInput) -> tuple[str | None, ExportJob | None]:
+async def create(
+    session: Session, body: ExportInput, storage: StorageConfig | None = None
+) -> tuple[str | None, ExportJob | None]:
     """Returns (csv, None) for up to 1,000 rows, or (None, queued job) for more."""
     caller = session.caller
     units = _scope(session, body.filters)
@@ -190,10 +222,18 @@ async def create(session: Session, body: ExportInput) -> tuple[str | None, Expor
             row_count=count,
         )
         job = ExportJob(**row)
-    elif body.export_kind == "scans":
-        csv_text, _ = await scans_csv(session.conn, units, filters, body.options.columns)
-    else:
-        csv_text, _ = await audit_csv(session.conn, units, filters)
+    # A queued file is masked by the worker when it is built; its counts aren't known yet.
+    detail = " (queued)"
+    if job is None:
+        masker = await masker_for(session.conn)
+        if body.export_kind == "scans":
+            links = storage if body.options.include_photo_links else None
+            csv_text, _ = await scans_csv(
+                session.conn, units, filters, body.options.columns, masker, photo_links=links
+            )
+        else:
+            csv_text, _ = await audit_csv(session.conn, units, filters, masker)
+        detail = f"; {masker.summary()}"
     noun = "scans" if body.export_kind == "scans" else "audit log entries"
     await audit.record(
         session.conn,
@@ -202,7 +242,7 @@ async def create(session: Session, body: ExportInput) -> tuple[str | None, Expor
         bu_id=own_unit,
         category="export",
         action="export.queued" if job else "export.downloaded",
-        summary=f"Exported {count} {noun} to CSV" + (" (queued)" if job else ""),
+        summary=f"Exported {count} {noun} to CSV{detail}",
         object_type="export_job" if job else None,
         object_id=job.export_id if job else None,
     )

@@ -6,6 +6,7 @@ import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { SelectField, type SelectOption } from '../../components/SelectField'
 import { TextField } from '../../components/TextField'
 import { downloadText, exportFileName } from '../../lib/download'
+import { MASKED_NOTE } from './exportText'
 
 /** One "Which scans" choice and the filters it stands for. */
 export interface ExportScope {
@@ -153,7 +154,9 @@ export function ExportDialog(props: ExportDialogProps) {
             />
           </fieldset>
         )}
-        <p className="text-small">{props.note}</p>
+        <p className="text-small">
+          {props.note} {MASKED_NOTE}
+        </p>
       </div>
     </ConfirmDialog>
   )

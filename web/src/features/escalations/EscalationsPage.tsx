@@ -17,6 +17,7 @@ import { InviteBuAdminDialog } from '../buAdmins/InviteBuAdminDialog'
 import { inviteOptions } from '../buAdmins/unitOptions'
 import { ExportDialog } from '../exports/ExportDialog'
 import { ExportJobNotice } from '../exports/ExportJobNotice'
+import { DOWNLOADED_NOTICE } from '../exports/exportText'
 import { DelegateBatchDialog } from '../review/DelegateBatchDialog'
 import { MAX_BATCH } from '../review/SelectionBar'
 import { groupByUnit, whyText, type UnitEscalations } from './escalationRules'
@@ -182,7 +183,7 @@ export function EscalationsPage() {
           onClose={() => setExporting(false)}
           onDownloaded={() => {
             setExporting(false)
-            setNotice('CSV downloaded. The export is recorded in the audit log.')
+            setNotice(DOWNLOADED_NOTICE)
           }}
           onQueued={(job) => {
             setExporting(false)

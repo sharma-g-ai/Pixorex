@@ -207,3 +207,22 @@ async def mark_failed(conn: Conn, export_id: UUID) -> None:
         " WHERE id = %s AND status = 'queued'",
         (export_id,),
     )
+
+
+async def user_names(conn: Conn) -> list[str]:
+    """The company's people, so their names can be masked wherever they appear."""
+    cur = await conn.execute("SELECT full_name FROM app_user WHERE full_name <> ''")
+    return [r["full_name"] for r in await cur.fetchall()]
+
+
+async def photo_keys(conn: Conn, scan_ids: list[UUID]) -> dict[UUID, list[str]]:
+    """Each scan's photo files, in photo order."""
+    cur = await conn.execute(
+        "SELECT scan_id, object_key FROM scan_photo WHERE scan_id = ANY(%s)"
+        " ORDER BY scan_id, photo_no",
+        (scan_ids,),
+    )
+    out: dict[UUID, list[str]] = {}
+    for row in await cur.fetchall():
+        out.setdefault(row["scan_id"], []).append(row["object_key"])
+    return out

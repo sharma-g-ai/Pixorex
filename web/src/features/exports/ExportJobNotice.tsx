@@ -2,6 +2,7 @@ import { useExportJob, type ExportJob } from '../../api/exports'
 import { Alert } from '../../components/Alert'
 import { buttonClasses } from '../../components/buttonClasses'
 import { timeLeft } from '../../lib/time'
+import { MASKED_NOTE } from './exportText'
 
 /** Progress of a large export prepared in the background (contract 4.2). */
 export function ExportJobNotice({ job }: { job: ExportJob }) {
@@ -17,7 +18,7 @@ export function ExportJobNotice({ job }: { job: ExportJob }) {
     const left = current.link_expires_at ? timeLeft(current.link_expires_at) : null
     return (
       <Alert tone="info" role="status">
-        Your export is ready{current.row_count ? ` (${current.row_count} rows)` : ''}.{' '}
+        Your export is ready{current.row_count ? ` (${current.row_count} rows)` : ''}. {MASKED_NOTE}{' '}
         {left ? (
           <a href={current.download_url} className={buttonClasses('link')}>
             Download CSV · link {left}

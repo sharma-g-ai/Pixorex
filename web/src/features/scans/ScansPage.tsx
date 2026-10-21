@@ -17,6 +17,7 @@ import { dateRange, datePresetLabels, type DatePreset } from '../../lib/dateRang
 import { timeAgo } from '../../lib/time'
 import { ExportDialog } from '../exports/ExportDialog'
 import { ExportJobNotice } from '../exports/ExportJobNotice'
+import { DOWNLOADED_NOTICE } from '../exports/exportText'
 import {
   reviewedByText,
   scanStatus,
@@ -193,7 +194,7 @@ export function ScansPage() {
           onClose={() => setExporting(false)}
           onDownloaded={() => {
             setExporting(false)
-            setNotice('CSV downloaded. The export is recorded in the audit log.')
+            setNotice(DOWNLOADED_NOTICE)
           }}
           onQueued={(job) => {
             setExporting(false)

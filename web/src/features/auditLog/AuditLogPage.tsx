@@ -14,6 +14,7 @@ import { SelectField } from '../../components/SelectField'
 import { datePresetLabels, dateRange, type DatePreset } from '../../lib/dateRange'
 import { ExportDialog } from '../exports/ExportDialog'
 import { ExportJobNotice } from '../exports/ExportJobNotice'
+import { DOWNLOADED_NOTICE } from '../exports/exportText'
 import { auditColumns } from './auditColumns'
 import { auditCategoryLabels } from './auditLabels'
 
@@ -141,7 +142,7 @@ export function AuditLogPage() {
           onClose={() => setExporting(false)}
           onDownloaded={() => {
             setExporting(false)
-            setNotice('CSV downloaded. The export is recorded in the audit log.')
+            setNotice(DOWNLOADED_NOTICE)
           }}
           onQueued={(job) => {
             setExporting(false)

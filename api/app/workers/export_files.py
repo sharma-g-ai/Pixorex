@@ -2,7 +2,8 @@
 
 The requester's rights are checked again at build time: a BU Admin removed from a unit in
 the meantime gets only the units they still run, or a failed job.
-TODO (A0, BC-09, OPEN O-14): the DLP scan before delivery is not built."""
+Personal data is masked as in the request (services/dlp.py). OPEN O-14: the DLP result is
+not stored."""
 
 from typing import Any
 from uuid import UUID
@@ -49,11 +50,20 @@ async def build(conn: Conn, settings: WorkerSettings, event: dict[str, Any], _se
     if config is None:
         raise LookupError("storage is not configured (PIXOREX_MINIO_*)")
     filters = job["filters_json"]
+    masker = await exports.masker_for(conn)
     if job["export_kind"] == "scans":
-        columns = job["options_json"].get("columns", [])
-        text, rows = await exports.scans_csv(conn, scope, filters, columns, limit=None)
+        options = job["options_json"]
+        text, rows = await exports.scans_csv(
+            conn,
+            scope,
+            filters,
+            options.get("columns", []),
+            masker,
+            photo_links=config if options.get("include_photo_links") else None,
+            limit=None,
+        )
     else:
-        text, rows = await exports.audit_csv(conn, scope, filters, limit=None)
+        text, rows = await exports.audit_csv(conn, scope, filters, masker, limit=None)
     key = f"exports/{job['tenant_id']}/{export_id}.csv"
     await storage.ensure_bucket(config)
     await storage.put(config, key, text.encode("utf-8"), "text/csv; charset=utf-8")
@@ -65,7 +75,8 @@ async def build(conn: Conn, settings: WorkerSettings, event: dict[str, Any], _se
         bu_id=job["bu_id"],
         kind="export_ready",
         title="Your CSV export is ready",
-        body=f"{rows} rows. The download link works for 1 hour.",
+        body=f"{rows} rows. Names, emails and phone numbers are masked."
+        " The download link works for 1 hour.",
         object_type="export_job",
         object_id=export_id,
     )

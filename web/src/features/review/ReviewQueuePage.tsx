@@ -12,6 +12,7 @@ import { PageHeader } from '../../components/layout/PageHeader'
 import { Tabs } from '../../components/Tabs'
 import { ExportDialog } from '../exports/ExportDialog'
 import { ExportJobNotice } from '../exports/ExportJobNotice'
+import { DOWNLOADED_NOTICE } from '../exports/exportText'
 import { DelegateBatchDialog } from './DelegateBatchDialog'
 import { MAX_BATCH, SelectionBar } from './SelectionBar'
 import { editsSummary, waitingStatus } from './reviewRules'
@@ -195,7 +196,7 @@ function QueueOfUnit({ buId, unitName }: { buId: string; unitName: string }) {
           onClose={() => setExporting(false)}
           onDownloaded={() => {
             setExporting(false)
-            setNotice('CSV downloaded. The export is recorded in the audit log.')
+            setNotice(DOWNLOADED_NOTICE)
           }}
           onQueued={(job) => {
             setExporting(false)
