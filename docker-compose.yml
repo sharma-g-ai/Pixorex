@@ -48,6 +48,7 @@ services:
       PIXOREX_VAULT_URL: http://vault:8200
       PIXOREX_INVITE_BASE_URL: ${PIXOREX_INVITE_BASE_URL:-http://localhost:5173}
       # Invite email: Mailpit unless .env sets a real provider (PIXOREX_SMTP_*).
+      # *.local always uses Mailpit (PIXOREX_LOCAL_SMTP_*), even when SendGrid is on.
       PIXOREX_SMTP_HOST: ${PIXOREX_SMTP_HOST:-mailpit}
       PIXOREX_SMTP_PORT: ${PIXOREX_SMTP_PORT:-1025}
       PIXOREX_SMTP_USER: ${PIXOREX_SMTP_USER:-}
@@ -55,6 +56,8 @@ services:
       PIXOREX_SMTP_STARTTLS: ${PIXOREX_SMTP_STARTTLS:-false}
       PIXOREX_SMTP_FROM: ${PIXOREX_SMTP_FROM:-no-reply@pixorex.local}
       PIXOREX_SMTP_FROM_NAME: ${PIXOREX_SMTP_FROM_NAME:-Pixorex}
+      PIXOREX_LOCAL_SMTP_HOST: ${PIXOREX_LOCAL_SMTP_HOST:-mailpit}
+      PIXOREX_LOCAL_SMTP_PORT: ${PIXOREX_LOCAL_SMTP_PORT:-1025}
     ports: ["8000:8000"]
     depends_on:
       migrate: { condition: service_completed_successfully }
@@ -73,6 +76,8 @@ services:
       PIXOREX_SMTP_STARTTLS: ${PIXOREX_SMTP_STARTTLS:-false}
       PIXOREX_SMTP_FROM: ${PIXOREX_SMTP_FROM:-no-reply@pixorex.local}
       PIXOREX_SMTP_FROM_NAME: ${PIXOREX_SMTP_FROM_NAME:-Pixorex}
+      PIXOREX_LOCAL_SMTP_HOST: ${PIXOREX_LOCAL_SMTP_HOST:-mailpit}
+      PIXOREX_LOCAL_SMTP_PORT: ${PIXOREX_LOCAL_SMTP_PORT:-1025}
       PIXOREX_MINIO_URL: http://minio:9000   # builds exports over 1,000 rows into MinIO
       PIXOREX_MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-pixorex-local}
       PIXOREX_MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-local-only-minio}
@@ -109,6 +114,10 @@ services:
       KC_METRICS_ENABLED: "true"
       KC_HOSTNAME: ${KC_HOSTNAME:-http://localhost:8080}   # set to http://<laptop-LAN-IP>:8080 in .env for phone testing
       KC_LOG_LEVEL: ${KC_LOG_LEVEL:-info,com.amzur.pixorex:debug}
+      # Email: real inboxes use realm SMTP (SendGrid when configured); *.local always goes to Mailpit.
+      KC_SPI_EMAIL_SENDER__PROVIDER_DEFAULT: pixorex-routing
+      PIXOREX_LOCAL_SMTP_HOST: ${PIXOREX_LOCAL_SMTP_HOST:-mailpit}
+      PIXOREX_LOCAL_SMTP_PORT: ${PIXOREX_LOCAL_SMTP_PORT:-1025}
       # SMS for one-time codes (PX-01-T03): mailpit (local inbox), log (CI) or amzur (real gateway, values from .env / Vault)
       KC_SPI_PIXOREX_SMS__PROVIDER: ${KC_SMS_PROVIDER:-mailpit}
       KC_SPI_PIXOREX_SMS__AMZUR__URL: ${PIXOREX_SMS_URL:-}

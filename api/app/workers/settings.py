@@ -29,6 +29,8 @@ class WorkerSettings(BaseSettings):
     smtp_starttls: bool = False
     smtp_from: str = "no-reply@pixorex.local"
     smtp_from_name: str = "Pixorex"
+    local_smtp_host: str = "mailpit"
+    local_smtp_port: int = 1025
 
     @field_validator(
         "smtp_password", "smtp_user", "minio_access_key", "minio_secret_key", mode="before"

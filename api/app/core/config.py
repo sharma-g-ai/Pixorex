@@ -50,6 +50,9 @@ class Settings(BaseSettings):
     smtp_starttls: bool = False
     smtp_from: str = "no-reply@pixorex.local"
     smtp_from_name: str = "Pixorex"
+    # Synthetic *.local addresses always use this (Mailpit), even when smtp_* is SendGrid.
+    local_smtp_host: str = "mailpit"
+    local_smtp_port: int = 1025
 
     @field_validator(
         "keycloak_admin_secret",

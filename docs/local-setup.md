@@ -68,7 +68,7 @@ Full details and fixes: [email-setup.md](email-setup.md).
 
 1. Add the `PIXOREX_SMTP_*` lines to `.env` (names in `.env.example`; get the values privately, never in chat).
 2. Run `.\scripts\setup-local.ps1` again.
-3. Sign in with a **real** email that was invited. `@demo.local` addresses get no code once real email is on.
+3. Sign in with a **real** email that was invited (codes go to that inbox). `@demo.local` codes still land in Mailpit.
 
 ## Fixes
 
