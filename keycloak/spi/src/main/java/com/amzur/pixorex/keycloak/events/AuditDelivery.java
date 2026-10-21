@@ -41,7 +41,13 @@ public final class AuditDelivery {
         this.maxAttempts = maxAttempts;
         this.maxQueued = maxQueued;
         this.timeout = timeout;
-        this.client = HttpClient.newBuilder().connectTimeout(timeout).followRedirects(HttpClient.Redirect.NEVER).build();
+        // HTTP/1.1: the JDK's default (HTTP/2) sends a plain-http request as an h2c upgrade, and the
+        // API's server (uvicorn) then reads no body, so every signature check failed with 401.
+        this.client = HttpClient.newBuilder()
+                .version(HttpClient.Version.HTTP_1_1)
+                .connectTimeout(timeout)
+                .followRedirects(HttpClient.Redirect.NEVER)
+                .build();
         this.executor = new ScheduledThreadPoolExecutor(1, runnable -> {
             Thread thread = new Thread(runnable, "pixorex-audit");
             thread.setDaemon(true);
