@@ -48,7 +48,7 @@ function TechniciansOfUnit({
         subtitle={unitName}
         actions={<Button onClick={() => setOpen({ dialog: 'invite' })}>+ Invite technician</Button>}
       />
-      <div className="flex grow flex-col gap-5 overflow-y-auto px-8 pt-6 pb-8">
+      <div className="flex grow flex-col gap-5 overflow-y-auto px-8 pt-6 pb-8 *:shrink-0">
         {notice && (
           <Alert tone={notice.error ? 'danger' : 'info'} role={notice.error ? 'alert' : 'status'}>
             {notice.text}

@@ -34,7 +34,7 @@ export function UnitsOverviewPage() {
           </Link>
         }
       />
-      <div className="flex grow flex-col gap-5 overflow-y-auto px-8 pt-6 pb-8">
+      <div className="flex grow flex-col gap-5 overflow-y-auto px-8 pt-6 pb-8 *:shrink-0">
         {units.isPending && <Card>Loading units…</Card>}
         {units.isError && <Card>We couldn't load the units. Please refresh the page.</Card>}
 

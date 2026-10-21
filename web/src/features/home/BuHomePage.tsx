@@ -46,7 +46,7 @@ function HomeOfUnit({
   return (
     <>
       <PageHeader title={greeting(userName)} subtitle={`${unitName} · ${today}`} />
-      <div className="flex grow flex-col gap-5 overflow-y-auto px-8 pt-6 pb-8">
+      <div className="flex grow flex-col gap-5 overflow-y-auto px-8 pt-6 pb-8 *:shrink-0">
         <div className="grid grid-cols-2 gap-3.5 lg:grid-cols-4">
           <StatTile value={counts?.waiting ?? '–'} label="waiting review" to="/review-queue" />
           <StatTile

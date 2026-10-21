@@ -36,7 +36,7 @@ export function VacantUnitsPage() {
           </Link>
         }
       />
-      <div className="flex grow flex-col gap-4 overflow-y-auto px-8 pt-6 pb-8">
+      <div className="flex grow flex-col gap-4 overflow-y-auto px-8 pt-6 pb-8 *:shrink-0">
         {notice && (
           <Alert tone={notice.error ? 'danger' : 'info'} role="status">
             {notice.text}

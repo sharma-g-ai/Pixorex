@@ -49,7 +49,7 @@ function UnitDetail({ unit, units }: { unit: BusinessUnit; units: BusinessUnit[]
           </Link>
         }
       />
-      <div className="flex grow flex-col gap-5 overflow-y-auto px-8 pt-6 pb-8">
+      <div className="flex grow flex-col gap-5 overflow-y-auto px-8 pt-6 pb-8 *:shrink-0">
         {notice && (
           <Alert tone="info" role="status">
             {notice}
