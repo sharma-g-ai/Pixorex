@@ -84,9 +84,9 @@ Branch: `feature/PX-02-mobile-api`. Read this first. It says what is done, what 
 | Item | Waiting for |
 |---|---|
 | AI extraction through Portkey (scans and "AI assist" for equipment types) | Vishnu: the Portkey key, the model, and OK for the photo-upload library |
-| DLP check on exports (O-14) | Lead: what to check, block or warn |
+| DLP check on exports (O-14) | **Agreed 19 Oct:** names, emails and phone numbers are masked. Built on `feature/PX-11-idempotency-dlp`; needs architect review (A0) |
 | Retention job (FR-6.6) | Lead: legal hold, minimum values, table shape, delete or anonymise |
-| Storing idempotency keys | Lead: a new table (data model change) |
+| Storing idempotency keys | **Agreed 19 Oct:** built on `feature/PX-11-idempotency-dlp` (new table, 24 hours) |
 | `photo_count` on a scan | Lead: a new column (data model change). Until then, photos 1..n with no gap |
 | Monthly scan limit (402) | Lead: where the limit is stored (PRD open item 9). Scans are counted, not refused |
-| A0 security code (signed photo and export links, Keycloak event signature, token handling in web and app) | Architect review and sign-off |
+| A0 security code (signed photo and export links, DLP masking, Keycloak event signature, token handling in web and app) | Architect review and sign-off |

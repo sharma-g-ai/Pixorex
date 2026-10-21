@@ -62,7 +62,7 @@ The **token handling in the app is A0**: it needs architect sign-off (CONSTITUTI
 |---|---|---|
 | `Authorization: Bearer <access token>` | Always, except invite preview and accept | Missing or expired → 401 |
 | `X-Device-Id` | Every call, except invite preview and accept | Make it once per install and keep it. Missing → 400 |
-| `Idempotency-Key: <uuid>` | Every create and every POST the contract marks | For creating a scan it **must equal** `client_capture_id` |
+| `Idempotency-Key: <uuid>` | Every create and every POST the contract marks | Keep one key per user action and reuse it on retry: for 24 hours the same key with the same request returns the first answer; with a different request → `409 idempotency-conflict`. For creating a scan it **must equal** `client_capture_id` |
 
 **Errors** are `application/problem+json`. Read the `type`: `/problems/<code>`, e.g. `/problems/scan-attempts-used`. `detail` is a sentence you can show. Validation errors (400) also carry `errors: [{field, message}]`; some 409s carry `fields` (the labels to show).
 
