@@ -209,10 +209,6 @@ def test_rename_delete_and_ai_suggest(api: Api, owner_sql: Any) -> None:
     assert renamed.json()["name"] == "Gear box"
     assert api.call("DELETE", f"/equipment-types/{created['type_id']}", BO).status_code == 204
     _problem(api.get(f"/equipment-types/{created['type_id']}", BO), 404, "not-found")
-    _problem(
-        api.post(f"/business-units/{P04}/equipment-types/ai-suggest", BO), 503, "ai-unavailable"
-    )
-    _problem(api.post(f"/business-units/{P04}/equipment-types/ai-suggest", TARA), 403, "forbidden")
     audit = owner_sql(
         "SELECT count(*) FROM audit_log WHERE object_id = %s AND category = 'equipment_types'",
         (created["type_id"],),
@@ -231,3 +227,59 @@ def test_null_for_a_required_setting_is_a_400_not_a_crash(api: Api) -> None:
             400,
             "validation",
         )
+
+
+PNG = b"\x89PNG\r\n\x1a\n" + b"label" * 10
+
+
+def _suggest(api: Api, user: str, image: bytes = PNG, name: str = "Motor") -> Any:
+    return api.post(
+        f"/business-units/{P04}/equipment-types/ai-suggest",
+        user,
+        data={"name": name},
+        files={"image": ("label.png", image, "image/png")},
+    )
+
+
+def test_ai_assist_suggests_fields_from_a_photo(api: Api) -> None:
+    """Contract 2.20 through the AI proxy (Portkey, faked here); nothing is saved."""
+    import httpx
+    from pydantic import SecretStr
+
+    from app.services.ai_proxy import AiConfig
+
+    app: Any = api.client.app
+    _problem(_suggest(api, BO), 503, "ai-unavailable")  # no Portkey key configured
+    sent: list[httpx.Request] = []
+
+    def portkey(request: httpx.Request) -> httpx.Response:
+        sent.append(request)
+        content = '{"fields": [{"label": "Serial number", "data_type": "text"}]}'
+        return httpx.Response(200, json={"choices": [{"message": {"content": content}}]})
+
+    app.state.ai = AiConfig(
+        url="https://portkey.test/v1", api_key=SecretStr("k"), config_id="pc", timeout_s=5
+    )
+    real_http = app.state.http
+    app.state.http = httpx.AsyncClient(transport=httpx.MockTransport(portkey))
+    try:
+        answer = _suggest(api, BO)
+        assert answer.status_code == 200, answer.text
+        assert answer.json() == {
+            "suggested_fields": [{"label": "Serial number", "data_type": "text"}]
+        }
+        assert len(sent) == 1
+        _problem(_suggest(api, TARA), 403, "forbidden")  # not a BU Admin of the unit
+        _problem(_suggest(api, BO, image=b"GIF89a not a label"), 400, "validation")
+        _problem(_suggest(api, BO, name="   "), 400, "validation")
+        big = PNG + b"x" * (10 * 1024 * 1024)
+        _problem(_suggest(api, BO, image=big), 400, "photo-too-large")
+        assert len(sent) == 1  # refused requests never reach the provider
+
+        app.state.http = httpx.AsyncClient(
+            transport=httpx.MockTransport(lambda r: httpx.Response(502, json={}))
+        )
+        _problem(_suggest(api, BO), 503, "ai-unavailable")  # provider failed
+    finally:
+        app.state.http = real_http
+        app.state.ai = None

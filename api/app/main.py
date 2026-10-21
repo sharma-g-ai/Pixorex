@@ -29,6 +29,7 @@ from app.routers import (
     scans,
     staff,
 )
+from app.services import ai_proxy
 
 API_PREFIX = "/api/v1"
 
@@ -47,6 +48,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             access_key=settings.minio_access_key,
             secret_key=settings.minio_secret_key,
             bucket=settings.minio_bucket,
+        )
+        app.state.ai = (
+            ai_proxy.AiConfig(
+                url=str(settings.portkey_url).rstrip("/"),
+                api_key=settings.portkey_api_key,
+                config_id=settings.portkey_config_id,
+                timeout_s=settings.ai_timeout_s,
+            )
+            if settings.portkey_api_key and settings.portkey_config_id
+            else None
         )
         # Don't block start-up on the database; /ready reports it until it is reachable.
         await app.state.pool.open(wait=False)

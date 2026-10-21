@@ -5,6 +5,7 @@ from datetime import datetime
 from typing import Any, Literal
 from uuid import UUID
 
+import httpx
 from psycopg.errors import UniqueViolation
 from pydantic import BaseModel, Field, ValidationError
 
@@ -13,6 +14,7 @@ from app.core.paging import PageInfo, decode_cursor, encode_cursor
 from app.core.problems import ProblemError
 from app.repositories import audit
 from app.repositories import equipment_types as repo
+from app.services import ai_proxy
 
 DataType = Literal["text", "number", "date", "dropdown", "boolean"]
 DEFAULT_FLAG_BELOW = 0.85
@@ -437,9 +439,44 @@ async def publish(session: Session, type_id: UUID) -> Published:
     return Published(status="published", **done)
 
 
-async def suggest_fields(session: Session, bu_id: UUID) -> Suggestions:
-    """Contract 2.20 goes through the AI Inference Proxy, which is not built yet (OPEN P-14)."""
+MAX_SUGGEST_PHOTO = 10 * 1024 * 1024  # a label photo from a phone or a screenshot
+PHOTO_TYPES = {b"\xff\xd8\xff": "image/jpeg", b"\x89PNG\r\n\x1a\n": "image/png"}
+
+
+def photo_type(image: bytes) -> str | None:
+    """JPEG or PNG, by the file's first bytes (not by what the browser says)."""
+    return next((mime for start, mime in PHOTO_TYPES.items() if image.startswith(start)), None)
+
+
+async def suggest_fields(
+    session: Session,
+    bu_id: UUID,
+    *,
+    name: str,
+    image: bytes,
+    http: httpx.AsyncClient,
+    ai: ai_proxy.AiConfig | None,
+) -> Suggestions:
+    """Contract 2.20: the AI proxy reads the label photo; nothing is saved. The admin ticks
+    the fields they want and creates the type (2.11, created_via ai_assist)."""
     session.caller.require_bu_admin_of(bu_id)
-    raise ProblemError(
-        503, "ai-unavailable", "AI assist isn't available yet. Start blank or copy a type."
-    )
+    if not name.strip():
+        raise ProblemError(400, "validation", "Give the new type a name.")
+    mime = photo_type(image)
+    if mime is None:
+        raise ProblemError(400, "validation", "The photo must be a JPEG or PNG.")
+    if ai is None:
+        raise ProblemError(
+            503, "ai-unavailable", "AI assist isn't available yet. Start blank or copy a type."
+        )
+    try:
+        fields = await ai_proxy.suggest_fields(
+            http, ai, type_name=name.strip(), image=image, mime=mime
+        )
+    except ai_proxy.AiUnavailableError:
+        raise ProblemError(
+            503,
+            "ai-unavailable",
+            "AI assist couldn't read the photo right now. Try again, or start blank.",
+        ) from None
+    return Suggestions(suggested_fields=[SuggestedField(**f) for f in fields])

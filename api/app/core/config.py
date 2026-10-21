@@ -40,6 +40,11 @@ class Settings(BaseSettings):
     # Shared secret of Keycloak's audit event listener (docs/keycloak.md 8.3). Unset: the
     # internal events endpoint answers 404.
     keycloak_events_secret: SecretStr | None = None
+    # AI Inference Proxy (Portkey). Unset key: AI assist answers 503 ai-unavailable.
+    portkey_url: AnyHttpUrl = AnyHttpUrl("https://api.portkey.ai/v1")
+    portkey_api_key: SecretStr | None = None
+    portkey_config_id: str | None = None
+    ai_timeout_s: float = 60.0
 
     # Invite email. The link opens the web app (/activate#token=...).
     invite_base_url: AnyHttpUrl = AnyHttpUrl("http://localhost:5173")
@@ -57,6 +62,8 @@ class Settings(BaseSettings):
     @field_validator(
         "keycloak_admin_secret",
         "keycloak_events_secret",
+        "portkey_api_key",
+        "portkey_config_id",
         "smtp_password",
         "smtp_user",
         "minio_access_key",

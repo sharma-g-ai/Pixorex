@@ -70,7 +70,8 @@ uv run ruff check . && uv run ruff format --check . && uv run mypy && uv run pyt
 - AI extraction: upload-complete queues attempt 1 and an `extraction.run` outbox event. The worker leaves those events waiting until the Portkey runner is built.
 - Invite emails are sent by the API right after commit, not through the outbox: the outbox payload would store the raw link token (contract 1.8 says outbox; decide).
 - CSV exports mask names, emails and phone numbers (agreed with the lead 19 Oct 2026); counts go into the export's audit row (DLP results not stored, OPEN O-14). A name typed into a field value is caught only if it belongs to a user of the company.
-- Not built yet: AI suggestions (Portkey: waiting on library, key and model), the retention job (needs decisions; it should also delete old export files from MinIO).
+- AI assist (contract 2.20) goes through Portkey (`app/services/ai_proxy.py`, A1: prompt and injection defence need human review). The Portkey config picks the model (now Gemini; OPEN P-14 expects US endpoints with zero retention). Set `PIXOREX_PORTKEY_API_KEY` and `PIXOREX_PORTKEY_CONFIG_ID` in `.env`.
+- Not built yet: the retention job (needs decisions; it should also delete old export files from MinIO).
 
 ## Worker
 

@@ -3,11 +3,12 @@
 from typing import Annotated, Literal
 from uuid import UUID
 
-from fastapi import APIRouter, Header, Request, Response
+from fastapi import APIRouter, File, Form, Header, Request, Response, UploadFile
 from pydantic import BaseModel, Field
 
 from app.auth.context import SignedIn
 from app.core.paging import Cursor, Limit
+from app.core.problems import ProblemError
 from app.services import equipment_types as types
 from app.services import idempotency
 
@@ -121,6 +122,21 @@ async def publish(type_id: UUID, session: SignedIn) -> types.Published:
 
 
 @router.post("/business-units/{bu_id}/equipment-types/ai-suggest", operation_id="suggestFields")
-async def suggest_fields(bu_id: UUID, session: SignedIn) -> types.Suggestions:
-    # The body (name + image, multipart) is not read: the AI proxy is not built yet.
-    return await types.suggest_fields(session, bu_id)
+async def suggest_fields(
+    bu_id: UUID,
+    request: Request,
+    session: SignedIn,
+    name: Annotated[str, Form(max_length=120)],
+    image: Annotated[UploadFile, File()],
+) -> types.Suggestions:
+    data = await image.read(types.MAX_SUGGEST_PHOTO + 1)
+    if len(data) > types.MAX_SUGGEST_PHOTO:
+        raise ProblemError(400, "photo-too-large", "The photo can be at most 10 MB.")
+    return await types.suggest_fields(
+        session,
+        bu_id,
+        name=name,
+        image=data,
+        http=request.app.state.http,
+        ai=request.app.state.ai,
+    )
