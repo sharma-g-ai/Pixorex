@@ -15,7 +15,7 @@ import structlog
 
 from app.auth.context import set_context
 from app.core.db import Conn, Pool
-from app.repositories import audit
+from app.repositories import audit, idempotency
 from app.repositories.notifications import notify
 
 _log = structlog.get_logger("pixorex.worker.jobs")
@@ -177,7 +177,13 @@ async def expire_invites(conn: Conn, tenant_id: UUID) -> int:
     return len(groups)
 
 
-JOBS = (escalate, waiting_alerts, batch_alerts, expire_invites)
+async def expire_idempotency_keys(conn: Conn, tenant_id: UUID) -> int:
+    """Stored Idempotency-Keys are kept 24 hours (migration 0003); RLS limits this to the
+    tenant."""
+    return await idempotency.delete_expired(conn)
+
+
+JOBS = (escalate, waiting_alerts, batch_alerts, expire_invites, expire_idempotency_keys)
 
 
 async def run_all(pool: Pool) -> dict[str, int]:

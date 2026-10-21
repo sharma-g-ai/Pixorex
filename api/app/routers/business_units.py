@@ -3,11 +3,11 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, BackgroundTasks, Header, Request
+from fastapi import APIRouter, BackgroundTasks, Header, Request, Response
 
 from app.auth.context import SignedIn
 from app.core.paging import Cursor, Limit
-from app.services import business_units, mail
+from app.services import business_units, idempotency, mail
 
 router = APIRouter(tags=["Business units"])
 
@@ -21,22 +21,33 @@ async def list_units(
     )
 
 
-@router.post("/business-units", operation_id="createBusinessUnit", status_code=201)
+@router.post(
+    "/business-units",
+    operation_id="createBusinessUnit",
+    status_code=201,
+    response_model=business_units.BusinessUnit,
+)
 async def create_unit(
     body: business_units.NewUnit,
     session: SignedIn,
     request: Request,
     background: BackgroundTasks,
     idempotency_key: Annotated[UUID, Header()],
-) -> business_units.BusinessUnit:
-    # TODO (open point): Idempotency-Key is required but not stored yet (no table in the model).
-    unit, mail_to = await business_units.create(session, body)
-    if mail_to:
-        email, token = mail_to
-        background.add_task(
-            mail.send_invite, request.app.state.settings, to=email, token=token, role="bu_admin"
-        )
-    return unit
+) -> Response:
+    async def run() -> Response:
+        unit, mail_to = await business_units.create(session, body)
+        if mail_to:  # sent once: a repeated request returns the stored answer, no new email
+            email, token = mail_to
+            background.add_task(
+                mail.send_invite,
+                request.app.state.settings,
+                to=email,
+                token=token,
+                role="bu_admin",
+            )
+        return idempotency.json_response(unit, 201)
+
+    return await idempotency.once(session, request, idempotency_key, run)
 
 
 @router.get("/bu-admins", operation_id="listBuAdmins")

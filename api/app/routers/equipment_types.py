@@ -3,12 +3,13 @@
 from typing import Annotated, Literal
 from uuid import UUID
 
-from fastapi import APIRouter, Header, Response
+from fastapi import APIRouter, Header, Request, Response
 from pydantic import BaseModel, Field
 
 from app.auth.context import SignedIn
 from app.core.paging import Cursor, Limit
 from app.services import equipment_types as types
+from app.services import idempotency
 
 router = APIRouter(tags=["Equipment types"])
 
@@ -44,15 +45,19 @@ async def list_types(
     "/business-units/{bu_id}/equipment-types",
     operation_id="createEquipmentType",
     status_code=201,
+    response_model=types.EquipmentType,
 )
 async def create_type(
     bu_id: UUID,
     body: types.NewType,
+    request: Request,
     session: SignedIn,
     idempotency_key: Annotated[UUID, Header()],
-) -> types.EquipmentType:
-    # TODO (open point): Idempotency-Key is required but not stored yet (no table in the model).
-    return await types.create_type(session, bu_id, body)
+) -> Response:
+    async def run() -> Response:
+        return idempotency.json_response(await types.create_type(session, bu_id, body), 201)
+
+    return await idempotency.once(session, request, idempotency_key, run)
 
 
 @router.get("/equipment-types/{type_id}", operation_id="getEquipmentType")
@@ -71,14 +76,23 @@ async def delete_type(type_id: UUID, session: SignedIn) -> Response:
     return Response(status_code=204)
 
 
-@router.post("/equipment-types/{type_id}/fields", operation_id="addField", status_code=201)
+@router.post(
+    "/equipment-types/{type_id}/fields",
+    operation_id="addField",
+    status_code=201,
+    response_model=types.TypeField,
+)
 async def add_field(
     type_id: UUID,
     body: types.FieldInput,
+    request: Request,
     session: SignedIn,
     idempotency_key: Annotated[UUID, Header()],
-) -> types.TypeField:
-    return await types.add_field(session, type_id, body)
+) -> Response:
+    async def run() -> Response:
+        return idempotency.json_response(await types.add_field(session, type_id, body), 201)
+
+    return await idempotency.once(session, request, idempotency_key, run)
 
 
 @router.patch("/equipment-types/{type_id}/fields/{field_id}", operation_id="updateField")

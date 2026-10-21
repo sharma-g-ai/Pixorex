@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
 
 from app.auth.context import Public, SignedIn
 from app.core.paging import Cursor, Limit
-from app.services import invites, mail
+from app.services import idempotency, invites, mail
 
 router = APIRouter(prefix="/invites", tags=["Invites"])
 
@@ -43,25 +43,26 @@ async def accept(body: Acceptance, conn: Public, request: Request) -> invites.Ac
     )
 
 
-@router.post("", operation_id="createInvite", status_code=201)
+@router.post("", operation_id="createInvite", status_code=201, response_model=invites.Created)
 async def create(
     body: invites.NewInvite,
     session: SignedIn,
     request: Request,
     background: BackgroundTasks,
     idempotency_key: Annotated[UUID, Header()],
-) -> invites.Created:
-    # TODO (open point): no table stores Idempotency-Key yet, so a retried request
-    # creates a second invite. The data model needs one before production.
-    result, token = await invites.create(session, body)
-    background.add_task(
-        mail.send_invite,
-        request.app.state.settings,
-        to=str(body.email),
-        token=token,
-        role=body.role,
-    )
-    return result
+) -> Response:
+    async def run() -> Response:
+        result, token = await invites.create(session, body)
+        background.add_task(  # sent once: a repeated request returns the stored answer
+            mail.send_invite,
+            request.app.state.settings,
+            to=str(body.email),
+            token=token,
+            role=body.role,
+        )
+        return idempotency.json_response(result, 201)
+
+    return await idempotency.once(session, request, idempotency_key, run)
 
 
 @router.get("", operation_id="listInvites")

@@ -3,11 +3,11 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Header, Response
+from fastapi import APIRouter, Header, Request, Response
 from pydantic import BaseModel
 
 from app.auth.context import SignedIn
-from app.services import locations
+from app.services import idempotency, locations
 
 router = APIRouter(tags=["Locations"])
 
@@ -32,16 +32,22 @@ async def create_skeleton(bu_id: UUID, session: SignedIn) -> locations.LocationS
 
 
 @router.post(
-    "/business-units/{bu_id}/locations/nodes", operation_id="addLocationNodes", status_code=201
+    "/business-units/{bu_id}/locations/nodes",
+    operation_id="addLocationNodes",
+    status_code=201,
+    response_model=locations.AddedNodes,
 )
 async def add_nodes(
     bu_id: UUID,
     body: locations.NewNodes,
+    request: Request,
     session: SignedIn,
     idempotency_key: Annotated[UUID, Header()],
-) -> locations.AddedNodes:
-    # TODO (open point): Idempotency-Key is required but not stored yet (no table in the model).
-    return await locations.add_nodes(session, bu_id, body)
+) -> Response:
+    async def run() -> Response:
+        return idempotency.json_response(await locations.add_nodes(session, bu_id, body), 201)
+
+    return await idempotency.once(session, request, idempotency_key, run)
 
 
 @router.patch("/location-nodes/{node_id}", operation_id="updateLocationNode")

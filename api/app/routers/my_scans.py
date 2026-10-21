@@ -4,11 +4,11 @@ from datetime import date
 from typing import Annotated, Literal
 from uuid import UUID
 
-from fastapi import APIRouter, Header, Query
+from fastapi import APIRouter, Header, Query, Request, Response
 
 from app.auth.context import SignedIn
 from app.core.paging import Cursor, Limit
-from app.services import my_scans
+from app.services import idempotency, my_scans
 
 router = APIRouter(tags=["My Scans"])
 
@@ -40,11 +40,20 @@ async def list_my_scans(
     )
 
 
-@router.post("/scans/{scan_id}/revisions", operation_id="submitRevision", status_code=201)
+@router.post(
+    "/scans/{scan_id}/revisions",
+    operation_id="submitRevision",
+    status_code=201,
+    response_model=my_scans.Revision,
+)
 async def submit_revision(
     scan_id: UUID,
     body: my_scans.RevisionInput,
+    request: Request,
     session: SignedIn,
-    idempotency_key: Annotated[UUID, Header()],  # TODO (open point): required, not stored yet
-) -> my_scans.Revision:
-    return await my_scans.submit(session, scan_id, body)
+    idempotency_key: Annotated[UUID, Header()],
+) -> Response:
+    async def run() -> Response:
+        return idempotency.json_response(await my_scans.submit(session, scan_id, body), 201)
+
+    return await idempotency.once(session, request, idempotency_key, run)

@@ -9,10 +9,10 @@ from fastapi import APIRouter, Header, Query, Request, Response
 from app.auth.context import SignedIn
 from app.core.paging import Cursor, Limit
 from app.core.problems import ProblemError
-from app.services import delegation, oversight, review
+from app.services import delegation, idempotency, oversight, review
 
 router = APIRouter(tags=["Review"])
-IdempotencyKey = Annotated[UUID, Header()]  # TODO (open point): required, not stored yet
+IdempotencyKey = Annotated[UUID, Header()]  # stored 24 hours (services/idempotency.py)
 
 
 @router.get("/business-units/{bu_id}/review-queue", operation_id="getReviewQueue")
@@ -31,11 +31,23 @@ async def scan_review(scan_id: UUID, request: Request, session: SignedIn) -> rev
     return await review.scan_review(session, scan_id, request.app.state.storage)
 
 
-@router.post("/scans/{scan_id}/decisions", operation_id="decideScan", status_code=201)
+@router.post(
+    "/scans/{scan_id}/decisions",
+    operation_id="decideScan",
+    status_code=201,
+    response_model=review.Decided,
+)
 async def decide(
-    scan_id: UUID, body: review.DecisionInput, session: SignedIn, idempotency_key: IdempotencyKey
-) -> review.Decided:
-    return await review.decide(session, scan_id, body)
+    scan_id: UUID,
+    body: review.DecisionInput,
+    request: Request,
+    session: SignedIn,
+    idempotency_key: IdempotencyKey,
+) -> Response:
+    async def run() -> Response:
+        return idempotency.json_response(await review.decide(session, scan_id, body), 201)
+
+    return await idempotency.once(session, request, idempotency_key, run)
 
 
 @router.get("/business-units/{bu_id}/technician-decisions", operation_id="listTechnicianDecisions")
@@ -51,14 +63,23 @@ async def technician_decisions(
     )
 
 
-@router.post("/decisions/{decision_id}/override", operation_id="overrideDecision", status_code=201)
+@router.post(
+    "/decisions/{decision_id}/override",
+    operation_id="overrideDecision",
+    status_code=201,
+    response_model=review.Overridden,
+)
 async def override(
     decision_id: UUID,
     body: review.DecisionInput,
+    request: Request,
     session: SignedIn,
     idempotency_key: IdempotencyKey,
-) -> review.Overridden:
-    return await review.override(session, decision_id, body)
+) -> Response:
+    async def run() -> Response:
+        return idempotency.json_response(await review.override(session, decision_id, body), 201)
+
+    return await idempotency.once(session, request, idempotency_key, run)
 
 
 def _scan_ids(raw: list[str] | None) -> list[UUID]:
@@ -86,12 +107,23 @@ async def delegates(
 
 
 @router.post(
-    "/business-units/{bu_id}/review-batches", operation_id="createReviewBatch", status_code=201
+    "/business-units/{bu_id}/review-batches",
+    operation_id="createReviewBatch",
+    status_code=201,
+    response_model=delegation.Created,
 )
 async def create_batch(
-    bu_id: UUID, body: delegation.NewBatch, session: SignedIn, idempotency_key: IdempotencyKey
-) -> delegation.Created:
-    return await delegation.create_batch(session, bu_id, body)
+    bu_id: UUID,
+    body: delegation.NewBatch,
+    request: Request,
+    session: SignedIn,
+    idempotency_key: IdempotencyKey,
+) -> Response:
+    async def run() -> Response:
+        created = await delegation.create_batch(session, bu_id, body)
+        return idempotency.json_response(created, 201)
+
+    return await idempotency.once(session, request, idempotency_key, run)
 
 
 @router.get("/business-units/{bu_id}/review-batches", operation_id="listReviewBatches")

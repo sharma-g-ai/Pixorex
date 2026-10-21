@@ -8,7 +8,7 @@ from fastapi.responses import JSONResponse
 
 from app.auth.context import SignedIn
 from app.core.problems import ProblemError
-from app.services import scans
+from app.services import idempotency, scans
 
 router = APIRouter(tags=["Capture"])
 
@@ -92,23 +92,41 @@ async def get_scan(scan_id: UUID, request: Request, session: SignedIn) -> JSONRe
     return JSONResponse(_scan_json(scan))
 
 
-@router.post("/scans/{scan_id}/retry-extraction", operation_id="retryExtraction", status_code=202)
+@router.post(
+    "/scans/{scan_id}/retry-extraction",
+    operation_id="retryExtraction",
+    status_code=202,
+    response_model=scans.AttemptSummary,
+)
 async def retry_extraction(
     scan_id: UUID,
+    request: Request,
     session: SignedIn,
-    idempotency_key: Annotated[UUID, Header()],  # TODO (open point): required, not stored yet
-) -> scans.AttemptSummary:
-    return await scans.retry(session, scan_id)
+    idempotency_key: Annotated[UUID, Header()],
+) -> Response:
+    async def run() -> Response:
+        return idempotency.json_response(await scans.retry(session, scan_id), 202)
+
+    return await idempotency.once(session, request, idempotency_key, run)
 
 
-@router.post("/scans/{scan_id}/re-extract", operation_id="reExtract", status_code=202)
+@router.post(
+    "/scans/{scan_id}/re-extract",
+    operation_id="reExtract",
+    status_code=202,
+    response_model=scans.AttemptSummary,
+)
 async def re_extract(
     scan_id: UUID,
     body: scans.ReExtract,
+    request: Request,
     session: SignedIn,
-    idempotency_key: Annotated[UUID, Header()],  # TODO (open point): required, not stored yet
-) -> scans.AttemptSummary:
-    return await scans.re_extract(session, scan_id, body)
+    idempotency_key: Annotated[UUID, Header()],
+) -> Response:
+    async def run() -> Response:
+        return idempotency.json_response(await scans.re_extract(session, scan_id, body), 202)
+
+    return await idempotency.once(session, request, idempotency_key, run)
 
 
 @router.post(
