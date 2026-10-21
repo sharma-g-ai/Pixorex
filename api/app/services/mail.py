@@ -4,6 +4,9 @@ Invite emails are sent by the API right after the invite commits. They do not go
 the outbox: its payload would keep the raw link token in the database until sent, and only
 the token's hash may be stored (contract 1.6). A failed send leaves the invite for "Resend".
 Notification emails go through the outbox; the worker sends them (FR-6.2, 6.3).
+
+Synthetic addresses (*.local, e.g. demo users) always go to Mailpit, even when
+SendGrid is configured for real inboxes — no .env flip required.
 """
 
 import smtplib
@@ -37,6 +40,19 @@ class MailSettings(Protocol):
     def smtp_from(self) -> str: ...
     @property
     def smtp_from_name(self) -> str: ...
+    @property
+    def local_smtp_host(self) -> str: ...
+    @property
+    def local_smtp_port(self) -> int: ...
+
+
+def is_synthetic_address(address: str) -> bool:
+    """True for demo / Mailpit-only addresses (*@*.local)."""
+    text = (address or "").strip()
+    at = text.rfind("@")
+    if at < 0 or at == len(text) - 1:
+        return False
+    return text[at + 1 :].lower().endswith(".local")
 
 
 def web_link(settings: MailSettings, path: str = "/") -> str:
@@ -52,7 +68,7 @@ async def send_email(settings: MailSettings, *, to: str, subject: str, text: str
     """Raises OSError or smtplib.SMTPException when the server refuses it."""
     message = EmailMessage()
     message["Subject"] = subject
-    message["From"] = f"{settings.smtp_from_name} <{settings.smtp_from}>"
+    message["From"] = f"{settings.smtp_from_name} <{_from_address(settings, to)}>"
     message["To"] = to
     message.set_content(text)
     await anyio.to_thread.run_sync(_send, settings, message)
@@ -77,10 +93,23 @@ async def send_invite(settings: MailSettings, *, to: str, token: str, role: str)
     return True
 
 
+def _from_address(settings: MailSettings, to: str) -> str:
+    if is_synthetic_address(to):
+        return "no-reply@pixorex.local"
+    return settings.smtp_from
+
+
 def _send(settings: MailSettings, message: EmailMessage) -> None:
-    with smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=20) as smtp:
-        if settings.smtp_starttls:
+    to = str(message["To"] or "")
+    if is_synthetic_address(to):
+        host, port, starttls = settings.local_smtp_host, settings.local_smtp_port, False
+        user, password = None, None
+    else:
+        host, port, starttls = settings.smtp_host, settings.smtp_port, settings.smtp_starttls
+        user, password = settings.smtp_user, settings.smtp_password
+    with smtplib.SMTP(host, port, timeout=20) as smtp:
+        if starttls:
             smtp.starttls()
-        if settings.smtp_user and settings.smtp_password:
-            smtp.login(settings.smtp_user, settings.smtp_password.get_secret_value())
+        if user and password:
+            smtp.login(user, password.get_secret_value())
         smtp.send_message(message)
