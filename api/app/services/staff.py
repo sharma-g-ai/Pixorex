@@ -4,10 +4,13 @@ from datetime import datetime
 from typing import Literal
 from uuid import UUID
 
+import httpx
 from psycopg.errors import UniqueViolation
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel
 
 from app.auth.context import Session
+from app.auth.keycloak_admin import KeycloakAdmin
+from app.core.emails import WorkEmail
 from app.core.paging import PageInfo, decode_cursor, encode_cursor
 from app.core.problems import ProblemError
 from app.repositories import audit, business_units, invites, staff, users
@@ -24,7 +27,7 @@ class AdminUnits(BaseModel):
 
 class AdminRemoval(BaseModel):
     bu_ids: list[UUID]
-    replacement_invite_email: EmailStr | None = None
+    replacement_invite_email: WorkEmail | None = None
 
 
 class Technician(BaseModel):
@@ -52,10 +55,28 @@ async def _admin(session: Session, user_id: UUID) -> BuAdmin:
     return BuAdmin(**rows[0])
 
 
-async def _detach(session: Session, user_id: UUID, bu_ids: list[UUID], role: str) -> None:
+async def _disable_login(session: Session, keycloak: KeycloakAdmin, user_id: UUID) -> None:
+    """Keycloak half of full removal (docs/keycloak.md §6.11). Fail closed if IdP is reachable
+    but disable fails — otherwise login would keep working after we report success."""
+    try:
+        await keycloak.disable_login(
+            app_user_id=str(user_id),
+            keycloak_user_id=await users.keycloak_id(session.conn, user_id),
+        )
+    except (httpx.HTTPError, RuntimeError) as exc:
+        raise ProblemError(
+            502,
+            "keycloak-unavailable",
+            "Sign-in could not be disabled. Try again in a moment.",
+        ) from exc
+
+
+async def _detach(
+    session: Session, user_id: UUID, bu_ids: list[UUID], role: str, keycloak: KeycloakAdmin
+) -> None:
     """Shared removal rules: roles end (history kept), sessions in those units are revoked,
     open review assignments return to the queue, and with no role left the account is
-    removed and every session revoked (contracts 1.17, 1.19)."""
+    removed, every session revoked, and Keycloak login disabled (contracts 1.17, 1.19)."""
     caller, conn = session.caller, session.conn
     removed = await users.remove_roles(conn, user_id, bu_ids, role)
     for bu_id in removed:
@@ -75,11 +96,14 @@ async def _detach(session: Session, user_id: UUID, bu_ids: list[UUID], role: str
     if await users.active_role_count(conn, user_id) == 0:
         await users.mark_removed(conn, user_id)
         await users.revoke_sessions(conn, user_id)
+        await _disable_login(session, keycloak, user_id)
     else:
         await users.ensure_primary(conn, user_id)
 
 
-async def set_admin_units(session: Session, user_id: UUID, bu_ids: list[UUID]) -> BuAdmin:
+async def set_admin_units(
+    session: Session, keycloak: KeycloakAdmin, user_id: UUID, bu_ids: list[UUID]
+) -> BuAdmin:
     """Contract 1.16: the full list of units this BU Admin runs."""
     caller, conn = session.caller, session.conn
     caller.require_ea()
@@ -127,12 +151,12 @@ async def set_admin_units(session: Session, user_id: UUID, bu_ids: list[UUID]) -
                 object_id=user_id,
             )
     if dropped:
-        await _detach(session, user_id, dropped, "bu_admin")
+        await _detach(session, user_id, dropped, "bu_admin", keycloak)
     return await _admin(session, user_id)
 
 
 async def remove_admin(
-    session: Session, user_id: UUID, body: AdminRemoval
+    session: Session, keycloak: KeycloakAdmin, user_id: UUID, body: AdminRemoval
 ) -> tuple[str, str] | None:
     """Contract 1.17. Returns (email, token) of the replacement invite to send after commit."""
     caller, conn = session.caller, session.conn
@@ -145,7 +169,7 @@ async def remove_admin(
         raise ProblemError(404, "not-found")
     if not set(bu_ids) <= current:
         raise ProblemError(400, "validation", "They don't run one of those units.")
-    await _detach(session, user_id, bu_ids, "bu_admin")
+    await _detach(session, user_id, bu_ids, "bu_admin", keycloak)
     if body.replacement_invite_email is None:
         return None
     new = invite_service.NewInvite(
@@ -174,9 +198,11 @@ async def technicians(
     )
 
 
-async def remove_technician(session: Session, bu_id: UUID, user_id: UUID) -> None:
+async def remove_technician(
+    session: Session, keycloak: KeycloakAdmin, bu_id: UUID, user_id: UUID
+) -> None:
     """Contract 1.19: out of this unit only; their other units stay."""
     session.caller.require_bu_admin_of(bu_id)
     if bu_id not in await users.units_with_role(session.conn, user_id, "field_technician"):
         raise ProblemError(404, "not-found")
-    await _detach(session, user_id, [bu_id], "field_technician")
+    await _detach(session, user_id, [bu_id], "field_technician", keycloak)

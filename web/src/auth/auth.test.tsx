@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { readAuthConfig } from './authConfig'
 import { AuthGate } from './AuthGate'
 import { SignedOutPage } from './AuthPages'
-import { completeSignIn, handleUnauthorized, safeReturnPath } from './session'
+import { completeSignIn, handleAccountRemoved, handleUnauthorized, safeReturnPath } from './session'
 
 describe('auth config (D-11)', () => {
   it('uses OIDC when both settings are present, trimmed', () => {
@@ -93,6 +93,16 @@ describe('401 handling (loop guard)', () => {
   })
 })
 
+describe('403 account-removed', () => {
+  it('GIVEN the account was removed THEN clears the user and leaves without signing in again', async () => {
+    const um = { removeUser: vi.fn() }
+    const leave = vi.fn()
+    await handleAccountRemoved(um as never, leave)
+    expect(um.removeUser).toHaveBeenCalled()
+    expect(leave).toHaveBeenCalledWith('/signed-out?reason=removed')
+  })
+})
+
 const signIn = vi.fn()
 const getUser = vi.fn()
 vi.mock('./session', async (importOriginal) => ({
@@ -155,9 +165,9 @@ describe('AuthGate', () => {
 
 describe('after sign-out (canvas: straight to sign-in)', () => {
   beforeEach(() => signIn.mockReset().mockResolvedValue(undefined))
-  const signedOut = (mode: 'oidc' | 'mock') =>
+  const signedOut = (mode: 'oidc' | 'mock', path = '/signed-out') =>
     render(
-      <MemoryRouter>
+      <MemoryRouter initialEntries={[path]}>
         <SignedOutPage mode={mode} />
       </MemoryRouter>,
     )
@@ -171,6 +181,12 @@ describe('after sign-out (canvas: straight to sign-in)', () => {
   it('GIVEN mock mode (no sign-in screen) THEN shows the signed-out card', () => {
     signedOut('mock')
     expect(screen.getByRole('heading', { name: "You're signed out" })).toBeInTheDocument()
+    expect(signIn).not.toHaveBeenCalled()
+  })
+
+  it('GIVEN account removed THEN stays put and does not open Keycloak sign-in', () => {
+    signedOut('oidc', '/signed-out?reason=removed')
+    expect(screen.getByRole('heading', { name: 'Your access was removed' })).toBeInTheDocument()
     expect(signIn).not.toHaveBeenCalled()
   })
 })

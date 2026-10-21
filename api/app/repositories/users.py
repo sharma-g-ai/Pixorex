@@ -118,6 +118,13 @@ async def set_keycloak_id(conn: Conn, user_id: UUID, keycloak_user_id: str) -> N
     )
 
 
+async def keycloak_id(conn: Conn, user_id: UUID) -> str | None:
+    cur = await conn.execute("SELECT keycloak_user_id FROM app_user WHERE id = %s", (user_id,))
+    row = await cur.fetchone()
+    value = row["keycloak_user_id"] if row else None
+    return str(value) if value else None
+
+
 async def active_roles_in(conn: Conn, bu_ids: list[UUID], role: str) -> list[dict[str, Any]]:
     cur = await conn.execute(
         "SELECT user_id, bu_id FROM user_unit_role"

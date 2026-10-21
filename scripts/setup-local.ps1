@@ -120,5 +120,5 @@ Open http://localhost:5173 and sign in as:
 The 6-digit code is in Mailpit: http://localhost:8025
 '@
 if ($envValues['PIXOREX_SMTP_HOST'] -and $envValues['PIXOREX_SMTP_HOST'] -ne 'mailpit') {
-    Write-Host 'Real email is on: demo.local addresses get no code. Sign in with an email you were invited with.' -ForegroundColor Yellow
+    Write-Host 'Real email is on: *@demo.local codes stay in Mailpit; real invited addresses go to SendGrid.' -ForegroundColor Yellow
 }

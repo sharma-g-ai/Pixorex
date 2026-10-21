@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router'
+import { useNavigate, useSearchParams } from 'react-router'
 import { Button } from '../components/Button'
 import { AuthCard } from '../components/layout/AuthCard'
 import { authConfig, type AuthMode } from './authConfig'
@@ -43,12 +43,27 @@ export function AuthCallbackPage() {
 /**
  * Keycloak's post-logout return (contract 1.3). Canvas: sign-out goes straight to sign-in, so
  * with Keycloak this page only passes through. The card is for mock mode, which has no sign-in.
+ * `?reason=removed` is for accounts disabled after full unit removal — stay here; do not re-login.
  */
 export function SignedOutPage({ mode = authConfig.mode }: { mode?: AuthMode }) {
   const navigate = useNavigate()
+  const [params] = useSearchParams()
+  const removed = params.get('reason') === 'removed'
+
   useEffect(() => {
-    if (mode === 'oidc') void signIn('/')
-  }, [mode])
+    if (mode === 'oidc' && !removed) void signIn('/')
+  }, [mode, removed])
+
+  if (removed) {
+    return (
+      <AuthCard>
+        <h1 className="text-page-title font-bold">Your access was removed</h1>
+        <p className="text-body-sm text-ink-muted">
+          This account no longer has access. Contact your administrator if you need it restored.
+        </p>
+      </AuthCard>
+    )
+  }
 
   if (mode === 'oidc') {
     return (

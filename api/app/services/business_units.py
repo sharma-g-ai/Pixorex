@@ -5,9 +5,10 @@ from typing import Any, Literal
 from uuid import UUID
 
 from psycopg.errors import UniqueViolation
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, Field
 
 from app.auth.context import Session
+from app.core.emails import WorkEmail
 from app.core.paging import PageInfo, decode_cursor, encode_cursor
 from app.core.problems import ProblemError
 from app.repositories import audit, business_units, users
@@ -40,7 +41,7 @@ class UnitPage(BaseModel):
 
 
 class InviteAdmin(BaseModel):
-    invite_email: EmailStr
+    invite_email: WorkEmail
 
 
 class ExistingAdmin(BaseModel):
