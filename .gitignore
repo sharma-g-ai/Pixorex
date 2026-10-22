@@ -6,3 +6,7 @@
 # Node / web
 node_modules/
 web/dist/
+
+# Help screenshots: Chrome's throwaway profile and test file
+docs/help/chrome-profile/
+docs/help/ppg-items.csv
