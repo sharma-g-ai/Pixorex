@@ -23,9 +23,23 @@ npm run dev        # http://localhost:5181 (the 17-screen version uses 5180)
 
 Checks: `npm run typecheck`, `npm run lint`, `npm test` (renders every screen for every role, and checks the merged screens kept what they took over).
 
-Use **Prototype · preview as** at the bottom of the sidebar to see the portal as each role:
-PPG Admin (all customers), PPG Admin (one region), PPG Admin (chosen customers),
-Customer Admin and Ship Admin. Menus and data change with the role.
+## Sign in
+
+Sign in with e-mail and password; the role decides what opens. Every sample account uses the
+password **SeaStock@2026** (static screens only).
+
+| Role | E-mail | Opens |
+|---|---|---|
+| PPG Admin (all customers) | dana.whitfield@ppg.example | Overview, all customers, administration |
+| PPG Admin (EMEA region) | lars.eriksen@ppg.example | Overview, EMEA customers only |
+| PPG Admin (chosen customers) | meilin.tan@ppg.example | Overview, Pacific Crest and Straits only |
+| Customer Admin | ingrid.solberg@nordhavn.example | Overview, Nordhavn Bulk Carriers only |
+| Customer Admin | piotr.nowak@nordhavn.example | Same customer (Procurement) |
+| Ship Admin | co.aurora@nordhavn.example | Nordhavn Aurora only |
+| Disabled account | tom.hughes@ppg.example | Cannot sign in |
+| Invited, not set up | co.endeavour@straits.example | Cannot sign in yet |
+
+The BRD does not set the sign-in method (D-11); e-mail and password follow the Pixorex app.
 
 ## Sample data
 
