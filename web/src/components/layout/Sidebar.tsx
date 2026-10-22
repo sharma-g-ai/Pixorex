@@ -1,9 +1,8 @@
 import { NavLink } from 'react-router'
 import type { NavSection } from '../../app/navigation'
-import { previewUsers, useViewer } from '../../app/viewer'
+import { useViewer } from '../../app/viewer'
 import { scopeLabel } from '../../data/queries'
 import { roleInfo } from '../../data/roles'
-import { users } from '../../data/sample'
 import { Avatar } from '../Avatar'
 import { Icon } from '../icons'
 import { Wordmark } from './Wordmark'
@@ -14,7 +13,7 @@ interface SidebarProps {
 }
 
 export function Sidebar({ sections, onSignOut }: SidebarProps) {
-  const { user, setUserId } = useViewer()
+  const { user } = useViewer()
   const role = roleInfo(user.role)
 
   return (
@@ -59,32 +58,6 @@ export function Sidebar({ sections, onSignOut }: SidebarProps) {
           </div>
         ))}
       </nav>
-
-      <div className="mx-3.5 mt-3 rounded-lg border border-dashed border-white/25 px-3 py-2.5">
-        <label
-          htmlFor="preview-as"
-          className="block text-label font-bold tracking-wider text-brand-accent uppercase"
-        >
-          Prototype · preview as
-        </label>
-        <select
-          id="preview-as"
-          value={user.id}
-          onChange={(e) => setUserId(e.target.value)}
-          className="mt-1 w-full rounded-md border border-white/20 bg-brand-dark px-2 py-1.5 text-small text-white outline-none"
-        >
-          {previewUsers.map((id) => {
-            const u = users.find((x) => x.id === id)
-            return (
-              u && (
-                <option key={id} value={id}>
-                  {roleInfo(u.role).label} — {u.name}
-                </option>
-              )
-            )
-          })}
-        </select>
-      </div>
 
       <div className="mt-3 flex items-center gap-2.5 border-t border-white/10 px-4.5 pt-3.5">
         <Avatar name={user.name} tone="on-dark" size="md" />

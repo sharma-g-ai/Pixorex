@@ -9,7 +9,7 @@ import { SeaStockPage } from '../features/seaStock/SeaStockPage'
 import { SignInPage } from '../features/signIn/SignInPage'
 import { Layout } from './Layout'
 import { homePath } from './navigation'
-import { useViewer, ViewerProvider } from './viewer'
+import { useViewer, SessionProvider } from './viewer'
 
 function Home() {
   const { user } = useViewer()
@@ -18,7 +18,7 @@ function Home() {
 
 export function App() {
   return (
-    <ViewerProvider>
+    <SessionProvider>
       <BrowserRouter>
         <Routes>
           <Route path="/sign-in" element={<SignInPage />} />
@@ -35,6 +35,6 @@ export function App() {
           </Route>
         </Routes>
       </BrowserRouter>
-    </ViewerProvider>
+    </SessionProvider>
   )
 }

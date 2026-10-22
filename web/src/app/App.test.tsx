@@ -2,7 +2,6 @@ import { cleanup, render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { users } from '../data/sample'
 import { App } from './App'
-import { previewUsers } from './viewer'
 
 const paths = [
   '/',
@@ -29,10 +28,10 @@ const paths = [
 ]
 
 describe('every screen renders for every preview role', () => {
-  for (const userId of previewUsers) {
+  for (const userId of ['u01', 'u02', 'u03', 'u06', 'u12']) {
     for (const path of paths) {
       it(`${users.find((u) => u.id === userId)?.role} ${path}`, async () => {
-        sessionStorage.setItem('seastock.preview-user', userId)
+        sessionStorage.setItem('seastock.session', userId)
         window.history.pushState({}, '', path)
         render(<App />)
         expect(await screen.findByRole('heading', { level: 1 })).toBeInTheDocument()
@@ -51,7 +50,7 @@ describe('sample data', () => {
 })
 
 async function open(userId: string, path: string) {
-  sessionStorage.setItem('seastock.preview-user', userId)
+  sessionStorage.setItem('seastock.session', userId)
   window.history.pushState({}, '', path)
   render(<App />)
   await screen.findByRole('heading', { level: 1 })
@@ -116,11 +115,72 @@ describe('three roles', () => {
   it('only a PPG Admin with all customers runs administration', async () => {
     const { can } = await import('../data/roles')
     const { users } = await import('../data/sample')
-    const byId = (id: string) => users.find((u) => u.id === id)!
+    const byId = (id: string) => {
+      const user = users.find((u) => u.id === id)
+      if (!user) throw new Error(id)
+      return user
+    }
     expect(can(byId('u01'), 'manage-customers')).toBe(true) // all customers
     expect(can(byId('u02'), 'manage-customers')).toBe(false) // EMEA only (sales)
     expect(can(byId('u02'), 'export')).toBe(true)
     expect(can(byId('u06'), 'manage-users')).toBe(true) // Customer Admin, own customer
     expect(can(byId('u12'), 'view-review')).toBe(false) // Ship Admin
+  })
+})
+
+describe('sign-in', () => {
+  async function signIn(email: string, password = 'SeaStock@2026') {
+    const { fireEvent } = await import('@testing-library/react')
+    sessionStorage.clear()
+    window.history.pushState({}, '', '/sign-in')
+    render(<App />)
+    fireEvent.change(screen.getByLabelText('Work e-mail'), { target: { value: email } })
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: password } })
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in' }))
+  }
+
+  it('a page needs sign-in first', async () => {
+    sessionStorage.clear()
+    window.history.pushState({}, '', '/sea-stock')
+    render(<App />)
+    expect(await screen.findByRole('heading', { name: 'Sign in' })).toBeInTheDocument()
+  })
+
+  it('PPG Admin lands on the overview with administration in the menu', async () => {
+    await signIn('dana.whitfield@ppg.example')
+    expect(await screen.findByRole('heading', { level: 1, name: 'Overview' })).toBeInTheDocument()
+    expect(screen.getByText('Administration')).toBeInTheDocument()
+  })
+
+  it('Customer Admin lands on their customer only', async () => {
+    await signIn('ingrid.solberg@nordhavn.example')
+    expect(
+      await screen.findByText('Nordhavn Bulk Carriers', { selector: 'div' }),
+    ).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /Customers/ })).not.toBeInTheDocument()
+  })
+
+  it('Ship Admin lands on their own vessel', async () => {
+    await signIn('co.aurora@nordhavn.example')
+    expect(await screen.findAllByText('Nordhavn Aurora')).not.toHaveLength(0)
+    expect(screen.queryByText('Administration')).not.toBeInTheDocument()
+  })
+
+  it('wrong password, disabled and invited accounts cannot sign in', async () => {
+    await signIn('dana.whitfield@ppg.example', 'wrong')
+    expect(screen.getByRole('alert')).toHaveTextContent('E-mail or password is incorrect.')
+    cleanup()
+    await signIn('tom.hughes@ppg.example')
+    expect(screen.getByRole('alert')).toHaveTextContent('disabled')
+    cleanup()
+    await signIn('co.endeavour@straits.example')
+    expect(screen.getByRole('alert')).toHaveTextContent('not set up yet')
+  })
+
+  it('sign out goes back to sign-in', async () => {
+    const { fireEvent } = await import('@testing-library/react')
+    await signIn('dana.whitfield@ppg.example')
+    fireEvent.click(await screen.findByRole('button', { name: 'Sign out' }))
+    expect(await screen.findByRole('heading', { name: 'Sign in' })).toBeInTheDocument()
   })
 })

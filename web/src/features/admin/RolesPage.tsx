@@ -67,8 +67,8 @@ export function RolesPage() {
         </Card>
         <Note>
           Proposed split, to confirm with PPG: the BRD sets the levels (FR-23, D-04, D-13) but not
-          every permission, e.g. whether a Customer Admin manages their own users, or who
-          reviews negative stock.
+          every permission, e.g. whether a Customer Admin manages their own users, or who reviews
+          negative stock.
         </Note>
       </>
     </>
