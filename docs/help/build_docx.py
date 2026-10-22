@@ -78,6 +78,15 @@ def shade(cell_or_par, fill):
     el.append(sh)
 
 
+def run_shade(run, fill):
+    """Background colour behind one run of text (the orange number marker)."""
+    sh = OxmlElement('w:shd')
+    sh.set(qn('w:val'), 'clear')
+    sh.set(qn('w:color'), 'auto')
+    sh.set(qn('w:fill'), fill)
+    run._r.get_or_add_rPr().append(sh)
+
+
 def border(par, side, color, size=8, space=4):
     ppr = par._p.get_or_add_pPr()
     bdr = ppr.find(qn('w:pBdr'))
@@ -203,24 +212,19 @@ def figure(fig, title=None):
     cap = doc.add_paragraph()
     cap.paragraph_format.keep_with_next = True
     rich(cap, fig['caption'], size=9.5, color=MUTED)
-    table = doc.add_table(rows=0, cols=2)
-    no_table_borders(table)
+    # One paragraph per explanation: a small orange number, then the text, wrapped lines
+    # lining up after the number. No table, so every editor keeps the number small.
     for n, text in enumerate(fig['items'], 1):
-        row = table.add_row()
-        num, body = row.cells
-        shade(num, MARK)
-        num.vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.TOP
-        cell_margins(num, 40, 40, 0, 0)
-        p = num.paragraphs[0]
-        p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        p.paragraph_format.space_after = Pt(0)
-        r = p.add_run(str(n))
-        set_font(r, BODY, 10, True, RGBColor(0xFF, 0xFF, 0xFF))
-        cell_margins(body, 40, 60, 160, 0)
-        bp = body.paragraphs[0]
-        bp.paragraph_format.space_after = Pt(2)
-        rich(bp, text)
-    widths(table, [0.3, WIDTH.inches - 0.3])
+        p = doc.add_paragraph()
+        fmt = p.paragraph_format
+        fmt.left_indent, fmt.first_line_indent = Inches(0.42), Inches(-0.42)
+        fmt.tab_stops.add_tab_stop(Inches(0.42))
+        fmt.space_after = Pt(5)
+        r = p.add_run(f' {n} ')
+        set_font(r, BODY, 9.5, True, RGBColor(0xFF, 0xFF, 0xFF))
+        run_shade(r, MARK)
+        p.add_run('	')
+        rich(p, text)
     doc.add_paragraph().paragraph_format.space_after = Pt(6)
 
 
@@ -274,16 +278,12 @@ for cell, (name, text) in zip(roles.rows[0].cells, ROLES):
 widths(roles, [WIDTH.inches / 3] * 3)
 
 doc.add_heading('Words used in SeaStock', level=2)
-words = doc.add_table(rows=0, cols=2)
-no_table_borders(words)
 for w, t in WORDS:
-    a, b = words.add_row().cells
-    cell_margins(a, 40, 40, 0, 160)
-    cell_margins(b, 40, 40, 0, 0)
-    r = a.paragraphs[0].add_run(w)
+    p = doc.add_paragraph()
+    p.paragraph_format.space_after = Pt(5)
+    r = p.add_run(w + '  ')
     r.bold = True
-    rich(b.paragraphs[0], t, color=MUTED)
-widths(words, [1.6, WIDTH.inches - 1.6])
+    rich(p, t, color=MUTED)
 
 # ---- One part per screen, each starting on a new page ----
 for s in SCREENS:
