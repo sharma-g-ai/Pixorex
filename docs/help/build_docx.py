@@ -265,17 +265,14 @@ for t in INTRO['how']:
     rich(doc.add_paragraph(style='List Bullet'), t)
 
 doc.add_heading('Roles', level=2)
-roles = doc.add_table(rows=1, cols=len(ROLES))
-roles.alignment = WD_TABLE_ALIGNMENT.CENTER
-no_table_borders(roles)
-for cell, (name, text) in zip(roles.rows[0].cells, ROLES):
-    cell_borders(cell)
-    cell_margins(cell, 120, 120, 160, 160)
-    p = cell.paragraphs[0]
+for name, text in ROLES:
+    p = doc.add_paragraph()
+    p.paragraph_format.space_after = Pt(0)
+    p.paragraph_format.keep_with_next = True
     r = p.add_run(name)
     set_font(r, DISPLAY, 14, True, BLUE)
-    rich(cell.add_paragraph(), text, size=10, color=MUTED)
-widths(roles, [WIDTH.inches / 3] * 3)
+    d = rich(doc.add_paragraph(), text, color=MUTED)
+    d.paragraph_format.space_after = Pt(10)
 
 doc.add_heading('Words used in SeaStock', level=2)
 for w, t in WORDS:
