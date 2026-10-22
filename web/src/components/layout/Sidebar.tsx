@@ -18,11 +18,11 @@ export function Sidebar({ sections, onSignOut }: SidebarProps) {
 
   return (
     <aside className="flex w-62 shrink-0 flex-col bg-brand-dark pt-5 pb-4">
-      <div className="px-5.5 pb-5">
+      <div className="px-5.5 pb-4">
         <Wordmark />
       </div>
 
-      <div className="mx-3.5 mb-4 rounded-lg bg-white/8 px-3.5 py-3">
+      <div className="mx-3.5 mb-3 rounded-lg bg-white/8 px-3.5 py-2.5">
         <div className="text-label font-bold tracking-wider text-white/50 uppercase">
           {role.level} scope
         </div>
@@ -31,7 +31,10 @@ export function Sidebar({ sections, onSignOut }: SidebarProps) {
         </div>
       </div>
 
-      <nav aria-label="Main" className="flex min-h-0 grow flex-col gap-4 overflow-y-auto px-3">
+      <nav
+        aria-label="Main"
+        className="flex min-h-0 grow flex-col gap-3 overflow-y-auto px-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      >
         {sections.map((section, i) => (
           <div key={i} className="flex flex-col gap-0.5">
             {section.title && (
@@ -44,7 +47,7 @@ export function Sidebar({ sections, onSignOut }: SidebarProps) {
                 key={item.path}
                 to={item.path}
                 className={({ isActive }) =>
-                  `flex items-center gap-2.5 rounded-lg px-3 py-2.25 text-body ${
+                  `flex items-center gap-2.5 rounded-lg px-3 py-1.75 text-body ${
                     isActive
                       ? 'bg-brand font-semibold text-white'
                       : 'text-white/70 hover:bg-white/10 hover:text-white'
