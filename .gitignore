@@ -12,3 +12,5 @@ docs/help/chrome-profile/
 docs/help/ppg-items.csv
 docs/help/img-marked/
 docs/help/tmp-html/
+docs/role-demos/dist-*/
+docs/role-demos/*.html

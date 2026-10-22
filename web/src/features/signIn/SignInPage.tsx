@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Navigate, useLocation, useNavigate } from 'react-router'
-import { useSession } from '../../app/viewer'
+import { DEMO_USER, useSession } from '../../app/viewer'
+import { users } from '../../data/sample'
 import { Button } from '../../components/Button'
 import { Wordmark } from '../../components/layout/Wordmark'
 import { TextField } from '../../components/TextField'
@@ -14,7 +15,8 @@ export function SignInPage() {
   const { user, signIn } = useSession()
   const navigate = useNavigate()
   const from = (useLocation().state as { from?: string } | null)?.from ?? '/'
-  const [email, setEmail] = useState('')
+  // A role demo offers its own account again after sign-out.
+  const [email, setEmail] = useState(users.find((u) => u.id === DEMO_USER)?.email ?? '')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [mode, setMode] = useState<'sign-in' | 'forgot' | 'sent'>('sign-in')

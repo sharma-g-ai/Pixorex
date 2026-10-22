@@ -20,11 +20,14 @@ const SessionContext = createContext<Session | null>(null)
 
 const KEY = 'seastock.session'
 
+/** Role demo build: who it starts signed in as (see vite-env.d.ts). */
+export const DEMO_USER = import.meta.env.VITE_DEMO_USER
+
 function stored(): string | null {
   try {
-    return sessionStorage.getItem(KEY)
+    return sessionStorage.getItem(KEY) ?? DEMO_USER ?? null
   } catch {
-    return null
+    return DEMO_USER ?? null
   }
 }
 
