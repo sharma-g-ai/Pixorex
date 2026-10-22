@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { Badge } from '../../components/Badge'
 import { Button } from '../../components/Button'
+import { StatusBadge } from '../../components/StatusBadge'
 import { DataTable } from '../../components/DataTable'
+import { FilePicker } from '../../components/FilePicker'
 import { Dialog } from '../../components/Dialog'
 import { Icon } from '../../components/icons'
 import { SectionBar } from './SectionBar'
@@ -111,11 +113,7 @@ export function ItemsPage() {
                 {
                   header: 'Status',
                   width: 0.7,
-                  cell: (i) => (
-                    <Badge tone={i.status === 'active' ? 'success' : 'neutral'}>
-                      {i.status === 'active' ? 'Active' : 'Retired'}
-                    </Badge>
-                  ),
+                  cell: (i) => <StatusBadge status={i.status} />,
                 },
                 {
                   header: '',
@@ -400,17 +398,12 @@ function BulkLoadDialog({ onClose }: { onClose: () => void }) {
           shade, component type, pack size, unit volume. Items missing from the file are not retired
           automatically.
         </p>
-        <label className="flex cursor-pointer flex-col items-center gap-1.5 rounded-xl border-[1.5px] border-dashed border-line-strong px-4 py-6 text-center hover:bg-page">
-          <Icon name="upload" size={20} className="text-brand" />
-          <span className="font-semibold text-ink">{file ?? 'Choose a file'}</span>
-          <span className="text-caption">.xlsx or .csv</span>
-          <input
-            type="file"
-            accept=".xlsx,.csv"
-            className="sr-only"
-            onChange={(e) => setFile(e.target.files?.[0]?.name ?? null)}
-          />
-        </label>
+        <FilePicker
+          accept=".xlsx,.csv"
+          hint=".xlsx or .csv"
+          fileName={file}
+          onPick={(f) => setFile(f.name)}
+        />
         {file && (
           <div className="flex flex-col gap-2">
             {preview.map((p) => (

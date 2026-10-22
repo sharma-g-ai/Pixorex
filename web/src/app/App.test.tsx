@@ -208,3 +208,14 @@ describe('changes show on other screens', () => {
     ).toBeInTheDocument()
   })
 })
+
+describe('roles screen', () => {
+  it('shows permissions in the shared table', async () => {
+    sessionStorage.setItem('seastock.session', 'u01')
+    window.history.pushState({}, '', '/admin/users?tab=roles')
+    render(<App />)
+    expect(await screen.findByRole('table', { name: 'Permissions' })).toHaveTextContent(
+      'Maintain the label schema',
+    )
+  })
+})

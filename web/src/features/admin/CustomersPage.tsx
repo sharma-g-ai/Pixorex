@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { Badge } from '../../components/Badge'
 import { Button } from '../../components/Button'
+import { StatusBadge } from '../../components/StatusBadge'
 import { DataTable } from '../../components/DataTable'
 import { Dialog } from '../../components/Dialog'
 import { Icon } from '../../components/icons'
@@ -91,11 +91,7 @@ export function CustomersPage() {
                 {
                   header: 'Status',
                   width: 0.8,
-                  cell: (c) => (
-                    <Badge tone={c.status === 'active' ? 'success' : 'neutral'}>
-                      {c.status === 'active' ? 'Active' : 'Inactive'}
-                    </Badge>
-                  ),
+                  cell: (c) => <StatusBadge status={c.status} />,
                 },
                 {
                   header: 'Added',

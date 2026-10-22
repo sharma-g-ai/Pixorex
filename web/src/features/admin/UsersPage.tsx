@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { useViewer } from '../../app/viewer'
 import { Avatar } from '../../components/Avatar'
-import { Badge } from '../../components/Badge'
 import { Button } from '../../components/Button'
+import { CheckboxList } from '../../components/CheckboxList'
+import { StatusBadge } from '../../components/StatusBadge'
 import { DataTable } from '../../components/DataTable'
 import { Dialog } from '../../components/Dialog'
 import { Icon } from '../../components/icons'
@@ -17,15 +18,6 @@ import { accessOf, roleInfo, roles } from '../../data/roles'
 import { customers, regions, users, vessels } from '../../data/sample'
 import { saveUser, useStore } from '../../data/store'
 import { formatDateTime } from '../../lib/format'
-
-const statusLook: Record<
-  User['status'],
-  { label: string; tone: 'success' | 'warning' | 'neutral' }
-> = {
-  active: { label: 'Active', tone: 'success' },
-  invited: { label: 'Invited', tone: 'warning' },
-  disabled: { label: 'Disabled', tone: 'neutral' },
-}
 
 /** Users in the admin's own scope: everyone for a PPG Admin, own customer for a Customer Admin. */
 function managedBy(admin: User, user: User): boolean {
@@ -141,9 +133,7 @@ export function UsersPage() {
                 {
                   header: 'Status',
                   width: 0.7,
-                  cell: (u) => (
-                    <Badge tone={statusLook[u.status].tone}>{statusLook[u.status].label}</Badge>
-                  ),
+                  cell: (u) => <StatusBadge status={u.status} />,
                 },
                 {
                   header: 'Last sign-in',
@@ -179,41 +169,6 @@ export function UsersPage() {
         />
       )}
     </>
-  )
-}
-
-function Checks<T extends string>({
-  label,
-  options,
-  value,
-  onChange,
-}: {
-  label: string
-  options: { value: T; label: string }[]
-  value: T[]
-  onChange: (v: T[]) => void
-}) {
-  return (
-    <fieldset>
-      <legend className="mb-1.5 text-small font-semibold text-ink-muted">{label}</legend>
-      <div className="flex flex-col gap-1.5 rounded-lg border border-line p-3">
-        {options.map((o) => (
-          <label key={o.value} className="flex items-center gap-2 text-body text-ink">
-            <input
-              type="checkbox"
-              className="size-4 accent-brand"
-              checked={value.includes(o.value)}
-              onChange={(e) =>
-                onChange(
-                  e.target.checked ? [...value, o.value] : value.filter((x) => x !== o.value),
-                )
-              }
-            />
-            {o.label}
-          </label>
-        ))}
-      </div>
-    </fieldset>
   )
 }
 
@@ -351,14 +306,14 @@ function UserDialog({
                 Sees every region, customer and vessel, and manages customers, users and products.
               </Muted>
             ) : ppgScope === 'regions' ? (
-              <Checks
+              <CheckboxList
                 label="Regions"
                 options={regions.map((r) => ({ value: r.code, label: `${r.code} · ${r.name}` }))}
                 value={scopeRegions}
                 onChange={setScopeRegions}
               />
             ) : (
-              <Checks
+              <CheckboxList
                 label="Customers"
                 options={customers.map((c) => ({ value: c.id, label: `${c.name} · ${c.region}` }))}
                 value={scopeCustomers}

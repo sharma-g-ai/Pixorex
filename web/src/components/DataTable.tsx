@@ -4,7 +4,7 @@ export interface Column<Row> {
   header: string
   /** Relative width, as a CSS grid fraction (default 1). */
   width?: number
-  align?: 'left' | 'right'
+  align?: 'left' | 'center' | 'right'
   cell: (row: Row) => ReactNode
 }
 
@@ -25,6 +25,7 @@ export function DataTable<Row>({ label, columns, rows, rowKey, empty }: DataTabl
   // column's text don't run together.
   const align = (c: Column<Row>) => {
     if (c.align === 'right') return 'text-right'
+    if (c.align === 'center') return 'text-center'
     const before = columns[columns.indexOf(c) - 1]
     return before?.align === 'right' ? 'pl-6' : ''
   }

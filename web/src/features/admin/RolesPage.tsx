@@ -1,3 +1,4 @@
+import { DataTable } from '../../components/DataTable'
 import { Icon } from '../../components/icons'
 import { SectionBar } from './SectionBar'
 import { Card, Note } from '../../components/Page'
@@ -30,39 +31,35 @@ export function RolesPage() {
         </div>
 
         <Card title="Permissions" flush>
-          <div className="overflow-x-auto p-4">
-            <table className="w-full min-w-200 border-collapse text-body">
-              <thead>
-                <tr className="bg-table-head text-caption font-bold tracking-wider text-ink-subtle uppercase">
-                  <th className="border-b border-line px-4 py-2.75 text-left">Permission</th>
-                  {accessLabels.map((a) => (
-                    <th key={a.key} className="border-b border-line px-3 py-2.75 text-center">
-                      {a.label}
-                      <div className="font-normal tracking-normal normal-case">{a.detail}</div>
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {permissionLabels.map((p) => (
-                  <tr key={p.key} className="border-b border-line-soft last:border-b-0">
-                    <td className="px-4 py-2.75">
+          <div className="p-4">
+            <DataTable
+              label="Permissions"
+              rows={permissionLabels}
+              rowKey={(p) => p.key}
+              empty="No permissions"
+              columns={[
+                {
+                  header: 'Permission',
+                  width: 2.4,
+                  cell: (p) => (
+                    <div>
                       <div>{p.label}</div>
                       {p.note && <div className="text-caption text-ink-muted">{p.note}</div>}
-                    </td>
-                    {accessLabels.map((a) => (
-                      <td key={a.key} className="px-3 py-2.75 text-center">
-                        {can(a.key, p.key) ? (
-                          <Icon name="check" className="mx-auto text-success" aria-label="Yes" />
-                        ) : (
-                          <span className="text-ink-subtle">—</span>
-                        )}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                    </div>
+                  ),
+                },
+                ...accessLabels.map((a) => ({
+                  header: `${a.label} · ${a.detail}`,
+                  align: 'center' as const,
+                  cell: (p: (typeof permissionLabels)[number]) =>
+                    can(a.key, p.key) ? (
+                      <Icon name="check" className="mx-auto text-success" aria-label="Yes" />
+                    ) : (
+                      <span className="text-ink-subtle">—</span>
+                    ),
+                })),
+              ]}
+            />
           </div>
         </Card>
         <Note>
