@@ -10,3 +10,5 @@ web/dist/
 # Help screenshots: Chrome's throwaway profile and test file
 docs/help/chrome-profile/
 docs/help/ppg-items.csv
+docs/help/img-marked/
+docs/help/tmp-html/

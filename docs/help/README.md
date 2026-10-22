@@ -14,3 +14,14 @@ pop-ups, with numbered boxes on real screenshots. Open it in a browser (the pict
    - `content.py` holds the explanations. Each screenshot needs one explanation per box, in the same order; the build stops and says which screenshot is out of step.
 
 Screenshots use the sample data, so no real customer data appears in the help.
+
+## Word version
+
+`SeaStock-Help.docx` has the same text and screenshots, with the numbered boxes drawn onto the
+pictures. To rebuild it after updating the screenshots or `content.py`:
+
+    cd docs/help
+    python annotate.py      # draws the boxes onto the screenshots (img-marked/)
+    python build_docx.py    # writes SeaStock-Help.docx (needs python-docx)
+
+When Word opens the file it asks to update fields: choose Yes to fill in the contents list.
