@@ -1,0 +1,606 @@
+<title>SeaStock Help</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@600;700&family=Source+Sans+3:wght@400;600;700&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Layout: a fixed screen index on the left, one long manual on the right; screenshots carry
+   numbered callouts tied to the list under each one. */
+:root {
+  --bg: #f3f6f9; --paper: #ffffff; --ink: #142233; --muted: #566577; --line: #dbe3ec;
+  --navy: #003366; --blue: #00529b; --cyan: #0091c8; --soft: #e7f0f9;
+  --mark: #f07d00; --mark-soft: rgba(240,125,0,.14); --mark-ink: #ffffff;
+  --display: "Barlow Semi Condensed", "Arial Narrow", system-ui, sans-serif;
+  --body: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0d1724; --paper: #142133; --ink: #e6edf5; --muted: #9fb0c3; --line: #2a3a50;
+  --navy: #9cc7f0; --blue: #7db8f0; --cyan: #5cc6f2; --soft: #1b2d44;
+  --mark: #ff9a2e; --mark-soft: rgba(255,154,46,.18); --mark-ink: #1a1000; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #0d1724; --paper: #142133; --ink: #e6edf5; --muted: #9fb0c3; --line: #2a3a50;
+  --navy: #9cc7f0; --blue: #7db8f0; --cyan: #5cc6f2; --soft: #1b2d44;
+  --mark: #ff9a2e; --mark-soft: rgba(255,154,46,.18); --mark-ink: #1a1000; color-scheme: dark }
+* { box-sizing: border-box }
+html { scroll-behavior: smooth; scroll-padding-top: 16px }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto } }
+body { background: var(--bg); color: var(--ink); font: 17px/1.55 var(--body) }
+.wrap { display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 40px; max-width: 1280px;
+  margin: 0 auto; padding-block: 32px 80px;
+  padding-left: max(24px, env(safe-area-inset-left, 0px)); padding-right: max(24px, env(safe-area-inset-right, 0px)) }
+nav.index { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 24px); align-self: start }
+.brand { font: 700 26px/1 var(--display); color: var(--navy); letter-spacing: .01em }
+.brand b { color: var(--cyan); font-weight: 700 }
+.brand small { display: block; margin-top: 6px; font: 600 12px/1 var(--body); letter-spacing: .12em; text-transform: uppercase; color: var(--muted) }
+nav.index ol { list-style: none; margin: 24px 0 0; padding: 0; display: grid; gap: 2px; counter-reset: s }
+nav.index a { display: block; padding: 7px 12px; border-radius: 8px; color: var(--ink); text-decoration: none; font-weight: 600 }
+nav.index a:hover, nav.index a:focus-visible { background: var(--soft); color: var(--blue); outline: none }
+nav.index a.on { background: var(--soft); color: var(--blue) }
+nav.index .lead-links a { font-weight: 400; color: var(--muted) }
+main { min-width: 0 }
+h1 { font: 700 clamp(34px, 5vw, 46px)/1.05 var(--display); color: var(--navy); margin: 0 0 14px; text-wrap: balance }
+.lead { font-size: 19px; max-width: 68ch; margin: 0 }
+.panel { background: var(--paper); border: 1px solid var(--line); border-radius: 14px; padding: 22px 24px; margin-top: 24px }
+.panel h2 { margin: 0 0 10px; font: 700 22px/1.2 var(--display); color: var(--navy) }
+.panel ul { margin: 0; padding-left: 20px }
+.preview { margin-top: 16px; padding: 12px 16px; border-left: 3px solid var(--mark); background: var(--mark-soft); border-radius: 6px; font-size: 15px; max-width: 75ch }
+.roles { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px }
+.role { border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px }
+.role h4 { margin: 0 0 4px; font: 700 18px/1.2 var(--display); color: var(--blue) }
+.role p { margin: 0; font-size: 15px; color: var(--muted) }
+dl.words { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 8px 20px; margin: 0; font-size: 16px }
+dl.words dt { font-weight: 700 }
+dl.words dd { margin: 0; color: var(--muted) }
+.screen { margin-top: 64px; padding-top: 8px; border-top: 2px solid var(--line) }
+.screen h2 { font: 700 34px/1.1 var(--display); color: var(--navy); margin: 18px 0 8px }
+.intro { max-width: 72ch; margin: 0 0 8px }
+h3.popups { font: 700 24px/1.2 var(--display); color: var(--navy); margin: 48px 0 0 }
+.shot { margin: 28px 0 0 }
+.shot h4 { margin: 0 0 10px; font: 700 21px/1.2 var(--display); color: var(--ink) }
+.frame { position: relative; width: 100%; max-width: 100%; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: #fff; box-shadow: 0 1px 2px rgba(10,30,60,.06), 0 8px 24px rgba(10,30,60,.06) }
+.frame img { display: block; width: 100%; height: 100%; max-width: 100% }
+.mark { position: absolute; border: 2.5px solid var(--mark); border-radius: 6px; background: transparent; transition: background-color .15s, box-shadow .15s }
+.mark span { position: absolute; top: -11px; left: -11px; min-width: 24px; height: 24px; padding: 0 6px; border-radius: 12px; background: var(--mark); color: var(--mark-ink);
+  font: 700 13px/24px var(--body); text-align: center; box-shadow: 0 0 0 2px #fff }
+.mark.lit, .mark:hover, .mark:focus-visible { background: var(--mark-soft); box-shadow: 0 0 0 4px var(--mark-soft); outline: none }
+figcaption { margin-top: 8px; font-size: 14px; color: var(--muted) }
+ol.keys { list-style: none; margin: 14px 0 0; padding: 0; display: grid; gap: 4px }
+ol.keys li { display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 10px; padding: 8px 10px; border-radius: 8px; transition: background-color .15s }
+ol.keys li.lit, ol.keys li:target { background: var(--mark-soft) }
+.num { width: 24px; height: 24px; border-radius: 12px; background: var(--mark); color: var(--mark-ink); font: 700 13px/24px var(--body); text-align: center; margin-top: 1px; font-variant-numeric: tabular-nums }
+ol.keys b { font-weight: 700 }
+@media (max-width: 900px) {
+  .wrap { grid-template-columns: minmax(0, 1fr); gap: 20px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)) }
+  nav.index { position: static }
+  nav.index ol { display: flex; flex-wrap: wrap; gap: 6px }
+  nav.index a { border: 1px solid var(--line); padding: 5px 10px; font-size: 15px }
+  .mark span { min-width: 18px; height: 18px; font-size: 11px; line-height: 18px; top: -9px; left: -9px; padding: 0 4px }
+  dl.words { grid-template-columns: minmax(0, 1fr) }
+  dl.words dd { margin-bottom: 8px }
+}
+</style>
+
+<div class="wrap">
+  <nav class="index" aria-label="Screens">
+    <div class="brand">PPG <b>SeaStock</b><small>Help</small></div>
+    <ol>
+      <li class="lead-links"><a href="#start">Getting started</a></li>
+      <li><a href="#sign-in">Sign in</a></li><li><a href="#overview">Overview</a></li><li><a href="#sea-stock">Sea Stock</a></li><li><a href="#consumption">Consumption</a></li><li><a href="#activity">Activity</a></li><li><a href="#customers-vessels">Customers &amp; vessels</a></li><li><a href="#users">Users</a></li><li><a href="#products">Products</a></li>
+    </ol>
+  </nav>
+  <main>
+    <header id="start">
+      <h1>SeaStock help</h1>
+      <p class="lead">SeaStock shows the paint and thinners on board every vessel, how much has been used, and what arrived. The crew records stock on the vessel’s tablet; each time the tablet syncs, the numbers here update. This guide walks through every screen, what each part shows and what each button does.</p>
+      <p class="preview">This guide was made from the preview version of SeaStock, which runs on sample data. Changes you make in the preview are kept until you close the browser tab.</p>
+    </header>
+    <section class="panel">
+      <h2>How to read this guide</h2>
+      <ul><li>Each screenshot has numbered boxes. The list under it explains each number.</li><li>Point at an explanation to light up its box on the screenshot, or click a box to jump to its explanation.</li><li>Screens look a little different depending on your role. Where they do, this guide says so.</li></ul>
+    </section>
+    <section class="panel">
+      <h2>Roles</h2>
+      <div class="roles"><div class="role"><h4>PPG Admin</h4><p>PPG staff. With access to all customers, a PPG Admin sees everything and looks after customers, vessels, users and products. A PPG Admin can instead be limited to some regions or some customers (for example the sales team); they see only those customers and cannot change the setup.</p></div><div class="role"><h4>Customer Admin</h4><p>A shipping company’s Fleet Manager or Procurement. Sees only their own company’s vessels and can add and edit their own company’s users.</p></div><div class="role"><h4>Ship Admin</h4><p>The Chief Officer of a vessel. Records stock on the vessel’s tablet and, on the website, sees only their own vessel.</p></div></div>
+    </section>
+    <section class="panel">
+      <h2>Words used in SeaStock</h2>
+      <dl class="words"><dt>Sea Stock</dt><dd>The paint and thinners on board a vessel.</dd><dt>Sync</dt><dd>When the vessel’s tablet sends what the crew recorded. Vessels usually sync every 1 to 3 days; numbers on the website are as of each vessel’s last sync.</dd><dt>Can and liters</dt><dd>Stock is counted in cans. Liters are worked out from the number of cans and the liters in each can.</dd><dt>Component type</dt><dd>Base or Hardener for two-component paint (2K), or 1K for one-component products, which includes thinners.</dd><dt>Article number</dt><dd>PPG’s six-digit item number, printed on the label and on the delivery note.</dd><dt>Delivery note</dt><dd>The paper that comes with a delivery, listing what was sent. The crew scans it, then scans the cans going into the locker.</dd><dt>Consumption</dt><dd>Cans taken out of the locker for a job. A can that leaves the locker counts as fully used, even if some paint comes back.</dd></dl>
+    </section>
+    
+    <section class="screen" id="sign-in">
+      <h2>Sign in</h2>
+      <p class="intro">Sign in with your work e-mail and password. Where you land depends on your role: PPG Admins and Customer Admins open on the Overview, Ship Admins open on their vessel’s Sea Stock. If you open any page while signed out, you are asked to sign in first and then taken back to that page.</p>
+      
+      <figure class="shot" id="sign-in-f1">
+        
+        <div class="frame" style="aspect-ratio:1440/900">
+          <img src="img/01-sign-in.png" width="1440" height="900" loading="lazy"
+               alt="The sign-in page">
+          <a class="mark" href="#sign-in-f1-1" style="left:59.291%;top:36.153%;width:25.417%;height:8.083%" data-n="1" aria-label="1: Work e-mail"><span>1</span></a><a class="mark" href="#sign-in-f1-2" style="left:59.291%;top:45.347%;width:25.417%;height:8.083%" data-n="2" aria-label="2: Password"><span>2</span></a><a class="mark" href="#sign-in-f1-3" style="left:59.291%;top:55.431%;width:25.417%;height:4.917%" data-n="3" aria-label="3: Sign in"><span>3</span></a><a class="mark" href="#sign-in-f1-4" style="left:59.291%;top:61.458%;width:25.417%;height:2.750%" data-n="4" aria-label="4: Forgot password?"><span>4</span></a><a class="mark" href="#sign-in-f1-5" style="left:59.291%;top:67.986%;width:25.417%;height:4.389%" data-n="5" aria-label="5: Reset sample data"><span>5</span></a>
+        </div>
+        <figcaption>The sign-in page</figcaption>
+        <ol class="keys"><li id="sign-in-f1-1" data-n="1"><span class="num">1</span><div>Your work e-mail, the one your administrator registered for you.</div></li><li id="sign-in-f1-2" data-n="2"><span class="num">2</span><div>Your password.</div></li><li id="sign-in-f1-3" data-n="3"><span class="num">3</span><div><b>Sign in</b> checks your e-mail and password and opens SeaStock.</div></li><li id="sign-in-f1-4" data-n="4"><span class="num">4</span><div><b>Forgot password?</b> lets you ask for a link to choose a new password.</div></li><li id="sign-in-f1-5" data-n="5"><span class="num">5</span><div>Preview version only: <b>Reset sample data</b> puts all sample data back to how it started, undoing any changes made in the preview.</div></li></ol>
+      </figure>
+      <figure class="shot" id="sign-in-f2">
+        
+        <div class="frame" style="aspect-ratio:1440/900">
+          <img src="img/02-sign-in-error.png" width="1440" height="900" loading="lazy"
+               alt="When sign-in does not work">
+          <a class="mark" href="#sign-in-f2-1" style="left:59.291%;top:51.500%;width:25.417%;height:4.972%" data-n="1" aria-label="1: Error message"><span>1</span></a>
+        </div>
+        <figcaption>When sign-in does not work</figcaption>
+        <ol class="keys"><li id="sign-in-f2-1" data-n="1"><span class="num">1</span><div>A red message says what went wrong. <b>E-mail or password is incorrect</b>: check both and try again. <b>This account is disabled</b>: ask your administrator to turn it back on. <b>This account is not set up yet</b>: open your invite e-mail and set your password first. <b>Enter your e-mail and password</b>: one of the boxes is empty.</div></li></ol>
+      </figure>
+      <figure class="shot" id="sign-in-f3">
+        
+        <div class="frame" style="aspect-ratio:1440/900">
+          <img src="img/03-forgot-password.png" width="1440" height="900" loading="lazy"
+               alt="Forgot password">
+          <a class="mark" href="#sign-in-f3-1" style="left:59.291%;top:45.278%;width:25.417%;height:8.083%" data-n="1" aria-label="1: Work e-mail"><span>1</span></a><a class="mark" href="#sign-in-f3-2" style="left:59.291%;top:54.472%;width:25.417%;height:4.917%" data-n="2" aria-label="2: Send reset link"><span>2</span></a><a class="mark" href="#sign-in-f3-3" style="left:59.291%;top:60.500%;width:25.417%;height:2.750%" data-n="3" aria-label="3: Back to sign in"><span>3</span></a>
+        </div>
+        <figcaption>Forgot password</figcaption>
+        <ol class="keys"><li id="sign-in-f3-1" data-n="1"><span class="num">1</span><div>Type your work e-mail.</div></li><li id="sign-in-f3-2" data-n="2"><span class="num">2</span><div><b>Send reset link</b> asks for a link to choose a new password.</div></li><li id="sign-in-f3-3" data-n="3"><span class="num">3</span><div><b>Back to sign in</b> returns to the sign-in page.</div></li></ol>
+      </figure>
+      <figure class="shot" id="sign-in-f4">
+        
+        <div class="frame" style="aspect-ratio:1440/900">
+          <img src="img/04-check-email.png" width="1440" height="900" loading="lazy"
+               alt="After asking for a reset link">
+          <a class="mark" href="#sign-in-f4-1" style="left:59.291%;top:53.236%;width:25.417%;height:4.917%" data-n="1" aria-label="1: Back to sign in"><span>1</span></a>
+        </div>
+        <figcaption>After asking for a reset link</figcaption>
+        <ol class="keys"><li id="sign-in-f4-1" data-n="1"><span class="num">1</span><div>SeaStock confirms that, if an account exists for that e-mail, a link is on its way; the link works for one hour. <b>Back to sign in</b> returns to the sign-in page. In the preview version no e-mail is actually sent.</div></li></ol>
+      </figure>
+    </section>
+    <section class="screen" id="overview">
+      <h2>Overview</h2>
+      <p class="intro">The first page for PPG Admins and Customer Admins. It shows the headline numbers for everything you can see, and the things that need someone’s attention. Ship Admins do not have this page; they open straight on their vessel.</p>
+      
+      <figure class="shot" id="overview-f1">
+        
+        <div class="frame" style="aspect-ratio:1440/1842">
+          <img src="img/10-overview.png" width="1440" height="1842" loading="lazy"
+               alt="Overview for a PPG Admin with all customers">
+          <a class="mark" href="#overview-f1-1" style="left:0.764%;top:3.583%;width:15.694%;height:3.434%" data-n="1" aria-label="1: Scope card"><span>1</span></a><a class="mark" href="#overview-f1-2" style="left:0.000%;top:7.343%;width:17.431%;height:88.531%" data-n="2" aria-label="2: Menu"><span>2</span></a><a class="mark" href="#overview-f1-3" style="left:0.000%;top:96.200%;width:17.431%;height:3.094%" data-n="3" aria-label="3: Your name, role and sign out"><span>3</span></a><a class="mark" href="#overview-f1-4" style="left:17.014%;top:0.000%;width:82.986%;height:4.072%" data-n="4" aria-label="4: Page title and scope"><span>4</span></a><a class="mark" href="#overview-f1-5" style="left:19.236%;top:5.049%;width:78.750%;height:6.325%" data-n="5" aria-label="5: Summary tiles"><span>5</span></a><a class="mark" href="#overview-f1-6" style="left:19.236%;top:12.134%;width:78.750%;height:22.842%" data-n="6" aria-label="6: Late or no sync"><span>6</span></a><a class="mark" href="#overview-f1-7" style="left:19.236%;top:35.736%;width:78.750%;height:12.093%" data-n="7" aria-label="7: Negative stock"><span>7</span></a><a class="mark" href="#overview-f1-8" style="left:19.236%;top:48.588%;width:78.750%;height:19.286%" data-n="8" aria-label="8: Unrecognised scans"><span>8</span></a><a class="mark" href="#overview-f1-9" style="left:85.648%;top:63.762%;width:9.838%;height:2.402%" data-n="9" aria-label="9: Match to article"><span>9</span></a><a class="mark" href="#overview-f1-10" style="left:19.236%;top:68.635%;width:78.750%;height:29.235%" data-n="10" aria-label="10: Recent activity"><span>10</span></a>
+        </div>
+        <figcaption>Overview for a PPG Admin with all customers</figcaption>
+        <ol class="keys"><li id="overview-f1-1" data-n="1"><span class="num">1</span><div><b>Scope card</b>: what you can see. “All regions” means every customer. A limited PPG Admin sees their region or customers here, a Customer Admin their company, a Ship Admin their vessel.</div></li><li id="overview-f1-2" data-n="2"><span class="num">2</span><div><b>Menu</b>: the pages you can open. The <b>Administration</b> part appears only for roles that manage the setup: Customers &amp; vessels and Products for a PPG Admin with all customers, Users for a PPG Admin with all customers and for a Customer Admin.</div></li><li id="overview-f1-3" data-n="3"><span class="num">3</span><div>Your name and role. The arrow on the right signs you out and returns to the sign-in page.</div></li><li id="overview-f1-4" data-n="4"><span class="num">4</span><div>The page title, with your role and what you can see.</div></li><li id="overview-f1-5" data-n="5"><span class="num">5</span><div><b>Summary tiles</b>, left to right: number of customers (shown only when you can see more than one); number of vessels; total Sea Stock in liters and cans; liters and cans used in the last 30 days; vessels with a late sync or no sync; and items that need review. Tiles with an arrow open the matching page: Vessels and Sea Stock open Sea Stock, Consumed opens Consumption. A number in orange means something needs attention.</div></li><li id="overview-f1-6" data-n="6"><span class="num">6</span><div><b>Late or no sync</b>: vessels whose tablet has not synced for more than 3 days, or never. Their numbers may be out of date. Each row shows the vessel and its company, its tablet, whether the opening stock count has been done, and when it last synced. Click a vessel name to see its stock.</div></li><li id="overview-f1-7" data-n="7"><span class="num">7</span><div><b>Negative stock</b>: products where more cans were scanned out than the vessel has on record, which cannot be right. It usually means a delivery was not scanned in, a can was missed in the opening count, or a can was scanned out twice. The crew corrects it with a stock adjustment on the tablet. Click a vessel name to see its stock.</div></li><li id="overview-f1-8" data-n="8"><span class="num">8</span><div><b>Unrecognised scans</b>: cans the crew scanned whose label did not match any product on the master item list, for example because the article number was misread or the product is new. They are held aside and not counted in Sea Stock until they are matched. Each row shows the vessel and who scanned it, whether it was a receipt or consumption, what was read from the label, the number of cans and when.</div></li><li id="overview-f1-9" data-n="9"><span class="num">9</span><div><b>Match to article</b> opens a pop-up to say which product the scan really was (see below). Only a PPG Admin with all customers can do this; others see “PPG admin to match”.</div></li><li id="overview-f1-10" data-n="10"><span class="num">10</span><div><b>Recent activity</b>: the latest things recorded on board, newest first. Each line shows the type (Receipt, Consumption, Adjustment or Baseline), the change in cans and the product, the vessel and time, and the change in liters. <b>All activity</b> opens the Activity page.</div></li></ol>
+      </figure>
+      <figure class="shot" id="overview-f2">
+        
+        <div class="frame" style="aspect-ratio:1440/1515">
+          <img src="img/12-overview-customer-admin.png" width="1440" height="1515" loading="lazy"
+               alt="The same page for a Customer Admin">
+          <a class="mark" href="#overview-f2-1" style="left:0.764%;top:4.356%;width:15.694%;height:4.175%" data-n="1" aria-label="1: Scope card"><span>1</span></a><a class="mark" href="#overview-f2-2" style="left:0.000%;top:8.927%;width:17.431%;height:86.056%" data-n="2" aria-label="2: Menu"><span>2</span></a><a class="mark" href="#overview-f2-3" style="left:19.236%;top:6.139%;width:78.750%;height:7.690%" data-n="3" aria-label="3: Summary tiles"><span>3</span></a>
+        </div>
+        <figcaption>The same page for a Customer Admin</figcaption>
+        <ol class="keys"><li id="overview-f2-1" data-n="1"><span class="num">1</span><div>The scope card shows your company.</div></li><li id="overview-f2-2" data-n="2"><span class="num">2</span><div>The menu has Users under Administration, to manage your own company’s people.</div></li><li id="overview-f2-3" data-n="3"><span class="num">3</span><div>There is no Customers tile, because you see one company. All numbers and lists cover only your company’s vessels.</div></li></ol>
+      </figure>
+      <figure class="shot" id="overview-f3">
+        
+        <div class="frame" style="aspect-ratio:1440/900">
+          <img src="img/80-ppg-admin-limited.png" width="1440" height="900" loading="lazy"
+               alt="The same page for a PPG Admin limited to one region">
+          <a class="mark" href="#overview-f3-1" style="left:0.764%;top:7.333%;width:15.694%;height:7.028%" data-n="1" aria-label="1: Scope card"><span>1</span></a><a class="mark" href="#overview-f3-2" style="left:0.000%;top:15.028%;width:17.431%;height:76.528%" data-n="2" aria-label="2: Menu without Administration"><span>2</span></a>
+        </div>
+        <figcaption>The same page for a PPG Admin limited to one region</figcaption>
+        <ol class="keys"><li id="overview-f3-1" data-n="1"><span class="num">1</span><div>The scope card shows the region (or the customers) this person can see. Every number and list covers only those customers.</div></li><li id="overview-f3-2" data-n="2"><span class="num">2</span><div>There is no Administration part in the menu: a limited PPG Admin views and exports, but does not change customers, users or products.</div></li></ol>
+      </figure><h3 class="popups">Pop-ups on this screen</h3>
+      <figure class="shot" id="overview-p1">
+        <h4>Match to article</h4>
+        <div class="frame" style="aspect-ratio:1440/900">
+          <img src="img/11-match-to-article.png" width="1440" height="900" loading="lazy"
+               alt="Opened from Match to article on an unrecognised scan">
+          <a class="mark" href="#overview-p1-1" style="left:33.681%;top:35.951%;width:32.639%;height:5.167%" data-n="1" aria-label="1: What the label said"><span>1</span></a><a class="mark" href="#overview-p1-2" style="left:33.681%;top:42.229%;width:32.639%;height:8.069%" data-n="2" aria-label="2: Suggested article"><span>2</span></a><a class="mark" href="#overview-p1-3" style="left:33.681%;top:51.410%;width:32.639%;height:8.083%" data-n="3" aria-label="3: Article on the master item list"><span>3</span></a><a class="mark" href="#overview-p1-4" style="left:56.525%;top:64.465%;width:9.795%;height:4.917%" data-n="4" aria-label="4: Match and post"><span>4</span></a>
+        </div>
+        <figcaption>Opened from Match to article on an unrecognised scan</figcaption>
+        <ol class="keys"><li id="overview-p1-1" data-n="1"><span class="num">1</span><div>What the tablet read from the label, and how many cans.</div></li><li id="overview-p1-2" data-n="2"><span class="num">2</span><div>When the product name and shade match a product on the list, SeaStock suggests it: here the article number was most likely misread.</div></li><li id="overview-p1-3" data-n="3"><span class="num">3</span><div>Choose the product the cans really are. Only active products are listed. If it is not there, add it on the Products page first (the link under the list goes there).</div></li><li id="overview-p1-4" data-n="4"><span class="num">4</span><div><b>Match and post</b> saves the match: the scan leaves the review list and is counted in the vessel’s Sea Stock, as a receipt (cans added) or consumption (cans taken off), as it was scanned. It then shows on the Activity page with who matched it. <b>Cancel</b> closes without changing anything.</div></li></ol>
+      </figure>
+    </section>
+    <section class="screen" id="sea-stock">
+      <h2>Sea Stock</h2>
+      <p class="intro">What is on board right now, as of each vessel’s last sync. You can look at it by product, or roll it up by vessel, customer or region, and download it.</p>
+      
+      <figure class="shot" id="sea-stock-f1">
+        
+        <div class="frame" style="aspect-ratio:1440/953">
+          <img src="img/20-sea-stock-by-product.png" width="1440" height="953" loading="lazy"
+               alt="Sea Stock by product">
+          <a class="mark" href="#sea-stock-f1-1" style="left:19.236%;top:9.759%;width:78.750%;height:7.634%" data-n="1" aria-label="1: Filters"><span>1</span></a><a class="mark" href="#sea-stock-f1-2" style="left:75.218%;top:1.403%;width:11.912%;height:4.643%" data-n="2" aria-label="2: Export summary"><span>2</span></a><a class="mark" href="#sea-stock-f1-3" style="left:87.824%;top:1.403%;width:10.162%;height:4.643%" data-n="3" aria-label="3: Export detail"><span>3</span></a><a class="mark" href="#sea-stock-f1-4" style="left:20.694%;top:20.226%;width:28.293%;height:5.063%" data-n="4" aria-label="4: Group by"><span>4</span></a><a class="mark" href="#sea-stock-f1-5" style="left:83.547%;top:21.459%;width:12.981%;height:2.597%" data-n="5" aria-label="5: Totals for what is shown"><span>5</span></a><a class="mark" href="#sea-stock-f1-6" style="left:20.417%;top:26.338%;width:76.389%;height:64.376%" data-n="6" aria-label="6: Stock by product"><span>6</span></a><a class="mark" href="#sea-stock-f1-7" style="left:20.417%;top:91.343%;width:76.389%;height:2.754%" data-n="7" aria-label="7: Total line"><span>7</span></a>
+        </div>
+        <figcaption>Sea Stock by product</figcaption>
+        <ol class="keys"><li id="sea-stock-f1-1" data-n="1"><span class="num">1</span><div><b>Filters</b>. Region, Customer and Vessel narrow down which vessels are counted; each one appears only when you can choose between more than one. <b>Component type</b> shows only Base, Hardener or 1K products. <b>Search</b> finds products by article number, product name or shade.</div></li><li id="sea-stock-f1-2" data-n="2"><span class="num">2</span><div><b>Export summary</b> downloads the table you are looking at as a CSV file, which opens in Excel.</div></li><li id="sea-stock-f1-3" data-n="3"><span class="num">3</span><div><b>Export detail</b> downloads one row for every product on every vessel shown, with region, customer, vessel, IMO number, product details, cans, liters and last sync, so you can build your own totals.</div></li><li id="sea-stock-f1-4" data-n="4"><span class="num">4</span><div><b>Group by</b>: By product, By vessel, By customer, By region. Customer Admins see By product and By vessel; Ship Admins see their vessel by product only.</div></li><li id="sea-stock-f1-5" data-n="5"><span class="num">5</span><div>Totals for what is shown: number of vessels, cans and liters.</div></li><li id="sea-stock-f1-6" data-n="6"><span class="num">6</span><div>One row per product: article number, product, shade (a dash when the label has none, as for hardeners and thinners), component type, pack size, how many vessels have it, cans and liters. A negative number shows in red and means the record needs correcting (see Negative stock on the Overview).</div></li><li id="sea-stock-f1-7" data-n="7"><span class="num">7</span><div>The total of all rows.</div></li></ol>
+      </figure>
+      <figure class="shot" id="sea-stock-f2">
+        
+        <div class="frame" style="aspect-ratio:1440/1146">
+          <img src="img/21-sea-stock-by-vessel.png" width="1440" height="1146" loading="lazy"
+               alt="Sea Stock by vessel">
+          <a class="mark" href="#sea-stock-f2-1" style="left:21.736%;top:26.483%;width:6.015%;height:2.291%" data-n="1" aria-label="1: Vessel name (click to open)"><span>1</span></a><a class="mark" href="#sea-stock-f2-2" style="left:78.729%;top:26.669%;width:16.757%;height:3.730%" data-n="2" aria-label="2: Last sync"><span>2</span></a>
+        </div>
+        <figcaption>Sea Stock by vessel</figcaption>
+        <ol class="keys"><li id="sea-stock-f2-1" data-n="1"><span class="num">1</span><div>Each vessel with its company. Click the vessel name to see that vessel on its own, with its details.</div></li><li id="sea-stock-f2-2" data-n="2"><span class="num">2</span><div>When the vessel last synced. Orange means more than 3 days ago, so its stock may be out of date; “Never synced” means its tablet has not sent anything yet.</div></li></ol>
+      </figure>
+      <figure class="shot" id="sea-stock-f3">
+        
+        <div class="frame" style="aspect-ratio:1440/910">
+          <img src="img/22-sea-stock-by-customer.png" width="1440" height="910" loading="lazy"
+               alt="Sea Stock by customer">
+          <a class="mark" href="#sea-stock-f3-1" style="left:80.653%;top:33.352%;width:14.832%;height:4.698%" data-n="1" aria-label="1: Oldest sync"><span>1</span></a>
+        </div>
+        <figcaption>Sea Stock by customer</figcaption>
+        <ol class="keys"><li id="sea-stock-f3-1" data-n="1"><span class="num">1</span><div>One row per customer, with how many vessels, products, cans and liters. <b>Oldest sync</b> is the vessel of that customer that synced longest ago, so you can tell how fresh the total is.</div></li></ol>
+      </figure>
+      <figure class="shot" id="sea-stock-f4">
+        
+        <div class="frame" style="aspect-ratio:1440/910">
+          <img src="img/23-sea-stock-by-region.png" width="1440" height="910" loading="lazy"
+               alt="Sea Stock by region (PPG Admins only)">
+          <a class="mark" href="#sea-stock-f4-1" style="left:20.486%;top:32.033%;width:76.250%;height:5.852%" data-n="1" aria-label="1: One row per region"><span>1</span></a>
+        </div>
+        <figcaption>Sea Stock by region (PPG Admins only)</figcaption>
+        <ol class="keys"><li id="sea-stock-f4-1" data-n="1"><span class="num">1</span><div>One row per PPG sales region (APAC, EMEA, USCA), with the same columns as by customer.</div></li></ol>
+      </figure>
+      <figure class="shot" id="sea-stock-f5">
+        
+        <div class="frame" style="aspect-ratio:1440/940">
+          <img src="img/24-sea-stock-one-vessel.png" width="1440" height="940" loading="lazy"
+               alt="One vessel, picked in the Vessel filter or by clicking its name">
+          <a class="mark" href="#sea-stock-f5-1" style="left:19.236%;top:19.122%;width:78.750%;height:22.926%" data-n="1" aria-label="1: Vessel details"><span>1</span></a><a class="mark" href="#sea-stock-f5-2" style="left:84.210%;top:20.931%;width:12.318%;height:2.633%" data-n="2" aria-label="2: Consumption and Activity links"><span>2</span></a><a class="mark" href="#sea-stock-f5-3" style="left:84.698%;top:29.468%;width:11.828%;height:6.649%" data-n="3" aria-label="3: Last sync"><span>3</span></a><a class="mark" href="#sea-stock-f5-4" style="left:20.417%;top:50.452%;width:76.389%;height:40.133%" data-n="4" aria-label="4: Stock on this vessel"><span>4</span></a>
+        </div>
+        <figcaption>One vessel, picked in the Vessel filter or by clicking its name</figcaption>
+        <ol class="keys"><li id="sea-stock-f5-1" data-n="1"><span class="num">1</span><div><b>Vessel details</b>: the vessel’s name, IMO number and vessel ID; its customer and customer ID; its region; its tablet (ID, Android or iOS, app version); the date of its opening stock count; and its last sync. The line underneath reminds you that anything recorded since the last sync shows after the next one.</div></li><li id="sea-stock-f5-2" data-n="2"><span class="num">2</span><div><b>Consumption →</b> and <b>Activity →</b> open those pages already filtered to this vessel.</div></li><li id="sea-stock-f5-3" data-n="3"><span class="num">3</span><div>When the vessel last synced.</div></li><li id="sea-stock-f5-4" data-n="4"><span class="num">4</span><div>The stock on this vessel, product by product, with the total underneath.</div></li></ol>
+      </figure>
+      <figure class="shot" id="sea-stock-f6">
+        
+        <div class="frame" style="aspect-ratio:1440/940">
+          <img src="img/25-sea-stock-ship-admin.png" width="1440" height="940" loading="lazy"
+               alt="What a Ship Admin sees">
+          <a class="mark" href="#sea-stock-f6-1" style="left:0.000%;top:14.388%;width:17.431%;height:77.527%" data-n="1" aria-label="1: Menu for a Ship Admin"><span>1</span></a><a class="mark" href="#sea-stock-f6-2" style="left:19.236%;top:19.122%;width:78.750%;height:22.926%" data-n="2" aria-label="2: Your vessel"><span>2</span></a>
+        </div>
+        <figcaption>What a Ship Admin sees</figcaption>
+        <ol class="keys"><li id="sea-stock-f6-1" data-n="1"><span class="num">1</span><div>A Ship Admin’s menu has Sea Stock, Consumption and Activity, all for their own vessel only.</div></li><li id="sea-stock-f6-2" data-n="2"><span class="num">2</span><div>Their vessel’s details and stock open straight away. There are no region, customer or vessel filters.</div></li></ol>
+      </figure>
+      <figure class="shot" id="sea-stock-f7">
+        
+        <div class="frame" style="aspect-ratio:1440/910">
+          <img src="img/26-sea-stock-no-opening-stock.png" width="1440" height="910" loading="lazy"
+               alt="A vessel without an opening stock count yet">
+          <a class="mark" href="#sea-stock-f7-1" style="left:19.236%;top:39.560%;width:78.750%;height:5.749%" data-n="1" aria-label="1: Opening stock not captured"><span>1</span></a>
+        </div>
+        <figcaption>A vessel without an opening stock count yet</figcaption>
+        <ol class="keys"><li id="sea-stock-f7-1" data-n="1"><span class="num">1</span><div>A new vessel starts with an opening count of everything already in its locker, done on the tablet. Until that count is synced, the vessel shows no stock and this message appears.</div></li></ol>
+      </figure>
+    </section>
+    <section class="screen" id="consumption">
+      <h2>Consumption</h2>
+      <p class="intro">How much paint and thinner was taken from the lockers in a period, rolled up the way you need. A can that leaves the locker counts as fully used; cans put back are not scanned.</p>
+      
+      <figure class="shot" id="consumption-f1">
+        
+        <div class="frame" style="aspect-ratio:1440/975">
+          <img src="img/30-consumption-by-product.png" width="1440" height="975" loading="lazy"
+               alt="Consumption by product">
+          <a class="mark" href="#consumption-f1-1" style="left:19.236%;top:9.538%;width:12.639%;height:7.462%" data-n="1" aria-label="1: Period"><span>1</span></a><a class="mark" href="#consumption-f1-2" style="left:19.236%;top:9.538%;width:78.750%;height:7.462%" data-n="2" aria-label="2: Filters"><span>2</span></a><a class="mark" href="#consumption-f1-3" style="left:75.218%;top:1.372%;width:11.912%;height:4.538%" data-n="3" aria-label="3: Export summary"><span>3</span></a><a class="mark" href="#consumption-f1-4" style="left:87.824%;top:1.372%;width:10.162%;height:4.538%" data-n="4" aria-label="4: Export detail"><span>4</span></a><a class="mark" href="#consumption-f1-5" style="left:20.694%;top:19.769%;width:28.293%;height:4.949%" data-n="5" aria-label="5: Group by"><span>5</span></a><a class="mark" href="#consumption-f1-6" style="left:76.449%;top:20.974%;width:20.079%;height:2.538%" data-n="6" aria-label="6: Period and totals"><span>6</span></a><a class="mark" href="#consumption-f1-7" style="left:20.417%;top:25.744%;width:76.389%;height:61.692%" data-n="7" aria-label="7: Consumption table"><span>7</span></a><a class="mark" href="#consumption-f1-8" style="left:45.856%;top:31.808%;width:23.564%;height:1.436%" data-n="8" aria-label="8: Share of liters bar"><span>8</span></a><a class="mark" href="#consumption-f1-9" style="left:19.236%;top:90.615%;width:78.750%;height:5.365%" data-n="9" aria-label="9: How consumption is counted"><span>9</span></a>
+        </div>
+        <figcaption>Consumption by product</figcaption>
+        <ol class="keys"><li id="consumption-f1-1" data-n="1"><span class="num">1</span><div><b>Period</b>: Last 30 days, this month, last month, or Custom dates.</div></li><li id="consumption-f1-2" data-n="2"><span class="num">2</span><div><b>Filters</b>: Region, Customer and Vessel, shown when you can choose between more than one.</div></li><li id="consumption-f1-3" data-n="3"><span class="num">3</span><div><b>Export summary</b> downloads the table you are looking at (name, scans, cans, liters) as a CSV file.</div></li><li id="consumption-f1-4" data-n="4"><span class="num">4</span><div><b>Export detail</b> downloads every consumption scan in the period: date, customer, vessel, vessel ID, product details, cans and liters.</div></li><li id="consumption-f1-5" data-n="5"><span class="num">5</span><div><b>Group by</b>: By product, By vessel, By customer, By region. Customer Admins see By product and By vessel; Ship Admins by product only.</div></li><li id="consumption-f1-6" data-n="6"><span class="num">6</span><div>The dates covered and the total cans and liters used.</div></li><li id="consumption-f1-7" data-n="7"><span class="num">7</span><div>One row per product (or vessel, customer or region), most liters first. <b>Scans</b> is how many times cans were scanned out; one scan can cover several cans.</div></li><li id="consumption-f1-8" data-n="8"><span class="num">8</span><div>The bar shows each row’s liters compared with the biggest row, so the main users stand out.</div></li><li id="consumption-f1-9" data-n="9"><span class="num">9</span><div>A reminder of how consumption is counted.</div></li></ol>
+      </figure>
+      <figure class="shot" id="consumption-f2">
+        
+        <div class="frame" style="aspect-ratio:1440/918">
+          <img src="img/31-consumption-by-vessel.png" width="1440" height="918" loading="lazy"
+               alt="Consumption by vessel">
+          <a class="mark" href="#consumption-f2-1" style="left:20.486%;top:31.754%;width:76.250%;height:5.583%" data-n="1" aria-label="1: One row per vessel"><span>1</span></a>
+        </div>
+        <figcaption>Consumption by vessel</figcaption>
+        <ol class="keys"><li id="consumption-f2-1" data-n="1"><span class="num">1</span><div>One row per vessel, so you can see which vessels use the most.</div></li></ol>
+      </figure>
+      <figure class="shot" id="consumption-f3">
+        
+        <div class="frame" style="aspect-ratio:1440/996">
+          <img src="img/32-consumption-custom-dates.png" width="1440" height="996" loading="lazy"
+               alt="Choosing your own dates">
+          <a class="mark" href="#consumption-f3-1" style="left:32.292%;top:9.337%;width:11.528%;height:7.304%" data-n="1" aria-label="1: From"><span>1</span></a><a class="mark" href="#consumption-f3-2" style="left:44.236%;top:9.337%;width:11.528%;height:7.304%" data-n="2" aria-label="2: To"><span>2</span></a>
+        </div>
+        <figcaption>Choosing your own dates</figcaption>
+        <ol class="keys"><li id="consumption-f3-1" data-n="1"><span class="num">1</span><div>With <b>Custom dates</b> chosen in Period, pick the first day here…</div></li><li id="consumption-f3-2" data-n="2"><span class="num">2</span><div>…and the last day here. Both days are included.</div></li></ol>
+      </figure>
+    </section>
+    <section class="screen" id="activity">
+      <h2>Activity</h2>
+      <p class="intro">Everything recorded on board, with who did it, when, on which tablet and how. It has two tabs: Transactions and Delivery notes.</p>
+      
+      <figure class="shot" id="activity-f1">
+        
+        <div class="frame" style="aspect-ratio:1440/1900">
+          <img src="img/40-activity-transactions.png" width="1440" height="1900" loading="lazy"
+               alt="Transactions">
+          <a class="mark" href="#activity-f1-1" style="left:19.236%;top:4.895%;width:78.750%;height:2.539%" data-n="1" aria-label="1: Transactions / Delivery notes"><span>1</span></a><a class="mark" href="#activity-f1-2" style="left:19.236%;top:8.171%;width:78.750%;height:7.974%" data-n="2" aria-label="2: Filters"><span>2</span></a><a class="mark" href="#activity-f1-3" style="left:88.345%;top:0.704%;width:9.641%;height:2.329%" data-n="3" aria-label="3: Export CSV"><span>3</span></a><a class="mark" href="#activity-f1-4" style="left:83.426%;top:17.566%;width:13.102%;height:1.303%" data-n="4" aria-label="4: Count"><span>4</span></a><a class="mark" href="#activity-f1-5" style="left:21.736%;top:22.158%;width:10.276%;height:3.566%" data-n="5" aria-label="5: Recorded and synced"><span>5</span></a><a class="mark" href="#activity-f1-6" style="left:42.641%;top:23.197%;width:7.242%;height:1.487%" data-n="6" aria-label="6: Type"><span>6</span></a><a class="mark" href="#activity-f1-7" style="left:50.438%;top:22.704%;width:13.311%;height:2.474%" data-n="7" aria-label="7: Item"><span>7</span></a><a class="mark" href="#activity-f1-8" style="left:64.304%;top:22.704%;width:7.242%;height:2.474%" data-n="8" aria-label="8: Change"><span>8</span></a><a class="mark" href="#activity-f1-9" style="left:72.102%;top:22.704%;width:9.518%;height:2.474%" data-n="9" aria-label="9: By / device"><span>9</span></a><a class="mark" href="#activity-f1-10" style="left:82.176%;top:23.250%;width:13.309%;height:1.382%" data-n="10" aria-label="10: Source / reason"><span>10</span></a>
+        </div>
+        <figcaption>Transactions</figcaption>
+        <ol class="keys"><li id="activity-f1-1" data-n="1"><span class="num">1</span><div>Switch between <b>Transactions</b> (every change to stock) and <b>Delivery notes</b> (each delivery and how it tallied).</div></li><li id="activity-f1-2" data-n="2"><span class="num">2</span><div><b>Filters</b>: Period; Region, Customer and Vessel; <b>Type</b> (Receipt, Consumption, Adjustment or Baseline); and <b>Source</b> (DN scan, Label scan or Manual adjustment).</div></li><li id="activity-f1-3" data-n="3"><span class="num">3</span><div><b>Export CSV</b> downloads the rows shown, with all their details.</div></li><li id="activity-f1-4" data-n="4"><span class="num">4</span><div>How many rows match. All times are in UTC.</div></li><li id="activity-f1-5" data-n="5"><span class="num">5</span><div>When the crew recorded it on the tablet, and underneath when it reached SeaStock.</div></li><li id="activity-f1-6" data-n="6"><span class="num">6</span><div>The type. <b>Receipt</b>: cans put into the locker from a delivery. <b>Consumption</b>: cans taken out. <b>Adjustment</b>: a correction the crew made on the tablet, with a reason. <b>Baseline</b>: the opening count when the vessel started using SeaStock.</div></li><li id="activity-f1-7" data-n="7"><span class="num">7</span><div>The product, with its shade, article number, component type and pack size.</div></li><li id="activity-f1-8" data-n="8"><span class="num">8</span><div>The change: cans added in green, cans taken out in orange, and the liters.</div></li><li id="activity-f1-9" data-n="9"><span class="num">9</span><div>Who recorded it and on which tablet.</div></li><li id="activity-f1-10" data-n="10"><span class="num">10</span><div>How it was recorded: <b>DN scan</b> (from a delivery note; click the number to open it), <b>Label scan</b>, or <b>Manual adjustment</b>. Any reason the crew gave is shown underneath.</div></li></ol>
+      </figure>
+      <figure class="shot" id="activity-f2">
+        
+        <div class="frame" style="aspect-ratio:1440/935">
+          <img src="img/41-activity-delivery-notes.png" width="1440" height="935" loading="lazy"
+               alt="Delivery notes">
+          <a class="mark" href="#activity-f2-1" style="left:19.236%;top:16.604%;width:78.750%;height:16.203%" data-n="1" aria-label="1: Tally and Search filters"><span>1</span></a><a class="mark" href="#activity-f2-2" style="left:21.736%;top:45.241%;width:7.459%;height:2.353%" data-n="2" aria-label="2: Delivery note (click to open)"><span>2</span></a><a class="mark" href="#activity-f2-3" style="left:72.535%;top:46.043%;width:9.792%;height:3.021%" data-n="3" aria-label="3: Tally result"><span>3</span></a><a class="mark" href="#activity-f2-4" style="left:82.882%;top:45.040%;width:12.604%;height:5.027%" data-n="4" aria-label="4: Received"><span>4</span></a>
+        </div>
+        <figcaption>Delivery notes</figcaption>
+        <ol class="keys"><li id="activity-f2-1" data-n="1"><span class="num">1</span><div>Besides Period and the region, customer and vessel filters: <b>Tally</b> (All, All matched, or With differences) and <b>Search</b> by delivery note number or customer reference.</div></li><li id="activity-f2-2" data-n="2"><span class="num">2</span><div>The delivery note number and its date. Click it to open the delivery note.</div></li><li id="activity-f2-3" data-n="3"><span class="num">3</span><div>How the delivery tallied: <b>All matched</b> when everything on the note was received, or the number of lines that differed.</div></li><li id="activity-f2-4" data-n="4"><span class="num">4</span><div>When the crew confirmed the delivery on the tablet, and who did it. The other columns show the vessel, the customer’s order reference, the number of lines and the cans put into the locker.</div></li></ol>
+      </figure><h3 class="popups">Pop-ups on this screen</h3>
+      <figure class="shot" id="activity-p1">
+        <h4>Delivery note</h4>
+        <div class="frame" style="aspect-ratio:1440/900">
+          <img src="img/42-delivery-note.png" width="1440" height="900" loading="lazy"
+               alt="Opened from a delivery note number">
+          <a class="mark" href="#activity-p1-1" style="left:18.403%;top:14.319%;width:63.194%;height:28.444%" data-n="1" aria-label="1: Header read from the note"><span>1</span></a><a class="mark" href="#activity-p1-2" style="left:18.403%;top:43.875%;width:63.194%;height:56.125%" data-n="2" aria-label="2: Tally, line by line"><span>2</span></a><a class="mark" href="#activity-p1-3" style="left:59.898%;top:77.639%;width:5.944%;height:3.139%" data-n="3" aria-label="3: Result of a line"><span>3</span></a><a class="mark" href="#activity-p1-4" style="left:66.398%;top:76.569%;width:12.700%;height:5.278%" data-n="4" aria-label="4: Reason given by the crew"><span>4</span></a>
+        </div>
+        <figcaption>Opened from a delivery note number</figcaption>
+        <ol class="keys"><li id="activity-p1-1" data-n="1"><span class="num">1</span><div><b>Header</b>, as read from the delivery note: its number and date, the vessel’s IMO number and name, the customer and their order reference; who received it, when it was confirmed on the tablet and when it synced; the number of lines, the cans put into the locker and how many lines differed.</div></li><li id="activity-p1-2" data-n="2"><span class="num">2</span><div><b>Tally</b>: each line on the note against what was scanned into the locker: the product, the quantity on the note, the quantity received, the difference and the liters received.</div></li><li id="activity-p1-3" data-n="3"><span class="num">3</span><div>The result of each line. <b>Matched</b>: as on the note. <b>Short</b>: fewer received. <b>Over</b>: more received. <b>Not on note</b>: received but not listed. <b>Not received</b>: listed but not delivered.</div></li><li id="activity-p1-4" data-n="4"><span class="num">4</span><div>The reason the crew gave for a difference. The crew sorts out differences on the tablet before confirming; this shows what they decided. <b>Close</b> returns to the list.</div></li></ol>
+      </figure>
+    </section>
+    <section class="screen" id="customers-vessels">
+      <h2>Customers &amp; vessels</h2>
+      <p class="intro">Who PPG supplies, their vessels, and the PPG sales region each customer belongs to. Only PPG Admins with access to all customers have this page. Changes show straight away on every page.</p>
+      
+      <figure class="shot" id="customers-vessels-f1">
+        
+        <div class="frame" style="aspect-ratio:1440/910">
+          <img src="img/50-customers.png" width="1440" height="910" loading="lazy"
+               alt="Customers tab">
+          <a class="mark" href="#customers-vessels-f1-1" style="left:19.236%;top:10.220%;width:78.750%;height:5.302%" data-n="1" aria-label="1: Tabs"><span>1</span></a><a class="mark" href="#customers-vessels-f1-2" style="left:87.169%;top:17.266%;width:10.817%;height:4.863%" data-n="2" aria-label="2: Add customer"><span>2</span></a><a class="mark" href="#customers-vessels-f1-3" style="left:19.236%;top:23.874%;width:78.750%;height:7.995%" data-n="3" aria-label="3: Filters"><span>3</span></a><a class="mark" href="#customers-vessels-f1-4" style="left:20.417%;top:35.275%;width:76.389%;height:31.071%" data-n="4" aria-label="4: Customers table"><span>4</span></a><a class="mark" href="#customers-vessels-f1-5" style="left:93.339%;top:61.923%;width:2.146%;height:2.885%" data-n="5" aria-label="5: Edit"><span>5</span></a>
+        </div>
+        <figcaption>Customers tab</figcaption>
+        <ol class="keys"><li id="customers-vessels-f1-1" data-n="1"><span class="num">1</span><div>Tabs: <b>Customers</b>, <b>Vessels</b> and <b>Regions</b>.</div></li><li id="customers-vessels-f1-2" data-n="2"><span class="num">2</span><div><b>Add customer</b> opens a pop-up to add a new customer.</div></li><li id="customers-vessels-f1-3" data-n="3"><span class="num">3</span><div>Filter by Region, or search by name or customer ID.</div></li><li id="customers-vessels-f1-4" data-n="4"><span class="num">4</span><div>Each customer with its customer ID, region, number of vessels, number of users (company users and Chief Officers), whether it is Active or Inactive, and when it was added.</div></li><li id="customers-vessels-f1-5" data-n="5"><span class="num">5</span><div><b>Edit</b> opens the same pop-up to change a customer.</div></li></ol>
+      </figure>
+      <figure class="shot" id="customers-vessels-f2">
+        
+        <div class="frame" style="aspect-ratio:1440/1285">
+          <img src="img/53-vessels.png" width="1440" height="1285" loading="lazy"
+               alt="Vessels tab">
+          <a class="mark" href="#customers-vessels-f2-1" style="left:88.550%;top:12.228%;width:9.436%;height:3.444%" data-n="1" aria-label="1: Add vessel"><span>1</span></a><a class="mark" href="#customers-vessels-f2-2" style="left:19.236%;top:16.907%;width:78.750%;height:5.661%" data-n="2" aria-label="2: Filters"><span>2</span></a><a class="mark" href="#customers-vessels-f2-3" style="left:60.278%;top:29.066%;width:9.792%;height:3.677%" data-n="3" aria-label="3: Tablet"><span>3</span></a><a class="mark" href="#customers-vessels-f2-4" style="left:70.625%;top:29.864%;width:8.854%;height:2.082%" data-n="4" aria-label="4: Opening stock"><span>4</span></a><a class="mark" href="#customers-vessels-f2-5" style="left:80.035%;top:29.241%;width:10.729%;height:3.327%" data-n="5" aria-label="5: Last sync"><span>5</span></a><a class="mark" href="#customers-vessels-f2-6" style="left:19.236%;top:92.879%;width:78.750%;height:4.071%" data-n="6" aria-label="6: Note about tablets"><span>6</span></a>
+        </div>
+        <figcaption>Vessels tab</figcaption>
+        <ol class="keys"><li id="customers-vessels-f2-1" data-n="1"><span class="num">1</span><div><b>Add vessel</b> opens a pop-up to add a new vessel.</div></li><li id="customers-vessels-f2-2" data-n="2"><span class="num">2</span><div>Filter by Region or Customer, or search by vessel name, vessel ID or IMO number.</div></li><li id="customers-vessels-f2-3" data-n="3"><span class="num">3</span><div>The vessel’s tablet: its ID, Android or iOS, and app version. Each vessel has one tablet.</div></li><li id="customers-vessels-f2-4" data-n="4"><span class="num">4</span><div>The date of the vessel’s opening stock count, or <b>Not captured</b> if it has not been done.</div></li><li id="customers-vessels-f2-5" data-n="5"><span class="num">5</span><div>When the tablet last synced; orange if more than 3 days ago. Each row also has the vessel name (click it to see its stock), IMO number, vessel ID, customer and an <b>Edit</b> button.</div></li><li id="customers-vessels-f2-6" data-n="6"><span class="num">6</span><div>A note on how tablets are supplied.</div></li></ol>
+      </figure>
+      <figure class="shot" id="customers-vessels-f3">
+        
+        <div class="frame" style="aspect-ratio:1440/910">
+          <img src="img/55-regions.png" width="1440" height="910" loading="lazy"
+               alt="Regions tab">
+          <a class="mark" href="#customers-vessels-f3-1" style="left:20.417%;top:25.742%;width:76.389%;height:20.027%" data-n="1" aria-label="1: Regions table"><span>1</span></a><a class="mark" href="#customers-vessels-f3-2" style="left:93.340%;top:41.456%;width:2.146%;height:2.885%" data-n="2" aria-label="2: Edit"><span>2</span></a>
+        </div>
+        <figcaption>Regions tab</figcaption>
+        <ol class="keys"><li id="customers-vessels-f3-1" data-n="1"><span class="num">1</span><div>The PPG sales regions, with how many customers, vessels and region-limited PPG Admins each has.</div></li><li id="customers-vessels-f3-2" data-n="2"><span class="num">2</span><div><b>Edit</b> changes a region’s name. Region codes stay the same.</div></li></ol>
+      </figure><h3 class="popups">Pop-ups on this screen</h3>
+      <figure class="shot" id="customers-vessels-p1">
+        <h4>Add customer</h4>
+        <div class="frame" style="aspect-ratio:1440/900">
+          <img src="img/51-add-customer.png" width="1440" height="900" loading="lazy"
+               alt="Opened from Add customer">
+          <a class="mark" href="#customers-vessels-p1-1" style="left:33.681%;top:36.417%;width:32.639%;height:8.083%" data-n="1" aria-label="1: Customer name"><span>1</span></a><a class="mark" href="#customers-vessels-p1-2" style="left:33.681%;top:45.611%;width:32.639%;height:8.083%" data-n="2" aria-label="2: Customer ID"><span>2</span></a><a class="mark" href="#customers-vessels-p1-3" style="left:33.681%;top:54.806%;width:32.639%;height:8.083%" data-n="3" aria-label="3: Region"><span>3</span></a><a class="mark" href="#customers-vessels-p1-4" style="left:57.169%;top:64.000%;width:9.150%;height:4.917%" data-n="4" aria-label="4: Add customer"><span>4</span></a>
+        </div>
+        <figcaption>Opened from Add customer</figcaption>
+        <ol class="keys"><li id="customers-vessels-p1-1" data-n="1"><span class="num">1</span><div>The customer’s name.</div></li><li id="customers-vessels-p1-2" data-n="2"><span class="num">2</span><div>The customer ID used in PPG’s own systems.</div></li><li id="customers-vessels-p1-3" data-n="3"><span class="num">3</span><div>The PPG sales region the customer belongs to. It decides which region-limited PPG Admins can see it.</div></li><li id="customers-vessels-p1-4" data-n="4"><span class="num">4</span><div><b>Add customer</b> saves it; the button works once all three are filled in. <b>Cancel</b> closes without saving.</div></li></ol>
+      </figure>
+      <figure class="shot" id="customers-vessels-p2">
+        <h4>Edit customer</h4>
+        <div class="frame" style="aspect-ratio:1440/900">
+          <img src="img/52-edit-customer.png" width="1440" height="900" loading="lazy"
+               alt="Opened from Edit on a customer">
+          <a class="mark" href="#customers-vessels-p2-1" style="left:33.681%;top:59.403%;width:32.639%;height:8.083%" data-n="1" aria-label="1: Status"><span>1</span></a>
+        </div>
+        <figcaption>Opened from Edit on a customer</figcaption>
+        <ol class="keys"><li id="customers-vessels-p2-1" data-n="1"><span class="num">1</span><div>The same fields, plus <b>Status</b>: Active or Inactive. <b>Save changes</b> saves.</div></li></ol>
+      </figure>
+      <figure class="shot" id="customers-vessels-p3">
+        <h4>Add vessel</h4>
+        <div class="frame" style="aspect-ratio:1440/900">
+          <img src="img/54-add-vessel.png" width="1440" height="900" loading="lazy"
+               alt="Opened from Add vessel, here with an incomplete IMO number">
+          <a class="mark" href="#customers-vessels-p3-1" style="left:33.681%;top:32.222%;width:32.639%;height:8.083%" data-n="1" aria-label="1: Vessel name"><span>1</span></a><a class="mark" href="#customers-vessels-p3-2" style="left:33.681%;top:41.417%;width:16.111%;height:10.528%" data-n="2" aria-label="2: Vessel ID"><span>2</span></a><a class="mark" href="#customers-vessels-p3-3" style="left:50.208%;top:41.417%;width:16.111%;height:10.528%" data-n="3" aria-label="3: IMO number (with a check)"><span>3</span></a><a class="mark" href="#customers-vessels-p3-4" style="left:33.681%;top:53.056%;width:32.639%;height:8.083%" data-n="4" aria-label="4: Customer"><span>4</span></a>
+        </div>
+        <figcaption>Opened from Add vessel, here with an incomplete IMO number</figcaption>
+        <ol class="keys"><li id="customers-vessels-p3-1" data-n="1"><span class="num">1</span><div>The vessel’s name.</div></li><li id="customers-vessels-p3-2" data-n="2"><span class="num">2</span><div>The vessel ID used in PPG’s own systems.</div></li><li id="customers-vessels-p3-3" data-n="3"><span class="num">3</span><div>The vessel’s IMO number: 7 digits, numbers only. A red message shows until it has 7 digits. Delivery notes are matched to the vessel by IMO number first, then by name.</div></li><li id="customers-vessels-p3-4" data-n="4"><span class="num">4</span><div>The customer the vessel belongs to. <b>Add vessel</b> saves once everything is filled in correctly. A new vessel starts with no tablet, no opening stock and no sync. <b>Edit</b> on a vessel opens the same pop-up.</div></li></ol>
+      </figure>
+      <figure class="shot" id="customers-vessels-p4">
+        <h4>Edit region</h4>
+        <div class="frame" style="aspect-ratio:1440/900">
+          <img src="img/56-edit-region.png" width="1440" height="900" loading="lazy"
+               alt="Opened from Edit on a region">
+          <a class="mark" href="#customers-vessels-p4-1" style="left:33.681%;top:45.611%;width:32.639%;height:8.083%" data-n="1" aria-label="1: Region name"><span>1</span></a>
+        </div>
+        <figcaption>Opened from Edit on a region</figcaption>
+        <ol class="keys"><li id="customers-vessels-p4-1" data-n="1"><span class="num">1</span><div>The region’s name. <b>Save changes</b> saves it.</div></li></ol>
+      </figure>
+    </section>
+    <section class="screen" id="users">
+      <h2>Users</h2>
+      <p class="intro">Who can use SeaStock, their role, what they can see, and whether they can sign in. PPG Admins with all customers see everyone; Customer Admins see and manage only their own company’s people.</p>
+      
+      <figure class="shot" id="users-f1">
+        
+        <div class="frame" style="aspect-ratio:1440/1900">
+          <img src="img/60-users.png" width="1440" height="1900" loading="lazy"
+               alt="Users tab, for a PPG Admin">
+          <a class="mark" href="#users-f1-1" style="left:19.236%;top:4.895%;width:78.750%;height:2.539%" data-n="1" aria-label="1: Tabs"><span>1</span></a><a class="mark" href="#users-f1-2" style="left:89.452%;top:8.270%;width:8.534%;height:2.329%" data-n="2" aria-label="2: Add user"><span>2</span></a><a class="mark" href="#users-f1-3" style="left:19.236%;top:11.434%;width:78.750%;height:3.829%" data-n="3" aria-label="3: Filters"><span>3</span></a><a class="mark" href="#users-f1-4" style="left:40.240%;top:19.658%;width:11.813%;height:2.474%" data-n="4" aria-label="4: Role"><span>4</span></a><a class="mark" href="#users-f1-5" style="left:59.717%;top:20.197%;width:14.443%;height:1.395%" data-n="5" aria-label="5: Scope"><span>5</span></a><a class="mark" href="#users-f1-6" style="left:74.716%;top:20.151%;width:6.553%;height:1.487%" data-n="6" aria-label="6: Status"><span>6</span></a>
+        </div>
+        <figcaption>Users tab, for a PPG Admin</figcaption>
+        <ol class="keys"><li id="users-f1-1" data-n="1"><span class="num">1</span><div>Tabs: <b>Users</b> and <b>Roles &amp; permissions</b>.</div></li><li id="users-f1-2" data-n="2"><span class="num">2</span><div><b>Add user</b> opens a pop-up to add someone and send them an invite.</div></li><li id="users-f1-3" data-n="3"><span class="num">3</span><div>Filter by Role or Status, or search by name or e-mail.</div></li><li id="users-f1-4" data-n="4"><span class="num">4</span><div>The user’s role, with their job title underneath.</div></li><li id="users-f1-5" data-n="5"><span class="num">5</span><div>What the user can see: all regions, a region, chosen customers, their company or their vessel.</div></li><li id="users-f1-6" data-n="6"><span class="num">6</span><div><b>Active</b>: can sign in. <b>Invited</b>: has not set up their account yet. <b>Disabled</b>: cannot sign in. Each row also shows the level (PPG, Customer or Vessel), the last sign-in and an <b>Edit</b> button.</div></li></ol>
+      </figure>
+      <figure class="shot" id="users-f2">
+        
+        <div class="frame" style="aspect-ratio:1440/910">
+          <img src="img/66-users-customer-admin.png" width="1440" height="910" loading="lazy"
+               alt="Users tab, for a Customer Admin">
+          <a class="mark" href="#users-f2-1" style="left:20.417%;top:35.275%;width:76.389%;height:48.626%" data-n="1" aria-label="1: Only your company"><span>1</span></a>
+        </div>
+        <figcaption>Users tab, for a Customer Admin</figcaption>
+        <ol class="keys"><li id="users-f2-1" data-n="1"><span class="num">1</span><div>Only your own company’s people. When you add someone, you can make them a Customer Admin or a Ship Admin for one of your vessels.</div></li></ol>
+      </figure>
+      <figure class="shot" id="users-f3">
+        
+        <div class="frame" style="aspect-ratio:1440/1248">
+          <img src="img/65-roles.png" width="1440" height="1248" loading="lazy"
+               alt="Roles &amp; permissions tab">
+          <a class="mark" href="#users-f3-1" style="left:19.236%;top:17.408%;width:78.750%;height:13.021%" data-n="1" aria-label="1: The three roles"><span>1</span></a><a class="mark" href="#users-f3-2" style="left:20.417%;top:37.360%;width:76.389%;height:51.202%" data-n="2" aria-label="2: Permissions table"><span>2</span></a>
+        </div>
+        <figcaption>Roles &amp; permissions tab</figcaption>
+        <ol class="keys"><li id="users-f3-1" data-n="1"><span class="num">1</span><div>The three roles: who holds each one, what they see, and how many people have it.</div></li><li id="users-f3-2" data-n="2"><span class="num">2</span><div>What each role can do. A tick means yes. The PPG Admin has two columns: one with all customers, one limited to some regions or customers.</div></li></ol>
+      </figure><h3 class="popups">Pop-ups on this screen</h3>
+      <figure class="shot" id="users-p1">
+        <h4>Add user: PPG Admin</h4>
+        <div class="frame" style="aspect-ratio:1440/900">
+          <img src="img/61-add-user-ppg-admin.png" width="1440" height="900" loading="lazy"
+               alt="Opened from Add user, with PPG Admin chosen">
+          <a class="mark" href="#users-p1-1" style="left:33.681%;top:24.069%;width:32.361%;height:8.083%" data-n="1" aria-label="1: Name, job title, e-mail"><span>1</span></a><a class="mark" href="#users-p1-2" style="left:33.681%;top:42.458%;width:32.361%;height:8.083%" data-n="2" aria-label="2: Role"><span>2</span></a><a class="mark" href="#users-p1-3" style="left:33.681%;top:51.653%;width:32.361%;height:8.083%" data-n="3" aria-label="3: Scope"><span>3</span></a><a class="mark" href="#users-p1-4" style="left:33.681%;top:60.847%;width:32.361%;height:14.389%" data-n="4" aria-label="4: Regions"><span>4</span></a><a class="mark" href="#users-p1-5" style="left:54.594%;top:76.347%;width:11.725%;height:4.917%" data-n="5" aria-label="5: Add and send invite"><span>5</span></a>
+        </div>
+        <figcaption>Opened from Add user, with PPG Admin chosen</figcaption>
+        <ol class="keys"><li id="users-p1-1" data-n="1"><span class="num">1</span><div>The person’s full name, job title (for example Chief Officer) and work e-mail. They sign in with this e-mail.</div></li><li id="users-p1-2" data-n="2"><span class="num">2</span><div>The role: PPG Admin, Customer Admin or Ship Admin. The boxes below change with the role.</div></li><li id="users-p1-3" data-n="3"><span class="num">3</span><div>For a PPG Admin, what they can see: <b>All customers</b> (they also look after the setup), <b>Whole regions</b> or <b>Specific customers</b> (for example the sales team; view only).</div></li><li id="users-p1-4" data-n="4"><span class="num">4</span><div>Tick the regions (or customers) they can see.</div></li><li id="users-p1-5" data-n="5"><span class="num">5</span><div><b>Add and send invite</b> adds them as Invited; it works once every box is filled in. They can sign in after setting up their account from the invite.</div></li></ol>
+      </figure>
+      <figure class="shot" id="users-p2">
+        <h4>Add user: Customer Admin</h4>
+        <div class="frame" style="aspect-ratio:1440/900">
+          <img src="img/62-add-user-customer-admin.png" width="1440" height="900" loading="lazy"
+               alt="With Customer Admin chosen">
+          <a class="mark" href="#users-p2-1" style="left:33.681%;top:59.403%;width:32.361%;height:8.083%" data-n="1" aria-label="1: Customer"><span>1</span></a>
+        </div>
+        <figcaption>With Customer Admin chosen</figcaption>
+        <ol class="keys"><li id="users-p2-1" data-n="1"><span class="num">1</span><div>The company they belong to. For a Customer Admin adding someone, this is fixed to their own company.</div></li></ol>
+      </figure>
+      <figure class="shot" id="users-p3">
+        <h4>Add user: Ship Admin</h4>
+        <div class="frame" style="aspect-ratio:1440/900">
+          <img src="img/63-add-user-ship-admin.png" width="1440" height="900" loading="lazy"
+               alt="With Ship Admin chosen">
+          <a class="mark" href="#users-p3-1" style="left:33.681%;top:59.403%;width:32.361%;height:8.083%" data-n="1" aria-label="1: Vessel"><span>1</span></a>
+        </div>
+        <figcaption>With Ship Admin chosen</figcaption>
+        <ol class="keys"><li id="users-p3-1" data-n="1"><span class="num">1</span><div>The vessel they look after. A Customer Admin can pick only their own company’s vessels.</div></li></ol>
+      </figure>
+      <figure class="shot" id="users-p4">
+        <h4>Edit user</h4>
+        <div class="frame" style="aspect-ratio:1440/900">
+          <img src="img/64-edit-user.png" width="1440" height="900" loading="lazy"
+               alt="Opened from Edit on a user">
+          <a class="mark" href="#users-p4-1" style="left:33.681%;top:66.972%;width:32.361%;height:8.083%" data-n="1" aria-label="1: Status"><span>1</span></a>
+        </div>
+        <figcaption>Opened from Edit on a user</figcaption>
+        <ol class="keys"><li id="users-p4-1" data-n="1"><span class="num">1</span><div>The same boxes, plus <b>Status</b>. Set <b>Disabled</b> to stop someone signing in; set <b>Active</b> to let them back in. <b>Save changes</b> saves.</div></li></ol>
+      </figure>
+    </section>
+    <section class="screen" id="products">
+      <h2>Products</h2>
+      <p class="intro">The PPG products SeaStock recognises, and how the tablet reads can labels. Only PPG Admins with access to all customers have this page.</p>
+      
+      <figure class="shot" id="products-f1">
+        
+        <div class="frame" style="aspect-ratio:1440/1077">
+          <img src="img/70-master-item-list.png" width="1440" height="1077" loading="lazy"
+               alt="Master item list tab">
+          <a class="mark" href="#products-f1-1" style="left:19.236%;top:8.635%;width:78.750%;height:4.480%" data-n="1" aria-label="1: Tabs"><span>1</span></a><a class="mark" href="#products-f1-2" style="left:80.623%;top:14.589%;width:8.601%;height:4.109%" data-n="2" aria-label="2: Bulk load"><span>2</span></a><a class="mark" href="#products-f1-3" style="left:89.502%;top:14.589%;width:8.484%;height:4.109%" data-n="3" aria-label="3: Add item"><span>3</span></a><a class="mark" href="#products-f1-4" style="left:19.236%;top:20.172%;width:78.750%;height:6.755%" data-n="4" aria-label="4: Filters"><span>4</span></a><a class="mark" href="#products-f1-5" style="left:56.510%;top:34.680%;width:8.850%;height:2.623%" data-n="5" aria-label="5: Component"><span>5</span></a><a class="mark" href="#products-f1-6" style="left:73.447%;top:34.773%;width:7.912%;height:2.437%" data-n="6" aria-label="6: Pack size and unit volume"><span>6</span></a><a class="mark" href="#products-f1-7" style="left:92.433%;top:83.032%;width:3.053%;height:2.437%" data-n="7" aria-label="7: Retire"><span>7</span></a>
+        </div>
+        <figcaption>Master item list tab</figcaption>
+        <ol class="keys"><li id="products-f1-1" data-n="1"><span class="num">1</span><div>Tabs: <b>Master item list</b> and <b>Label schema</b>.</div></li><li id="products-f1-2" data-n="2"><span class="num">2</span><div><b>Bulk load</b> opens a pop-up to add many products at once from PPG’s list.</div></li><li id="products-f1-3" data-n="3"><span class="num">3</span><div><b>Add item</b> opens a pop-up to add one product.</div></li><li id="products-f1-4" data-n="4"><span class="num">4</span><div>Filter by Component type and Status (Active, Retired or All), or search by article number, product or shade. Only active products show at first.</div></li><li id="products-f1-5" data-n="5"><span class="num">5</span><div>Base, Hardener or 1K.</div></li><li id="products-f1-6" data-n="6"><span class="num">6</span><div><b>Pack size</b> as printed on the can, and <b>Unit volume</b>, the liters in each can, which SeaStock uses to turn cans into liters. Each row also shows the article number, product, shade and status.</div></li><li id="products-f1-7" data-n="7"><span class="num">7</span><div><b>Retire</b> takes a product off the list for new scans (it asks first). On a retired product, <b>Restore</b> brings it back.</div></li></ol>
+      </figure>
+      <figure class="shot" id="products-f2">
+        
+        <div class="frame" style="aspect-ratio:1440/1099">
+          <img src="img/75-label-schema.png" width="1440" height="1099" loading="lazy"
+               alt="Label schema tab">
+          <a class="mark" href="#products-f2-1" style="left:19.236%;top:15.184%;width:60.948%;height:2.252%" data-n="1" aria-label="1: Version"><span>1</span></a><a class="mark" href="#products-f2-2" style="left:80.879%;top:14.297%;width:17.107%;height:4.026%" data-n="2" aria-label="2: Discard and Publish"><span>2</span></a><a class="mark" href="#products-f2-3" style="left:19.236%;top:19.768%;width:78.750%;height:50.205%" data-n="3" aria-label="3: Fields read from the label"><span>3</span></a><a class="mark" href="#products-f2-4" style="left:19.236%;top:71.247%;width:78.750%;height:17.357%" data-n="4" aria-label="4: Component-type rules"><span>4</span></a><a class="mark" href="#products-f2-5" style="left:19.236%;top:89.877%;width:78.750%;height:6.608%" data-n="5" aria-label="5: How matching works"><span>5</span></a>
+        </div>
+        <figcaption>Label schema tab</figcaption>
+        <ol class="keys"><li id="products-f2-1" data-n="1"><span class="num">1</span><div>The version the tablets use now, when it was published and by whom.</div></li><li id="products-f2-2" data-n="2"><span class="num">2</span><div><b>Publish</b> makes your changes the next version, used by every tablet. <b>Discard</b> throws your changes away. Both work only when there are changes.</div></li><li id="products-f2-3" data-n="3"><span class="num">3</span><div>The details the tablet reads from each can label: whether each one must always be there, what it is used for, and the rule it must follow. <b>Edit</b> changes a field’s rules.</div></li><li id="products-f2-4" data-n="4"><span class="num">4</span><div>How the component type is decided: one-component products, including thinners, are 1K; two-component products are Base or Hardener, as printed on the label.</div></li><li id="products-f2-5" data-n="5"><span class="num">5</span><div>How a scanned can is matched to a product: by article number first; if that cannot be read, by product name and shade; if neither matches, the scan is held for review on the Overview.</div></li></ol>
+      </figure><h3 class="popups">Pop-ups on this screen</h3>
+      <figure class="shot" id="products-p1">
+        <h4>Add item</h4>
+        <div class="frame" style="aspect-ratio:1440/900">
+          <img src="img/71-add-item.png" width="1440" height="900" loading="lazy"
+               alt="Opened from Add item, here with an article number already in use">
+          <a class="mark" href="#products-p1-1" style="left:33.681%;top:27.625%;width:16.111%;height:10.528%" data-n="1" aria-label="1: Article number (already used)"><span>1</span></a><a class="mark" href="#products-p1-2" style="left:33.681%;top:57.653%;width:16.111%;height:8.083%" data-n="2" aria-label="2: Product type"><span>2</span></a><a class="mark" href="#products-p1-3" style="left:50.208%;top:57.653%;width:16.111%;height:8.083%" data-n="3" aria-label="3: Component type"><span>3</span></a>
+        </div>
+        <figcaption>Opened from Add item, here with an article number already in use</figcaption>
+        <ol class="keys"><li id="products-p1-1" data-n="1"><span class="num">1</span><div>The six-digit article number. A red message shows if it is already on the list. Next to it, the pack size in liters; above the product type you also enter the product name and the shade (left empty for hardeners and thinners).</div></li><li id="products-p1-2" data-n="2"><span class="num">2</span><div><b>Product type</b>: one component (1K) or two components (2K).</div></li><li id="products-p1-3" data-n="3"><span class="num">3</span><div><b>Component type</b>: set to 1K automatically for a 1K product; for a 2K product choose Base or Hardener. <b>Add item</b> works once everything is filled in correctly.</div></li></ol>
+      </figure>
+      <figure class="shot" id="products-p2">
+        <h4>Bulk load</h4>
+        <div class="frame" style="aspect-ratio:1440/900">
+          <img src="img/72-bulk-load-empty.png" width="1440" height="900" loading="lazy"
+               alt="Opened from Bulk load">
+          <a class="mark" href="#products-p2-1" style="left:33.681%;top:46.986%;width:32.639%;height:13.861%" data-n="1" aria-label="1: Choose a file"><span>1</span></a>
+        </div>
+        <figcaption>Opened from Bulk load</figcaption>
+        <ol class="keys"><li id="products-p2-1" data-n="1"><span class="num">1</span><div>Choose PPG’s product list as an Excel (.xlsx) or CSV file, with the columns article number, product, shade, component type, pack size and unit volume.</div></li></ol>
+      </figure>
+      <figure class="shot" id="products-p3">
+        <h4>Bulk load: check before loading</h4>
+        <div class="frame" style="aspect-ratio:1440/900">
+          <img src="img/73-bulk-load-preview.png" width="1440" height="900" loading="lazy"
+               alt="After choosing a file">
+          <a class="mark" href="#products-p3-1" style="left:33.681%;top:53.622%;width:32.639%;height:15.563%" data-n="1" aria-label="1: What the file would do"><span>1</span></a><a class="mark" href="#products-p3-2" style="left:55.618%;top:70.295%;width:10.701%;height:4.917%" data-n="2" aria-label="2: Load"><span>2</span></a>
+        </div>
+        <figcaption>After choosing a file</figcaption>
+        <ol class="keys"><li id="products-p3-1" data-n="1"><span class="num">1</span><div>What the file would do: how many products are new, how many are already on the list, and how many rows have errors and will be skipped, with the reason. Products missing from the file are not retired.</div></li><li id="products-p3-2" data-n="2"><span class="num">2</span><div><b>Load … new items</b> adds the new products. In the preview version the file’s contents are a fixed sample.</div></li></ol>
+      </figure>
+      <figure class="shot" id="products-p4">
+        <h4>Retire item</h4>
+        <div class="frame" style="aspect-ratio:1440/900">
+          <img src="img/74-retire-item.png" width="1440" height="900" loading="lazy"
+               alt="Opened from Retire on a product">
+          <a class="mark" href="#products-p4-1" style="left:58.703%;top:53.347%;width:7.616%;height:4.917%" data-n="1" aria-label="1: Retire item"><span>1</span></a>
+        </div>
+        <figcaption>Opened from Retire on a product</figcaption>
+        <ol class="keys"><li id="products-p4-1" data-n="1"><span class="num">1</span><div><b>Retire item</b> confirms. Cans already on board stay in Sea Stock; new scans of this product are held for review. <b>Cancel</b> keeps it active.</div></li></ol>
+      </figure>
+      <figure class="shot" id="products-p5">
+        <h4>Edit a label field</h4>
+        <div class="frame" style="aspect-ratio:1440/900">
+          <img src="img/76-edit-label-field.png" width="1440" height="900" loading="lazy"
+               alt="Opened from Edit on a label field">
+          <a class="mark" href="#products-p5-1" style="left:33.681%;top:36.792%;width:32.639%;height:8.083%" data-n="1" aria-label="1: Required"><span>1</span></a><a class="mark" href="#products-p5-2" style="left:33.681%;top:45.986%;width:32.639%;height:12.667%" data-n="2" aria-label="2: Rule"><span>2</span></a>
+        </div>
+        <figcaption>Opened from Edit on a label field</figcaption>
+        <ol class="keys"><li id="products-p5-1" data-n="1"><span class="num">1</span><div><b>Required</b>: Always, Where present, or Base and 1K only.</div></li><li id="products-p5-2" data-n="2"><span class="num">2</span><div><b>Rule</b>: what the value must look like. <b>Save to draft</b> keeps the change without sending it to tablets yet.</div></li></ol>
+      </figure>
+      <figure class="shot" id="products-p6">
+        <h4>Unpublished changes</h4>
+        <div class="frame" style="aspect-ratio:1440/900">
+          <img src="img/77-label-schema-unpublished.png" width="1440" height="900" loading="lazy"
+               alt="After saving a change to draft">
+          <a class="mark" href="#products-p6-1" style="left:70.308%;top:17.458%;width:27.678%;height:4.917%" data-n="1" aria-label="1: Unpublished changes"><span>1</span></a>
+        </div>
+        <figcaption>After saving a change to draft</figcaption>
+        <ol class="keys"><li id="products-p6-1" data-n="1"><span class="num">1</span><div><b>Unpublished changes</b> means your edits are not on the tablets yet. Click <b>Publish version …</b> to send them, or <b>Discard</b> to throw them away.</div></li></ol>
+      </figure>
+    </section>
+  </main>
+</div>
+
+<script>
+// Pointing at an explanation lights up its box, and the other way round.
+document.querySelectorAll('figure.shot').forEach((fig) => {
+  const light = (n, on) => fig.querySelectorAll(`[data-n="${n}"]`).forEach((el) => el.classList.toggle('lit', on))
+  fig.querySelectorAll('[data-n]').forEach((el) => {
+    const n = el.dataset.n
+    el.addEventListener('mouseenter', () => light(n, true))
+    el.addEventListener('mouseleave', () => light(n, false))
+    el.addEventListener('focusin', () => light(n, true))
+    el.addEventListener('focusout', () => light(n, false))
+  })
+})
+// Mark the screen you are reading in the index.
+const links = [...document.querySelectorAll('nav.index a')]
+const seen = new IntersectionObserver((entries) => {
+  entries.forEach((e) => {
+    if (!e.isIntersecting) return
+    links.forEach((a) => a.classList.toggle('on', a.getAttribute('href') === '#' + e.target.id))
+  })
+}, { rootMargin: '0px 0px -70% 0px' })
+document.querySelectorAll('main > header, section.screen').forEach((s) => seen.observe(s))
+</script>
