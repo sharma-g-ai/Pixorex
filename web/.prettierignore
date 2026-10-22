@@ -1,0 +1,8 @@
+dist
+node_modules
+src/api/generated
+package-lock.json
+
+# Sample tables stay one row per line
+src/data/sample.ts
+src/data/roles.ts

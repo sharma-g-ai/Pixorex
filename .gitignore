@@ -1,0 +1,8 @@
+# Secrets and local env — never commit
+.env
+.env.*
+!.env.example
+
+# Node / web
+node_modules/
+web/dist/

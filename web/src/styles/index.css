@@ -1,0 +1,64 @@
+@import 'tailwindcss';
+
+/*
+ * PPG | SeaStock design tokens. Use them through Tailwind classes (bg-brand,
+ * text-ink-muted, border-line, ...); never hardcode colours or fonts in components.
+ */
+@theme {
+  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+
+  /* Brand (PPG blue) */
+  --color-brand: #00529b;
+  --color-brand-dark: #003366;
+  --color-brand-accent: #00a3e0;
+  --color-brand-soft: #e6f0fa;
+  --color-brand-tint: #f3f8fd;
+
+  /* Text */
+  --color-ink: #0f172a;
+  --color-ink-muted: #526070;
+  --color-ink-subtle: #94a0ae;
+
+  /* Surfaces and lines */
+  --color-surface: #ffffff;
+  --color-page: #f4f6f9;
+  --color-line: #e2e8f0;
+  --color-line-soft: #eef2f6;
+  --color-line-strong: #cfd8e3; /* form fields, secondary buttons */
+
+  /* Status */
+  --color-danger: #c62828;
+  --color-danger-strong: #8e1c1c;
+  --color-danger-soft: #fdecea;
+  --color-warning: #b45309;
+  --color-warning-soft: #fdf1dc;
+  --color-info: #00529b;
+  --color-info-soft: #e6f0fa;
+  --color-success: #15803d;
+  --color-success-soft: #e3f4e8;
+  --color-table-head: #f8fafc;
+
+  /* Component types */
+  --color-base: #1d4ed8;
+  --color-base-soft: #e8efff;
+  --color-hardener: #a16207;
+  --color-hardener-soft: #fdf3d7;
+  --color-onek: #475569;
+  --color-onek-soft: #eef1f5;
+
+  /* Text sizes */
+  --text-label: 10.5px; /* uppercase section labels */
+  --text-caption: 11px;
+  --text-meta: 11.5px;
+  --text-small: 12.5px; /* subtitles, secondary lines */
+  --text-body-sm: 13px;
+  --text-body: 13.5px; /* menu items, body text */
+  --text-card-title: 15px;
+  --text-page-title: 20px;
+  --text-stat: 26px; /* big numbers on stat tiles */
+}
+
+body {
+  @apply bg-page font-sans text-ink;
+}
