@@ -1,6 +1,6 @@
 # Web portal screens — compact version
 
-Static screens for the web portal (BRD §7, FR-20 – FR-27), in 8 screens. The 17-screen version is in `C:tg\ppg-seastock`.
+Static screens for the web portal (BRD §7, FR-20 – FR-27), in 8 screens. The 17-screen version is in `C:\atg\ppg-seastock`.
 
 ## Screens (compact: 8)
 

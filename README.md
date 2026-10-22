@@ -1,6 +1,6 @@
 # PPG | SeaStock — compact version
 
-The same portal as `C:tg\ppg-seastock` (17 screens), merged into **8 screens** with no
+The same portal as `C:\atg\ppg-seastock` (17 screens), merged into **8 screens** with no
 repeated data. Both are shown to the team to choose one.
 
 Inventory and consumption tracking for PPG paint and thinners on board vessels.
