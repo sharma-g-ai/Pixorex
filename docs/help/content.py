@@ -15,7 +15,9 @@ INTRO = {
     'how': [
         'Each screenshot has numbered boxes. The list under it explains each number.',
         'Point at an explanation to light up its box on the screenshot, or click a box to jump to its explanation.',
-        'Screens look a little different depending on your role. Where they do, this guide says so.',
+        'The screenshots are taken as a <b>PPG Admin with access to all customers</b>, who sees every screen and every button. If you have a different role, you see the same screens with only your own customers or vessel, and some screens or buttons are not there.',
+        'Where a role sees something different, the guide shows it with its own screenshot (Customer Admin on Overview and Users, a PPG Admin limited to one region on Overview, Ship Admin on Sea Stock) or says so in the text, for example which ways of grouping each role has.',
+        'Not sure which screens you have? See <b>Roles</b> below, or the Roles &amp; permissions tab on the Users page.',
     ],
     'preview': (
         'This guide was made from the preview version of SeaStock, which runs on sample data. '
