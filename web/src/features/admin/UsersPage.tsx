@@ -14,7 +14,8 @@ import { TextField } from '../../components/TextField'
 import type { RegionCode, RoleKey, Scope, User } from '../../data/model'
 import { scopeLabel, visibleCustomers, visibleVessels } from '../../data/queries'
 import { accessOf, roleInfo, roles } from '../../data/roles'
-import { customers, regions, users as sampleUsers, vessels } from '../../data/sample'
+import { customers, regions, users, vessels } from '../../data/sample'
+import { saveUser, useStore } from '../../data/store'
 import { formatDateTime } from '../../lib/format'
 
 const statusLook: Record<
@@ -41,7 +42,8 @@ function managedBy(admin: User, user: User): boolean {
 /** FR-22: users, each tied to a vessel, a customer or PPG, with a role (FR-23) and scope (FR-24). */
 export function UsersPage() {
   const { user: admin } = useViewer()
-  const [rows, setRows] = useState(sampleUsers)
+  useStore()
+  const rows = users
   const [role, setRole] = useState<RoleKey | ''>('')
   const [status, setStatus] = useState('')
   const [search, setSearch] = useState('')
@@ -171,11 +173,7 @@ export function UsersPage() {
           admin={admin}
           onClose={() => setEditing(null)}
           onSave={(u) => {
-            setRows((all) =>
-              all.some((x) => x.id === u.id)
-                ? all.map((x) => (x.id === u.id ? u : x))
-                : [...all, u],
-            )
+            saveUser(u)
             setEditing(null)
           }}
         />

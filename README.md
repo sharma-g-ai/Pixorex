@@ -43,6 +43,11 @@ The BRD does not set the sign-in method (D-11); e-mail and password follow the P
 
 ## Sample data
 
+Changes made in the screens (add or edit customers, vessels, users, regions and products;
+retire or restore products; bulk load; publish the label schema; match unrecognised scans)
+show on every screen and are kept until the browser tab is closed. **Reset sample data** on
+the sign-in page brings everything back to the start, e.g. before a demo.
+
 All names, IDs and e-mail addresses are made up (`.example` domains). Product names and
 article numbers follow the BRD examples and are placeholders until PPG provides the master
 item list (D-02). Sea Stock is worked out from the transactions (opening count + receipts −

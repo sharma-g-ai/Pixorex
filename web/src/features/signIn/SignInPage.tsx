@@ -4,6 +4,7 @@ import { useSession } from '../../app/viewer'
 import { Button } from '../../components/Button'
 import { Wordmark } from '../../components/layout/Wordmark'
 import { TextField } from '../../components/TextField'
+import { resetSampleData } from '../../data/store'
 
 /**
  * Sign in with work e-mail and password. The role decides where the user lands: PPG Admin and
@@ -17,6 +18,7 @@ export function SignInPage() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [mode, setMode] = useState<'sign-in' | 'forgot' | 'sent'>('sign-in')
+  const [wasReset, setWasReset] = useState(false)
 
   if (user) return <Navigate to="/" replace />
 
@@ -105,6 +107,25 @@ export function SignInPage() {
                 </button>
               </div>
             </form>
+          )}
+
+          {mode === 'sign-in' && (
+            <div className="mt-10 border-t border-line pt-4 text-center text-caption text-ink-subtle">
+              Prototype with sample data.{' '}
+              <button
+                type="button"
+                className="font-semibold text-brand hover:underline"
+                onClick={() => {
+                  resetSampleData()
+                  setWasReset(true)
+                }}
+              >
+                Reset sample data
+              </button>
+              {wasReset && (
+                <span className="block text-success">Sample data is back to the start.</span>
+              )}
+            </div>
           )}
 
           {mode === 'forgot' && (

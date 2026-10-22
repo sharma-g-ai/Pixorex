@@ -10,12 +10,14 @@ import { FilterBar } from '../../components/ScopeFilters'
 import { SelectField } from '../../components/SelectField'
 import { TextField } from '../../components/TextField'
 import type { Customer, RegionCode } from '../../data/model'
-import { customers as sampleCustomers, NOW, regions, users, vessels } from '../../data/sample'
+import { customers, NOW, regions, users, vessels } from '../../data/sample'
+import { saveCustomer, useStore } from '../../data/store'
 import { formatDate } from '../../lib/format'
 
 /** FR-21: customers, with their PPG customer ID and region. Changes last until reload. */
 export function CustomersPage() {
-  const [rows, setRows] = useState(sampleCustomers)
+  useStore()
+  const rows = customers
   const [region, setRegion] = useState('')
   const [search, setSearch] = useState('')
   const [editing, setEditing] = useState<Customer | 'new' | null>(null)
@@ -120,11 +122,7 @@ export function CustomersPage() {
           customer={editing === 'new' ? null : editing}
           onClose={() => setEditing(null)}
           onSave={(c) => {
-            setRows((all) =>
-              all.some((x) => x.id === c.id)
-                ? all.map((x) => (x.id === c.id ? c : x))
-                : [...all, c],
-            )
+            saveCustomer(c)
             setEditing(null)
           }}
         />

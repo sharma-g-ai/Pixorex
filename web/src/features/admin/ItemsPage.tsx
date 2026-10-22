@@ -11,12 +11,14 @@ import { SelectField } from '../../components/SelectField'
 import { ComponentBadge } from '../../components/StockBadges'
 import { TextField } from '../../components/TextField'
 import type { ComponentType, Item } from '../../data/model'
-import { items as sampleItems } from '../../data/sample'
+import { items } from '../../data/sample'
+import { addItems, setItemStatus, useStore } from '../../data/store'
 import { formatLiters } from '../../lib/format'
 
 /** FR-26: the master item list, with additions, retirements and bulk load. */
 export function ItemsPage() {
-  const [rows, setRows] = useState(sampleItems)
+  useStore()
+  const rows = items
   const [component, setComponent] = useState('')
   const [status, setStatus] = useState('active')
   const [search, setSearch] = useState('')
@@ -125,16 +127,7 @@ export function ItemsPage() {
                         Retire
                       </Button>
                     ) : (
-                      <Button
-                        variant="link"
-                        onClick={() =>
-                          setRows((all) =>
-                            all.map((x) =>
-                              x.articleNo === i.articleNo ? { ...x, status: 'active' } : x,
-                            ),
-                          )
-                        }
-                      >
+                      <Button variant="link" onClick={() => setItemStatus(i.articleNo, 'active')}>
                         Restore
                       </Button>
                     ),
@@ -155,7 +148,7 @@ export function ItemsPage() {
           existing={rows.map((r) => r.articleNo)}
           onClose={() => setAdding(false)}
           onSave={(i) => {
-            setRows((all) => [i, ...all])
+            addItems([i])
             setAdding(false)
           }}
         />
@@ -173,11 +166,7 @@ export function ItemsPage() {
               <Button
                 variant="danger"
                 onClick={() => {
-                  setRows((all) =>
-                    all.map((x) =>
-                      x.articleNo === retiring.articleNo ? { ...x, status: 'retired' } : x,
-                    ),
-                  )
+                  setItemStatus(retiring.articleNo, 'retired')
                   setRetiring(null)
                 }}
               >
@@ -311,13 +300,77 @@ function ItemDialog({
   )
 }
 
+/** New rows in the sample PPG file used by the bulk-load preview. */
+const bulkSample: Item[] = [
+  {
+    articleNo: '189955',
+    product: 'SIGMASHIELD 1200',
+    shade: 'Grey',
+    componentType: 'Base',
+    packSize: '20 L',
+    unitVolume: 20,
+    status: 'active',
+  },
+  {
+    articleNo: '189956',
+    product: 'SIGMASHIELD 1200',
+    shade: '',
+    componentType: 'Hardener',
+    packSize: '5 L',
+    unitVolume: 5,
+    status: 'active',
+  },
+  {
+    articleNo: '184520',
+    product: 'SIGMADUR 520',
+    shade: 'Black 9000',
+    componentType: 'Base',
+    packSize: '20 L',
+    unitVolume: 20,
+    status: 'active',
+  },
+  {
+    articleNo: '184521',
+    product: 'SIGMADUR 520',
+    shade: '',
+    componentType: 'Hardener',
+    packSize: '5 L',
+    unitVolume: 5,
+    status: 'active',
+  },
+  {
+    articleNo: '181205',
+    product: 'SIGMAPRIME 200',
+    shade: 'Grey',
+    componentType: 'Base',
+    packSize: '20 L',
+    unitVolume: 20,
+    status: 'active',
+  },
+  {
+    articleNo: '100294',
+    product: 'PPG THINNER 91-10',
+    shade: '',
+    componentType: '1K',
+    packSize: '5 L',
+    unitVolume: 5,
+    status: 'active',
+  },
+]
+
 /** Bulk load from PPG's Excel list (D-02). The preview shows what the file would change. */
 function BulkLoadDialog({ onClose }: { onClose: () => void }) {
   const [file, setFile] = useState<string | null>(null)
+  // Static screens: whatever file is picked, its rows are this sample of PPG's list.
+  const fileRows = [...items.slice(0, 11), ...bulkSample]
+  const fresh = fileRows.filter((r) => !items.some((i) => i.articleNo === r.articleNo))
   const preview = [
-    { label: 'New items', count: 6, tone: 'success' as const },
-    { label: 'Changed (pack size or shade)', count: 2, tone: 'warning' as const },
-    { label: 'Unchanged', count: 11, tone: 'neutral' as const },
+    { label: 'New items', count: fresh.length, tone: 'success' as const },
+    {
+      label: 'Already on the list',
+      count: fileRows.length - fresh.length,
+      tone: 'neutral' as const,
+    },
     { label: 'Rows with errors — skipped', count: 1, tone: 'danger' as const },
   ]
   return (
@@ -329,8 +382,14 @@ function BulkLoadDialog({ onClose }: { onClose: () => void }) {
           <Button variant="secondary" onClick={onClose}>
             Cancel
           </Button>
-          <Button disabled={!file} onClick={onClose}>
-            Load 8 items
+          <Button
+            disabled={!file || fresh.length === 0}
+            onClick={() => {
+              addItems(fresh)
+              onClose()
+            }}
+          >
+            {fresh.length === 0 ? 'Nothing new to load' : `Load ${fresh.length} new items`}
           </Button>
         </>
       }

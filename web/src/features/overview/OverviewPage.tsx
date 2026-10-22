@@ -17,6 +17,7 @@ import {
 } from '../../data/queries'
 import { can, roleInfo } from '../../data/roles'
 import { NOW } from '../../data/sample'
+import { useStore } from '../../data/store'
 import { formatCans, formatLiters } from '../../lib/format'
 import { RecentActivity } from '../activity/RecentActivity'
 import { lateVessels, NeedsAttention } from './NeedsAttention'
@@ -29,6 +30,7 @@ const TO = NOW.slice(0, 10)
  * Sea Stock and Consumption, so they are not repeated here.
  */
 export function OverviewPage() {
+  useStore()
   const { user } = useViewer()
   const custs = visibleCustomers(user)
   const vess = visibleVessels(user)

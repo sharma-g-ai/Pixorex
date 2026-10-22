@@ -19,6 +19,7 @@ import {
 } from '../../data/queries'
 import { can } from '../../data/roles'
 import { items } from '../../data/sample'
+import { matchScan, useStore } from '../../data/store'
 import { formatDateTime } from '../../lib/format'
 
 /** Vessels whose tablet has not synced within the 1–3 days A-07 expects. */
@@ -38,6 +39,7 @@ function visibleVesselsById(ids: string[]) {
  * stock surfaced for review, unrecognised articles flagged rather than rejected.
  */
 export function NeedsAttention() {
+  useStore()
   const { user } = useViewer()
   const ids = visibleVessels(user).map((v) => v.id)
   const late = lateVessels(ids)
@@ -234,6 +236,7 @@ function MatchDialog({ scan, onClose }: { scan: UnrecognisedScan; onClose: () =>
     (i) => i.status === 'active' && i.product === scan.readProduct && i.shade === scan.readShade,
   )
   const [article, setArticle] = useState(suggestion?.articleNo ?? '')
+  const { user } = useViewer()
   return (
     <Dialog
       title="Match to article"
@@ -243,7 +246,13 @@ function MatchDialog({ scan, onClose }: { scan: UnrecognisedScan; onClose: () =>
           <Button variant="secondary" onClick={onClose}>
             Cancel
           </Button>
-          <Button onClick={onClose} disabled={!article}>
+          <Button
+            disabled={!article}
+            onClick={() => {
+              matchScan(scan, article, user)
+              onClose()
+            }}
+          >
             Match and post
           </Button>
         </>

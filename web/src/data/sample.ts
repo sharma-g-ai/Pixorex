@@ -288,7 +288,7 @@ export const labelSchema = {
     { key: 'component_type', label: 'Component type', required: 'Always', role: 'Base, Hardener or 1K', rule: 'See component rules below' },
     { key: 'pack_volume', label: 'Pack volume', required: 'Always', role: 'Turns cans into liters', rule: 'Number and unit, e.g. "20 L"' },
     { key: 'batch_no', label: 'Batch number', required: 'Where present', role: 'Secondary; kept with the transaction', rule: 'Letters and digits as printed' },
-  ] satisfies LabelField[],
+  ] as LabelField[],
   componentRules: [
     { when: 'Product is one component (1K), including thinners', then: 'Component type = 1K' },
     { when: 'Product is two components (2K)', then: 'Component type = Base or Hardener, as printed on the label' },

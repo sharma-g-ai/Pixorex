@@ -10,10 +10,14 @@ import { TextAreaField } from '../../components/TextAreaField'
 import type { LabelField } from '../../data/model'
 import { userById } from '../../data/queries'
 import { labelSchema } from '../../data/sample'
+import { publishLabelSchema, useStore } from '../../data/store'
+import { useViewer } from '../../app/viewer'
 import { formatDateTime } from '../../lib/format'
 
 /** FR-27: the fields read from a can label and their rules, changed without a code change. */
 export function LabelSchemaPage() {
+  useStore()
+  const { user } = useViewer()
   const [fields, setFields] = useState<LabelField[]>(labelSchema.fields)
   const [editing, setEditing] = useState<LabelField | null>(null)
   const changed = fields.some((f, i) => JSON.stringify(f) !== JSON.stringify(labelSchema.fields[i]))
@@ -33,7 +37,9 @@ export function LabelSchemaPage() {
             >
               Discard
             </Button>
-            <Button disabled={!changed}>Publish version {labelSchema.version + 1}</Button>
+            <Button disabled={!changed} onClick={() => publishLabelSchema(fields, user.id)}>
+              Publish version {labelSchema.version + 1}
+            </Button>
           </>
         }
       />

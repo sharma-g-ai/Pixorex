@@ -7,11 +7,13 @@ import { Card, Note } from '../../components/Page'
 import { TextField } from '../../components/TextField'
 import type { Region } from '../../data/model'
 import { customerById } from '../../data/queries'
-import { customers, regions as sampleRegions, users, vessels } from '../../data/sample'
+import { customers, regions, users, vessels } from '../../data/sample'
+import { saveRegion, useStore } from '../../data/store'
 
 /** FR-24: the geographic levels that scope access and reporting (D-05: PPG sales regions). */
 export function RegionsPage() {
-  const [rows, setRows] = useState(sampleRegions)
+  useStore()
+  const rows = regions
   const [editing, setEditing] = useState<Region | null>(null)
   return (
     <>
@@ -74,7 +76,7 @@ export function RegionsPage() {
           region={editing}
           onClose={() => setEditing(null)}
           onSave={(r) => {
-            setRows((all) => all.map((x) => (x.code === r.code ? r : x)))
+            saveRegion(r)
             setEditing(null)
           }}
         />

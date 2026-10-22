@@ -184,3 +184,27 @@ describe('sign-in', () => {
     expect(await screen.findByRole('heading', { name: 'Sign in' })).toBeInTheDocument()
   })
 })
+
+describe('changes show on other screens', () => {
+  it('a customer added on one screen can be picked when adding a vessel', async () => {
+    const { fireEvent, within } = await import('@testing-library/react')
+    sessionStorage.setItem('seastock.session', 'u01')
+    window.history.pushState({}, '', '/admin/customers')
+    render(<App />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Add customer' }))
+    const form = within(screen.getByRole('dialog'))
+    fireEvent.change(form.getByLabelText('Customer name'), { target: { value: 'Test Lines' } })
+    fireEvent.change(form.getByLabelText('Customer ID (as in PPG systems)'), {
+      target: { value: 'C-999' },
+    })
+    fireEvent.change(form.getByLabelText('Region'), { target: { value: 'EMEA' } })
+    fireEvent.click(form.getByRole('button', { name: 'Add customer' }))
+    expect(await screen.findByText('Test Lines')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Vessels' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Add vessel' }))
+    expect(
+      within(screen.getByRole('dialog')).getByRole('option', { name: 'Test Lines · EMEA' }),
+    ).toBeInTheDocument()
+  })
+})

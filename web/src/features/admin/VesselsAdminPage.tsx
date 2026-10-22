@@ -13,12 +13,14 @@ import { SyncAge } from '../../components/StockBadges'
 import { TextField } from '../../components/TextField'
 import type { Vessel } from '../../data/model'
 import { customerById } from '../../data/queries'
-import { customers, regions, vessels as sampleVessels } from '../../data/sample'
+import { customers, regions, vessels } from '../../data/sample'
+import { saveVessel, useStore } from '../../data/store'
 import { formatDate } from '../../lib/format'
 
 /** FR-21: vessels, their PPG vessel ID, IMO, customer and tablet (D-12: one per vessel). */
 export function VesselsAdminPage() {
-  const [rows, setRows] = useState(sampleVessels)
+  useStore()
+  const rows = vessels
   const [region, setRegion] = useState('')
   const [customer, setCustomer] = useState('')
   const [search, setSearch] = useState('')
@@ -152,11 +154,7 @@ export function VesselsAdminPage() {
           vessel={editing === 'new' ? null : editing}
           onClose={() => setEditing(null)}
           onSave={(v) => {
-            setRows((all) =>
-              all.some((x) => x.id === v.id)
-                ? all.map((x) => (x.id === v.id ? v : x))
-                : [...all, v],
-            )
+            saveVessel(v)
             setEditing(null)
           }}
         />
