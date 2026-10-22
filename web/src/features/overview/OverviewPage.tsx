@@ -72,23 +72,18 @@ export function OverviewPage() {
           )}
         </div>
 
-        <div className="grid gap-5 xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
-          <NeedsAttention />
-          <div>
-            <Card
-              title="Recent activity"
-              actions={
-                <Link
-                  to="/activity"
-                  className="text-small font-semibold text-brand hover:underline"
-                >
-                  All activity →
-                </Link>
-              }
-            >
-              <RecentActivity vesselIds={ids} limit={10} />
-            </Card>
-          </div>
+        <NeedsAttention />
+        <div>
+          <Card
+            title="Recent activity"
+            actions={
+              <Link to="/activity" className="text-small font-semibold text-brand hover:underline">
+                All activity →
+              </Link>
+            }
+          >
+            <RecentActivity vesselIds={ids} limit={8} />
+          </Card>
         </div>
       </PageBody>
     </>

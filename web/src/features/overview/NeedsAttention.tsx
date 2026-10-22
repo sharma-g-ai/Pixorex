@@ -95,7 +95,7 @@ export function NeedsAttention() {
         <>
           <Card
             title="Negative stock"
-            subtitle="More cans scanned out than the vessel has on record"
+            subtitle="More cans scanned out than on record: usually a receipt not scanned, a missed opening count, or a can scanned out twice (BRD §13). Correct it with a stock adjustment on the tablet."
             flush
           >
             <div className="p-4">
@@ -142,16 +142,6 @@ export function NeedsAttention() {
                     cell: (l) => <b className="text-danger">{l.cans} cans</b>,
                   },
                   { header: 'Last change', width: 1.1, cell: (l) => formatDateTime(l.lastChange) },
-                  {
-                    header: 'Likely cause',
-                    width: 2,
-                    cell: () => (
-                      <span className="text-small text-ink-muted">
-                        A receipt not scanned, a missed opening count, or a can scanned out twice
-                        (BRD §13). Correct with a stock adjustment on the tablet.
-                      </span>
-                    ),
-                  },
                 ]}
               />
             </div>
@@ -203,11 +193,11 @@ export function NeedsAttention() {
                   { header: 'Recorded', width: 1.1, cell: (s) => formatDateTime(s.recordedAt) },
                   {
                     header: '',
-                    width: 0.9,
+                    width: 1.2,
                     align: 'right',
                     cell: (s) =>
                       canResolve ? (
-                        <Button variant="link" onClick={() => setMatching(s)}>
+                        <Button variant="secondary" onClick={() => setMatching(s)}>
                           Match to article
                         </Button>
                       ) : (
@@ -218,10 +208,6 @@ export function NeedsAttention() {
               />
             </div>
           </Card>
-          <Note>
-            Who reviews negative stock and how it is corrected in the portal is not set in the BRD
-            yet. Corrections are made as stock adjustments on the tablet (FR-13).
-          </Note>
         </>
       )}
 
