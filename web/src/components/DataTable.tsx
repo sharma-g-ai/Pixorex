@@ -21,7 +21,13 @@ interface DataTableProps<Row> {
 /** Bordered table with a grey header row. */
 export function DataTable<Row>({ label, columns, rows, rowKey, empty }: DataTableProps<Row>) {
   const template = columns.map((c) => `minmax(0,${c.width ?? 1}fr)`).join(' ')
-  const align = (c: Column<Row>) => (c.align === 'right' ? 'text-right' : '')
+  // A text column right after a number column gets extra space, so "1,040 L" and the next
+  // column's text don't run together.
+  const align = (c: Column<Row>) => {
+    if (c.align === 'right') return 'text-right'
+    const before = columns[columns.indexOf(c) - 1]
+    return before?.align === 'right' ? 'pl-6' : ''
+  }
 
   return (
     <div role="table" aria-label={label} className="overflow-hidden rounded-xl border border-line">
