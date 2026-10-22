@@ -126,7 +126,18 @@ def no_table_borders(table):
 
 
 def widths(table, inches):
+    """Fixed column widths that Word and Google Docs both keep: the table width, the grid
+    columns and every cell carry them, and the layout is fixed so nothing stretches."""
     table.autofit = False
+    tblpr = table._tbl.tblPr
+    tblw = tblpr.find(qn('w:tblW'))
+    if tblw is None:
+        tblw = OxmlElement('w:tblW')
+        tblpr.append(tblw)
+    tblw.set(qn('w:w'), str(int(sum(inches) * 1440)))
+    tblw.set(qn('w:type'), 'dxa')
+    for col, w in zip(table.columns, inches):
+        col.width = Inches(w)
     for row in table.rows:
         for cell, w in zip(row.cells, inches):
             cell.width = Inches(w)
@@ -209,7 +220,7 @@ def figure(fig, title=None):
         bp = body.paragraphs[0]
         bp.paragraph_format.space_after = Pt(2)
         rich(bp, text)
-    widths(table, [0.28, WIDTH.inches - 0.28])
+    widths(table, [0.3, WIDTH.inches - 0.3])
     doc.add_paragraph().paragraph_format.space_after = Pt(6)
 
 
