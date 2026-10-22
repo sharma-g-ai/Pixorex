@@ -12,9 +12,14 @@ export function RecentActivity({ vesselIds, limit }: { vesselIds: string[]; limi
       {rows.map((t) => {
         const item = itemByArticle(t.articleNo)
         return (
-          <li key={t.id} className="flex items-start gap-3 py-2.5 first:pt-0 last:pb-0">
-            <TransactionBadge type={t.type} />
-            <div className="min-w-0 grow">
+          <li
+            key={t.id}
+            className="grid grid-cols-[7.5rem_minmax(0,1fr)_5rem] items-center gap-3 py-2.5 first:pt-0 last:pb-0"
+          >
+            <div>
+              <TransactionBadge type={t.type} />
+            </div>
+            <div className="min-w-0">
               <div className="truncate text-body-sm font-semibold">
                 {t.cans > 0 ? '+' : ''}
                 {t.cans} × {item?.product} {item?.shade || item?.componentType}
@@ -23,7 +28,7 @@ export function RecentActivity({ vesselIds, limit }: { vesselIds: string[]; limi
                 {vesselById(t.vessel)?.name} · {formatDateTime(t.recordedAt)}
               </div>
             </div>
-            <div className="text-body-sm font-semibold whitespace-nowrap">
+            <div className="text-right text-body-sm font-semibold whitespace-nowrap">
               {formatLiters(liters(t.articleNo, t.cans))}
             </div>
           </li>
