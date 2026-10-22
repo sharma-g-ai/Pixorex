@@ -10,12 +10,11 @@ export function Layout() {
   const navigate = useNavigate()
 
   // A page the previewed role may not open goes back to their home page.
-  if (!allowedPath(user.role, location.pathname))
-    return <Navigate to={homePath(user.role)} replace />
+  if (!allowedPath(user, location.pathname)) return <Navigate to={homePath(user)} replace />
 
   return (
     <div className="flex h-screen overflow-hidden bg-page">
-      <Sidebar sections={navigationFor(user.role)} onSignOut={() => navigate('/sign-in')} />
+      <Sidebar sections={navigationFor(user)} onSignOut={() => navigate('/sign-in')} />
       <main className="flex min-w-0 grow flex-col">
         {/* Remount on a role switch so filters start fresh. */}
         <Outlet key={user.id} />

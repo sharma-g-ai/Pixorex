@@ -106,3 +106,21 @@ describe('merged screens keep what they took over', () => {
     expect(screen.getByRole('tab', { name: 'Roles & permissions' })).toBeInTheDocument()
   })
 })
+
+describe('three roles', () => {
+  it('uses the names from the reference screens', async () => {
+    const { roles } = await import('../data/roles')
+    expect(roles.map((r) => r.label)).toEqual(['PPG Admin', 'Customer Admin', 'Ship Admin'])
+  })
+
+  it('only a PPG Admin with all customers runs administration', async () => {
+    const { can } = await import('../data/roles')
+    const { users } = await import('../data/sample')
+    const byId = (id: string) => users.find((u) => u.id === id)!
+    expect(can(byId('u01'), 'manage-customers')).toBe(true) // all customers
+    expect(can(byId('u02'), 'manage-customers')).toBe(false) // EMEA only (sales)
+    expect(can(byId('u02'), 'export')).toBe(true)
+    expect(can(byId('u06'), 'manage-users')).toBe(true) // Customer Admin, own customer
+    expect(can(byId('u12'), 'view-review')).toBe(false) // Ship Admin
+  })
+})

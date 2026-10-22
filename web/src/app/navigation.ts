@@ -1,5 +1,5 @@
 import type { IconName } from '../components/icons'
-import type { RoleKey } from '../data/model'
+import type { User } from '../data/model'
 import { can, type Permission } from '../data/roles'
 
 export interface NavItem {
@@ -78,18 +78,18 @@ const sections: NavSection[] = [
   },
 ]
 
-export function navigationFor(role: RoleKey): NavSection[] {
+export function navigationFor(user: User): NavSection[] {
   return sections
-    .map((s) => ({ ...s, items: s.items.filter((i) => can(role, i.needs)) }))
+    .map((s) => ({ ...s, items: s.items.filter((i) => can(user, i.needs)) }))
     .filter((s) => s.items.length > 0)
 }
 
-export function allowedPath(role: RoleKey, path: string): boolean {
+export function allowedPath(user: User, path: string): boolean {
   const item = sections.flatMap((s) => s.items).find((i) => path.startsWith(i.path))
-  return !item || can(role, item.needs)
+  return !item || can(user, item.needs)
 }
 
 /** Where a role lands after sign-in: a Chief Officer goes straight to their vessel's stock. */
-export function homePath(role: RoleKey): string {
-  return can(role, 'view-overview') ? '/overview' : '/sea-stock'
+export function homePath(user: User): string {
+  return can(user, 'view-overview') ? '/overview' : '/sea-stock'
 }

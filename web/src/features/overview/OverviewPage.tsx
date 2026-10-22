@@ -36,7 +36,7 @@ export function OverviewPage() {
   const stock = totals(stockLines(ids))
   const consumed = consumedTotals(consumptionLines(ids, FROM, TO))
   const late = lateVessels(ids).length
-  const review = can(user.role, 'view-review')
+  const review = can(user, 'view-review')
     ? negativeStock(ids).length + unrecognisedFor(ids).length
     : null
 

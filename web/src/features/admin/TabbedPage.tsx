@@ -25,7 +25,7 @@ export function TabbedPage({
 }) {
   const { user } = useViewer()
   const [params, setParams] = useSearchParams()
-  const allowed = tabs.filter((t) => can(user.role, t.needs))
+  const allowed = tabs.filter((t) => can(user, t.needs))
   const current = allowed.find((t) => t.key === params.get('tab')) ?? allowed[0]
   return (
     <>

@@ -13,8 +13,8 @@ interface Viewer {
 
 const ViewerContext = createContext<Viewer | null>(null)
 
-/** One sample user per role, plus a second PPG User scoped by customer instead of region. */
-export const previewUsers = ['u01', 'u02', 'u03', 'u06', 'u07', 'u12']
+/** One sample user per role; PPG Admin three times: all customers, one region, chosen customers. */
+export const previewUsers = ['u01', 'u02', 'u03', 'u06', 'u12']
 
 const KEY = 'seastock.preview-user'
 

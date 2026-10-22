@@ -15,7 +15,7 @@ Static screens for the web portal (BRD §7, FR-20 – FR-27), in 8 screens. The 
 | 7 | **Users**: tabs *Users*, *Roles & permissions* | `/admin/users?tab=` | FR-22, FR-23 | Users, Roles & permissions |
 | 8 | **Products**: tabs *Master item list*, *Label schema* | `/admin/products?tab=` | FR-26, FR-27 | Master item list, Label schema |
 
-A Chief Officer (Vessel User) has no Overview: they land on Sea Stock for their own vessel.
+A Ship Admin (Chief Officer) has no Overview: they land on Sea Stock for their own vessel.
 
 ### What changed, and why nothing is lost
 
@@ -27,13 +27,16 @@ A Chief Officer (Vessel User) has no Overview: they land on Sea Stock for their 
 
 ## Roles (FR-23, D-04, D-13)
 
-| Role | Level | Held by | Sees |
+Three roles, one per level, named as in the reference screens.
+
+| Role | Level | Held by (D-04) | Sees |
 |---|---|---|---|
-| PPG Administrator | PPG | Sea Stock admin | All customers and vessels |
-| PPG User | PPG | Sales team | Customers in their regions, or assigned customers |
-| Customer Administrator | Customer | Fleet Manager | Own customer's vessels |
-| Customer User | Customer | Procurement | Own customer's vessels |
-| Vessel User | Vessel | Chief Officer | Own vessel |
+| PPG Admin | PPG | Sea Stock admin; sales team | All customers, or only their regions or chosen customers |
+| Customer Admin | Customer | Fleet Manager; Procurement | Own customer's vessels |
+| Ship Admin | Vessel | Chief Officer | Own vessel |
+
+Only a PPG Admin with access to all customers manages customers, vessels, users, regions and products.
+A PPG Admin limited to regions or customers (sales) views and exports only.
 
 ## Left out on purpose (BRD §10)
 
@@ -47,14 +50,14 @@ A Chief Officer (Vessel User) has no Overview: they land on Sea Stock for their 
 
 These are shown on the screens as proposals. Please confirm or correct.
 
-1. **Customer Administrator rights.** Can a Fleet Manager add and edit their own customer's users? (FR-22 does not say who.)
-2. **PPG User scope.** D-04 says "customer specific"; FR-24 says by region. The screens allow both: whole regions or chosen customers.
+1. **Customer Admin rights.** Can a Customer Admin add and edit their own customer's users? (FR-22 does not say who.) Procurement and Fleet Managers share this role — is that right?
+2. **PPG Admin scope.** D-04 says sales are "customer specific"; FR-24 says by region. A PPG Admin can be given all customers, whole regions or chosen customers. Should a limited PPG Admin also run administration? The screens say no.
 3. **Geography.** D-05 says not necessary for the MVP, FR-24/25 include it. Screens include it. Can a global customer span regions?
 4. **Who reviews negative stock**, and is it only corrected by a stock adjustment on the tablet?
 5. **Unrecognised scans.** Held aside until a PPG Admin matches them to an article — confirm.
 6. **Pack size vs unit volume** (§8 lists both). Do they ever differ, e.g. a 20 L can holding 16 L of base?
 7. **Customer ID and vessel ID formats** in PPG systems (D-03).
 8. **Sign-in method:** PPG SSO, e-mail and password, or both (D-11)?
-9. **Vessel user account:** personal (named Chief Officer) or one shared account per vessel, given crew rotation?
+9. **Ship Admin account:** personal (named Chief Officer) or one shared account per vessel, given crew rotation?
 10. **Late sync.** Overview lists a vessel as late after 3 days without sync (A-07: every 1–3 days). Confirm the threshold.
 11. **Tablet pairing.** How a tablet is tied to its vessel (D-12: one per vessel).

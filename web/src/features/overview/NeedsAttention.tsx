@@ -41,10 +41,10 @@ export function NeedsAttention() {
   const { user } = useViewer()
   const ids = visibleVessels(user).map((v) => v.id)
   const late = lateVessels(ids)
-  const negative = can(user.role, 'view-review') ? negativeStock(ids) : []
-  const unrecognised = can(user.role, 'view-review') ? unrecognisedFor(ids) : []
+  const negative = can(user, 'view-review') ? negativeStock(ids) : []
+  const unrecognised = can(user, 'view-review') ? unrecognisedFor(ids) : []
   const [matching, setMatching] = useState<UnrecognisedScan | null>(null)
-  const canResolve = can(user.role, 'resolve-unrecognised')
+  const canResolve = can(user, 'resolve-unrecognised')
 
   return (
     <section id="attention" className="flex flex-col gap-5">
@@ -89,7 +89,7 @@ export function NeedsAttention() {
           />
         </div>
       </Card>
-      {can(user.role, 'view-review') && (
+      {can(user, 'view-review') && (
         <>
           <Card
             title="Negative stock"

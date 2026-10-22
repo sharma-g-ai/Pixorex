@@ -13,7 +13,7 @@ import { useViewer, ViewerProvider } from './viewer'
 
 function Home() {
   const { user } = useViewer()
-  return <Navigate to={homePath(user.role)} replace />
+  return <Navigate to={homePath(user)} replace />
 }
 
 export function App() {

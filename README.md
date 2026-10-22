@@ -23,9 +23,9 @@ npm run dev        # http://localhost:5181 (the 17-screen version uses 5180)
 
 Checks: `npm run typecheck`, `npm run lint`, `npm test` (renders every screen for every role, and checks the merged screens kept what they took over).
 
-Use **Prototype · preview as** at the bottom of the sidebar to see the portal as each role
-(PPG Administrator, PPG User by region, PPG User by customer, Customer Administrator,
-Customer User, Vessel User). Menus and data change with the role.
+Use **Prototype · preview as** at the bottom of the sidebar to see the portal as each role:
+PPG Admin (all customers), PPG Admin (one region), PPG Admin (chosen customers),
+Customer Admin and Ship Admin. Menus and data change with the role.
 
 ## Sample data
 

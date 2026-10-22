@@ -1,7 +1,7 @@
 import { Icon } from '../../components/icons'
 import { SectionBar } from './SectionBar'
 import { Card, Note } from '../../components/Page'
-import { can, permissionLabels, roles } from '../../data/roles'
+import { accessLabels, can, permissionLabels, roles } from '../../data/roles'
 import { users } from '../../data/sample'
 
 /** FR-23: what each role may see and do. Read-only; roles are fixed for the MVP. */
@@ -10,10 +10,10 @@ export function RolesPage() {
     <>
       <SectionBar
         title="Roles & permissions"
-        subtitle="Administrator and user roles at PPG and customer level; one role on the vessel"
+        subtitle="One role per level: PPG, customer and vessel"
       />
       <>
-        <div className="grid gap-3.5 md:grid-cols-3 xl:grid-cols-5">
+        <div className="grid gap-3.5 md:grid-cols-3">
           {roles.map((r) => (
             <div key={r.key} className="rounded-xl border border-line bg-surface p-4">
               <div className="text-label font-bold tracking-wider text-ink-subtle uppercase">
@@ -35,9 +35,10 @@ export function RolesPage() {
               <thead>
                 <tr className="bg-table-head text-caption font-bold tracking-wider text-ink-subtle uppercase">
                   <th className="border-b border-line px-4 py-2.75 text-left">Permission</th>
-                  {roles.map((r) => (
-                    <th key={r.key} className="border-b border-line px-3 py-2.75 text-center">
-                      {r.label}
+                  {accessLabels.map((a) => (
+                    <th key={a.key} className="border-b border-line px-3 py-2.75 text-center">
+                      {a.label}
+                      <div className="font-normal tracking-normal normal-case">{a.detail}</div>
                     </th>
                   ))}
                 </tr>
@@ -49,9 +50,9 @@ export function RolesPage() {
                       <div>{p.label}</div>
                       {p.note && <div className="text-caption text-ink-muted">{p.note}</div>}
                     </td>
-                    {roles.map((r) => (
-                      <td key={r.key} className="px-3 py-2.75 text-center">
-                        {can(r.key, p.key) ? (
+                    {accessLabels.map((a) => (
+                      <td key={a.key} className="px-3 py-2.75 text-center">
+                        {can(a.key, p.key) ? (
                           <Icon name="check" className="mx-auto text-success" aria-label="Yes" />
                         ) : (
                           <span className="text-ink-subtle">—</span>
@@ -66,7 +67,7 @@ export function RolesPage() {
         </Card>
         <Note>
           Proposed split, to confirm with PPG: the BRD sets the levels (FR-23, D-04, D-13) but not
-          every permission, e.g. whether a Customer Administrator manages their own users, or who
+          every permission, e.g. whether a Customer Admin manages their own users, or who
           reviews negative stock.
         </Note>
       </>

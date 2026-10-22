@@ -13,7 +13,7 @@ import { SelectField } from '../../components/SelectField'
 import { TextField } from '../../components/TextField'
 import type { RegionCode, RoleKey, Scope, User } from '../../data/model'
 import { scopeLabel, visibleCustomers, visibleVessels } from '../../data/queries'
-import { roleInfo, roles } from '../../data/roles'
+import { accessOf, roleInfo, roles } from '../../data/roles'
 import { customers, regions, users as sampleUsers, vessels } from '../../data/sample'
 import { formatDateTime } from '../../lib/format'
 
@@ -26,9 +26,9 @@ const statusLook: Record<
   disabled: { label: 'Disabled', tone: 'neutral' },
 }
 
-/** Users in the admin's own scope: everyone for PPG, own customer for a Customer Administrator. */
+/** Users in the admin's own scope: everyone for a PPG Admin, own customer for a Customer Admin. */
 function managedBy(admin: User, user: User): boolean {
-  if (admin.role === 'ppg-admin') return true
+  if (accessOf(admin) === 'ppg-all') return true
   const custs = new Set(visibleCustomers(admin).map((c) => c.id))
   if (user.scope.kind === 'customer') return custs.has(user.scope.customer)
   if (user.scope.kind === 'vessel') {
@@ -46,7 +46,7 @@ export function UsersPage() {
   const [status, setStatus] = useState('')
   const [search, setSearch] = useState('')
   const [editing, setEditing] = useState<User | 'new' | null>(null)
-  const assignable = admin.role === 'ppg-admin' ? roles : roles.filter((r) => r.level !== 'PPG')
+  const assignable = accessOf(admin) === 'ppg-all' ? roles : roles.filter((r) => r.level !== 'PPG')
   const shown = rows
     .filter((u) => managedBy(admin, u))
     .filter((u) => (!role || u.role === role) && (!status || u.status === status))
@@ -57,7 +57,7 @@ export function UsersPage() {
       <SectionBar
         title="Users"
         subtitle={
-          admin.role === 'ppg-admin'
+          accessOf(admin) === 'ppg-all'
             ? 'Everyone with access to Sea Stock'
             : `Users at ${scopeLabel(admin)}`
         }
@@ -230,7 +230,7 @@ function UserDialog({
   onClose: () => void
   onSave: (u: User) => void
 }) {
-  const isPpgAdmin = admin.role === 'ppg-admin'
+  const isPpgAdmin = accessOf(admin) === 'ppg-all'
   const assignable = isPpgAdmin ? roles : roles.filter((r) => r.level !== 'PPG')
   const ownCustomers = isPpgAdmin ? customers : visibleCustomers(admin)
   const ownVessels = isPpgAdmin ? vessels : visibleVessels(admin)
@@ -240,8 +240,12 @@ function UserDialog({
   const [title, setTitle] = useState(user?.title ?? '')
   const [role, setRole] = useState<RoleKey | ''>(user?.role ?? '')
   const [status, setStatus] = useState(user?.status ?? 'invited')
-  const [ppgScope, setPpgScope] = useState<'regions' | 'customers'>(
-    user?.scope.kind === 'customers' ? 'customers' : 'regions',
+  const [ppgScope, setPpgScope] = useState<'all' | 'regions' | 'customers'>(
+    user?.scope.kind === 'customers'
+      ? 'customers'
+      : user?.scope.kind === 'regions'
+        ? 'regions'
+        : 'all',
   )
   const [scopeRegions, setScopeRegions] = useState<RegionCode[]>(
     user?.scope.kind === 'regions' ? user.scope.regions : [],
@@ -260,16 +264,17 @@ function UserDialog({
 
   const level = role ? roleInfo(role).level : null
   let scope: Scope | null = null
-  if (role === 'ppg-admin') scope = { kind: 'all' }
-  else if (role === 'ppg-user')
+  if (role === 'ppg-admin')
     scope =
-      ppgScope === 'regions'
-        ? scopeRegions.length
-          ? { kind: 'regions', regions: scopeRegions }
-          : null
-        : scopeCustomers.length
-          ? { kind: 'customers', customers: scopeCustomers }
-          : null
+      ppgScope === 'all'
+        ? { kind: 'all' }
+        : ppgScope === 'regions'
+          ? scopeRegions.length
+            ? { kind: 'regions', regions: scopeRegions }
+            : null
+          : scopeCustomers.length
+            ? { kind: 'customers', customers: scopeCustomers }
+            : null
   else if (level === 'Customer' && customer) scope = { kind: 'customer', customer }
   else if (level === 'Vessel' && vessel) scope = { kind: 'vessel', vessel }
   const ready = name.trim() && /\S+@\S+\.\S+/.test(email) && role && scope
@@ -332,20 +337,22 @@ function UserDialog({
         />
 
         {role === 'ppg-admin' && (
-          <Muted>PPG Administrators see all regions, customers and vessels.</Muted>
-        )}
-        {role === 'ppg-user' && (
           <>
             <SelectField
               label="Scope"
               value={ppgScope}
-              onChange={(e) => setPpgScope(e.target.value as 'regions' | 'customers')}
+              onChange={(e) => setPpgScope(e.target.value as 'all' | 'regions' | 'customers')}
               options={[
-                { value: 'regions', label: 'Whole regions' },
-                { value: 'customers', label: 'Specific customers' },
+                { value: 'all', label: 'All customers (runs administration)' },
+                { value: 'regions', label: 'Whole regions (e.g. sales)' },
+                { value: 'customers', label: 'Specific customers (e.g. sales)' },
               ]}
             />
-            {ppgScope === 'regions' ? (
+            {ppgScope === 'all' ? (
+              <Muted>
+                Sees every region, customer and vessel, and manages customers, users and products.
+              </Muted>
+            ) : ppgScope === 'regions' ? (
               <Checks
                 label="Regions"
                 options={regions.map((r) => ({ value: r.code, label: `${r.code} · ${r.name}` }))}

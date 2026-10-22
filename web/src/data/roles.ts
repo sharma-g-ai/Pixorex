@@ -1,4 +1,4 @@
-import type { Level, RoleKey } from './model'
+import type { Level, RoleKey, Scope } from './model'
 
 export interface RoleInfo {
   key: RoleKey
@@ -9,13 +9,15 @@ export interface RoleInfo {
   sees: string
 }
 
-/** FR-23: administrator and user roles at PPG and customer level; one role at vessel level (D-13). */
+/**
+ * Three roles, one per level, with the names from the reference screens (FR-23; D-13: one role
+ * on the vessel). D-04's sales team are PPG Admins limited to some regions or customers;
+ * Fleet Managers and Procurement are both Customer Admins.
+ */
 export const roles: RoleInfo[] = [
-  { key: 'ppg-admin', label: 'PPG Administrator', level: 'PPG', heldBy: 'PPG Sea Stock admin', sees: 'All customers and vessels' },
-  { key: 'ppg-user', label: 'PPG User', level: 'PPG', heldBy: 'PPG sales team', sees: 'Customers in their regions, or the customers assigned to them' },
-  { key: 'customer-admin', label: 'Customer Administrator', level: 'Customer', heldBy: 'Fleet Manager', sees: "Their customer's vessels" },
-  { key: 'customer-user', label: 'Customer User', level: 'Customer', heldBy: 'Procurement', sees: "Their customer's vessels" },
-  { key: 'vessel-user', label: 'Vessel User', level: 'Vessel', heldBy: 'Chief Officer', sees: 'Their own vessel' },
+  { key: 'ppg-admin', label: 'PPG Admin', level: 'PPG', heldBy: 'PPG Sea Stock admin, PPG sales team', sees: 'All customers, or only their regions or customers' },
+  { key: 'customer-admin', label: 'Customer Admin', level: 'Customer', heldBy: 'Fleet Manager, Procurement', sees: "Their customer's vessels" },
+  { key: 'ship-admin', label: 'Ship Admin', level: 'Vessel', heldBy: 'Chief Officer', sees: 'Their own vessel' },
 ]
 
 export function roleInfo(key: RoleKey): RoleInfo {
@@ -46,24 +48,41 @@ export const permissionLabels: { key: Permission; label: string; note?: string }
   { key: 'resolve-unrecognised', label: 'Match unrecognised scans to the master item list' },
   { key: 'manage-customers', label: 'Create and edit customers' },
   { key: 'manage-vessels', label: 'Create and edit vessels' },
-  { key: 'manage-users', label: 'Create and edit users', note: 'Customer Administrator: own customer only (to confirm)' },
+  { key: 'manage-users', label: 'Create and edit users', note: 'Customer Admin: own customer only (to confirm)' },
   { key: 'manage-items', label: 'Maintain the master item list' },
   { key: 'manage-label-schema', label: 'Maintain the label schema' },
   { key: 'manage-geography', label: 'Maintain regions' },
   { key: 'capture-on-device', label: 'Receive, consume, baseline and adjust on the tablet' },
 ]
 
-const grants: Record<RoleKey, Permission[]> = {
-  'ppg-admin': [
+/**
+ * What a user may do depends on the role and, for a PPG Admin, on the scope: only a PPG Admin
+ * with access to all customers runs administration (proposal, to confirm with PPG).
+ */
+export type Access = 'ppg-all' | 'ppg-limited' | 'customer-admin' | 'ship-admin'
+
+export const accessLabels: { key: Access; label: string; detail: string }[] = [
+  { key: 'ppg-all', label: 'PPG Admin', detail: 'All customers' },
+  { key: 'ppg-limited', label: 'PPG Admin', detail: 'Some regions or customers' },
+  { key: 'customer-admin', label: 'Customer Admin', detail: 'Own customer' },
+  { key: 'ship-admin', label: 'Ship Admin', detail: 'Own vessel' },
+]
+
+export function accessOf(user: { role: RoleKey; scope: Scope }): Access {
+  if (user.role === 'ppg-admin') return user.scope.kind === 'all' ? 'ppg-all' : 'ppg-limited'
+  return user.role
+}
+
+const grants: Record<Access, Permission[]> = {
+  'ppg-all': [
     'view-overview', 'view-stock', 'export', 'view-review', 'resolve-unrecognised', 'manage-customers',
     'manage-vessels', 'manage-users', 'manage-items', 'manage-label-schema', 'manage-geography',
   ],
-  'ppg-user': ['view-overview', 'view-stock', 'export', 'view-review'],
+  'ppg-limited': ['view-overview', 'view-stock', 'export', 'view-review'],
   'customer-admin': ['view-overview', 'view-stock', 'export', 'view-review', 'manage-users'],
-  'customer-user': ['view-overview', 'view-stock', 'export'],
-  'vessel-user': ['view-stock', 'export', 'capture-on-device'],
+  'ship-admin': ['view-stock', 'export', 'capture-on-device'],
 }
 
-export function can(role: RoleKey, permission: Permission): boolean {
-  return grants[role].includes(permission)
+export function can(who: { role: RoleKey; scope: Scope } | Access, permission: Permission): boolean {
+  return grants[typeof who === 'string' ? who : accessOf(who)].includes(permission)
 }

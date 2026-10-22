@@ -113,8 +113,8 @@ export interface DeliveryNote {
   syncedAt: string
 }
 
-/** FR-23 roles: administrator and user at PPG and customer level; one vessel role (D-13). */
-export type RoleKey = 'ppg-admin' | 'ppg-user' | 'customer-admin' | 'customer-user' | 'vessel-user'
+/** Three roles, one per level (FR-23, D-13). Names as in the reference screens. */
+export type RoleKey = 'ppg-admin' | 'customer-admin' | 'ship-admin'
 
 export type Level = 'PPG' | 'Customer' | 'Vessel'
 
