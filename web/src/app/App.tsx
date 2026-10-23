@@ -11,8 +11,8 @@ import { Layout } from './Layout'
 import { homePath } from './navigation'
 import { DEMO_USER, useViewer, SessionProvider } from './viewer'
 
-// A role demo runs inside a page whose address cannot change, so it keeps its routes in memory.
-const Router = DEMO_USER ? MemoryRouter : BrowserRouter
+// A role demo or a standalone HTML file cannot change its address, so it keeps routes in memory.
+const Router = DEMO_USER || import.meta.env.VITE_STANDALONE ? MemoryRouter : BrowserRouter
 
 function Home() {
   const { user } = useViewer()
