@@ -1,0 +1,342 @@
+<div id="dn-receiving-proposal" class="viz-dotted-background">
+  <div class="dn-app" aria-label="Delivery note receiving proposal">
+    <header class="dn-header">
+      <div class="dn-brand">EquipTrack · Delivery notes</div>
+      <h2>DN 5319364114</h2>
+      <div class="dn-subtitle">3 / 3 pages · Source checked</div>
+    </header>
+    <nav class="dn-stages" aria-label="Delivery workflow">
+      <button type="button" data-stage="source" class="cursor-interaction">1 · DN check</button>
+      <button type="button" data-stage="receive" class="cursor-interaction" aria-current="step">2 · Receive</button>
+      <button type="button" data-stage="final" class="cursor-interaction">3 · Final review</button>
+    </nav>
+    <main class="dn-main"></main>
+    <footer class="dn-footer"></footer>
+    <div class="dn-announcement" role="status" aria-live="polite"></div>
+    <div class="dn-overlay" hidden></div>
+  </div>
+</div>
+<style>
+  #dn-receiving-proposal { padding: 16px 8px; }
+  #dn-receiving-proposal .dn-app {
+    --dn-background: light-dark(#f5f7fa, #161922);
+    --dn-surface: light-dark(#ffffff, #242834);
+    --dn-foreground: light-dark(#202332, #eef0f8);
+    --dn-secondary: light-dark(#5d6274, #b9bfd0);
+    --dn-border: light-dark(#dce0ea, #444a5d);
+    --dn-primary: light-dark(#1a237e, #c0c5ff);
+    --dn-on-primary: light-dark(#ffffff, #151b55);
+    --dn-soft: light-dark(#eceeff, #343958);
+    --dn-good: light-dark(#286343, #a0d8b8);
+    --dn-good-soft: light-dark(#edf7f0, #273c31);
+    --dn-warning: light-dark(#88500c, #ffd295);
+    --dn-warning-soft: light-dark(#fff3df, #463728);
+    --dn-danger: light-dark(#ad2534, #ffafb8);
+    position: relative; width: 100%; max-width: 440px; min-height: 710px; margin: 0 auto;
+    background: var(--dn-background); color: var(--dn-foreground); border: 1px solid var(--dn-border);
+    border-radius: 20px; overflow: hidden; font: 14px/1.5 Roboto, system-ui, sans-serif; color-scheme: light dark;
+  }
+  #dn-receiving-proposal .dn-app * { box-sizing: border-box; }
+  #dn-receiving-proposal h2 { font-size: 22px; font-weight: 500; line-height: 1.3; margin: 4px 0; color: var(--dn-foreground); }
+  #dn-receiving-proposal h3 { font-size: 16px; font-weight: 500; line-height: 1.4; margin: 0; color: var(--dn-foreground); }
+  #dn-receiving-proposal p { margin: 6px 0; }
+  #dn-receiving-proposal .dn-header { padding: 18px 18px 16px; background: var(--dn-surface); }
+  #dn-receiving-proposal .dn-brand, #dn-receiving-proposal .dn-subtitle { color: var(--dn-secondary); font-size: 12px; }
+  #dn-receiving-proposal button { font: inherit; font-weight: 500; border-radius: 10px; border: 1px solid var(--dn-border); background: var(--dn-surface); color: var(--dn-primary); padding: 10px 13px; min-height: 44px; }
+  #dn-receiving-proposal button:disabled { opacity: .48; cursor: default; }
+  #dn-receiving-proposal .dn-primary { background: var(--dn-primary); color: var(--dn-on-primary); border-color: var(--dn-primary); }
+  #dn-receiving-proposal .dn-quiet { background: transparent; border-color: transparent; padding: 8px 6px; }
+  #dn-receiving-proposal .dn-stages { display: grid; grid-template-columns: repeat(3, 1fr); background: var(--dn-surface); border-bottom: 1px solid var(--dn-border); }
+  #dn-receiving-proposal .dn-stages button { border: 0; border-radius: 0; color: var(--dn-secondary); padding: 10px 4px; font-size: 12px; }
+  #dn-receiving-proposal .dn-stages button[aria-current="step"] { color: var(--dn-primary); background: var(--dn-soft); box-shadow: inset 0 -2px var(--dn-primary); }
+  #dn-receiving-proposal .dn-main { padding: 16px; min-height: 425px; }
+  #dn-receiving-proposal .dn-main > * + * { margin-top: 12px; }
+  #dn-receiving-proposal .dn-row { display: flex; gap: 8px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+  #dn-receiving-proposal .dn-meta { color: var(--dn-secondary); font-size: 12px; }
+  #dn-receiving-proposal .dn-search, #dn-receiving-proposal input, #dn-receiving-proposal select, #dn-receiving-proposal textarea { width: 100%; min-width: 0; min-height: 44px; border: 1px solid var(--dn-border); border-radius: 10px; padding: 10px 12px; background: var(--dn-surface); color: var(--dn-foreground); font: 16px/1.5 Roboto, system-ui, sans-serif; }
+  #dn-receiving-proposal .dn-search::placeholder { color: var(--dn-secondary); }
+  #dn-receiving-proposal .dn-filters { display: flex; gap: 6px; flex-wrap: wrap; }
+  #dn-receiving-proposal .dn-filters button { font-size: 12px; padding: 8px 10px; }
+  #dn-receiving-proposal .dn-filters button[aria-pressed="true"] { background: var(--dn-primary); color: var(--dn-on-primary); border-color: var(--dn-primary); }
+  #dn-receiving-proposal .dn-progress { display: flex; height: 5px; border-radius: 5px; background: var(--dn-border); overflow: hidden; margin-top: 8px; }
+  #dn-receiving-proposal .dn-progress span { background: var(--dn-primary); }
+  #dn-receiving-proposal .dn-item { background: var(--dn-surface); border: 1px solid var(--dn-border); border-radius: 14px; padding: var(--dn-item-padding, 14px); margin-top: 12px; }
+  #dn-receiving-proposal .dn-item + .dn-item { margin-top: 10px; }
+  #dn-receiving-proposal .dn-badge { display: inline-flex; gap: 4px; align-items: center; padding: 3px 8px; border-radius: 20px; font-size: 12px; color: var(--dn-secondary); background: var(--dn-background); }
+  #dn-receiving-proposal .dn-badge[data-state="counting"] { color: var(--dn-primary); background: var(--dn-soft); }
+  #dn-receiving-proposal .dn-badge[data-state="verified"] { color: var(--dn-good); background: var(--dn-good-soft); }
+  #dn-receiving-proposal .dn-badge[data-state="recheck"] { color: var(--dn-warning); background: var(--dn-warning-soft); }
+  #dn-receiving-proposal .dn-document { padding: 6px 0 8px; color: var(--dn-secondary); }
+  #dn-receiving-proposal .dn-document button { font-size: 12px; }
+  #dn-receiving-proposal .dn-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+  #dn-receiving-proposal .dn-actions button { flex: 1 1 auto; }
+  #dn-receiving-proposal .dn-counter { display: grid; grid-template-columns: 52px minmax(0, 1fr) 52px; gap: 8px; margin: 6px 0; }
+  #dn-receiving-proposal .dn-counter button { min-height: 52px; font-size: 20px; }
+  #dn-receiving-proposal .dn-counter .dn-number { background: var(--dn-soft); color: var(--dn-foreground); font-variant-numeric: tabular-nums; font-size: 24px; }
+  #dn-receiving-proposal .dn-counter small { color: var(--dn-secondary); font-size: 14px; }
+  #dn-receiving-proposal .dn-value { font-variant-numeric: tabular-nums; font-size: 20px; font-weight: 500; }
+  #dn-receiving-proposal .dn-variance { color: var(--dn-warning); }
+  #dn-receiving-proposal .dn-footer { background: var(--dn-surface); border-top: 1px solid var(--dn-border); padding: 14px 16px; }
+  #dn-receiving-proposal .dn-footer button { width: 100%; margin-top: 8px; }
+  #dn-receiving-proposal .dn-announcement { min-height: 36px; padding: 8px 16px; color: var(--dn-secondary); font-size: 12px; }
+  #dn-receiving-proposal .dn-overlay[hidden] { display: none; }
+  #dn-receiving-proposal .dn-overlay { position: absolute; inset: 0; z-index: 10; display: flex; align-items: flex-end; background: light-dark(#141b3f55, #070b1c88); padding: 8px; }
+  #dn-receiving-proposal .dn-sheet { padding: 20px; width: 100%; border-radius: 18px; border: 1px solid var(--dn-border); background: var(--dn-surface); color: var(--dn-foreground); }
+  #dn-receiving-proposal .dn-sheet label { display: block; margin: 16px 0 6px; }
+  #dn-receiving-proposal .dn-sheet .dn-error { min-height: 22px; margin-top: 8px; color: var(--dn-danger); }
+  #dn-receiving-proposal .dn-page { display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center; }
+  #dn-receiving-proposal .dn-summary-line { border-top: 1px solid var(--dn-border); margin-top: 12px; padding-top: 12px; }
+  #dn-receiving-proposal .dn-empty { color: var(--dn-secondary); padding: 24px 0; }
+  #dn-receiving-proposal .dn-lock { pointer-events: none; }
+  @media (max-width: 360px) {
+    #dn-receiving-proposal { padding: 8px 0; }
+    #dn-receiving-proposal .dn-main { padding: 12px; }
+    #dn-receiving-proposal .dn-header { padding: 16px 12px; }
+    #dn-receiving-proposal .dn-sheet { padding: 16px; }
+    #dn-receiving-proposal .dn-actions button { padding: 10px 8px; }
+  }
+</style>
+<script>
+(() => {
+  const root = document.getElementById('dn-receiving-proposal');
+  const app = root.querySelector('.dn-app');
+  const main = root.querySelector('.dn-main');
+  const footer = root.querySelector('.dn-footer');
+  const overlay = root.querySelector('.dn-overlay');
+  const announce = root.querySelector('.dn-announcement');
+  const initialItems = [
+    { id: 'p3-row1', article: '445386', page: 3, dn: 8, qty: 3, status: 'counting', reason: '' },
+    { id: 'p2-row1', article: '445390', page: 2, dn: 4, qty: null, status: 'unchecked', reason: '' },
+    { id: 'p1-row1', article: '445394', page: 1, dn: 6, qty: 6, status: 'verified', reason: '' }
+  ];
+  let items = structuredClone(initialItems);
+  let stage = 'receive';
+  let filter = 'all';
+  let search = '';
+  let submitted = false;
+  let pendingSourceReview = new Set();
+  let returnFocus = null;
+  let pressTimer = null;
+  let suppressNumberClick = false;
+  const design = { showBatch: true, spacing: 'Comfortable' };
+  const safe = value => String(value).replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
+  const stateLabel = value => ({ unchecked: 'To check', counting: 'Counting', verified: 'Verified', recheck: 'Recheck count' })[value];
+  const itemById = id => items.find(item => item.id === id);
+  const verifiedCount = () => items.filter(item => item.status === 'verified').length;
+  const ready = () => !pendingSourceReview.size && verifiedCount() === items.length;
+  const signed = value => value > 0 ? '+' + value : String(value);
+  function saveView() {
+    if (window.openai && typeof window.openai.setWidgetState === 'function') {
+      window.openai.setWidgetState({ modelContent: { proposal: 'consolidated-receiving', sampleCounts: items, batchEntry: design.showBatch }, privateContent: { stage, filter, search, submitted, pendingPages: [...pendingSourceReview], spacing: design.spacing } }).catch(() => {});
+    }
+  }
+  function restore(snapshot) {
+    const saved = snapshot && snapshot.modelContent;
+    const view = snapshot && snapshot.privateContent;
+    if (!saved || saved.proposal !== 'consolidated-receiving' || !Array.isArray(saved.sampleCounts)) return;
+    const candidate = saved.sampleCounts;
+    if (candidate.length !== 3 || !candidate.every(item => initialItems.some(original => original.id === item.id) && /^\d{6,10}$/.test(item.article) && Number.isSafeInteger(item.dn) && item.dn >= 0 && (item.qty === null || (Number.isSafeInteger(item.qty) && item.qty >= 0)) && ['unchecked', 'counting', 'verified', 'recheck'].includes(item.status))) return;
+    items = structuredClone(candidate);
+    if (typeof saved.batchEntry === 'boolean') design.showBatch = saved.batchEntry;
+    if (view) {
+      stage = ['source', 'receive', 'final'].includes(view.stage) ? view.stage : 'receive';
+      filter = ['all', 'unchecked', 'counting', 'verified'].includes(view.filter) ? view.filter : 'all';
+      search = typeof view.search === 'string' ? view.search : '';
+      submitted = view.submitted === true;
+      pendingSourceReview = new Set(Array.isArray(view.pendingPages) ? view.pendingPages.filter(page => [1, 2, 3].includes(page)) : []);
+      design.spacing = view.spacing === 'Compact' ? 'Compact' : 'Comfortable';
+    }
+  }
+  function notify(message) { announce.textContent = message; }
+  function countMarkup(item) {
+    if (item.status === 'unchecked') {
+      return `<div class="dn-row"><span>Physical count</span><span class="dn-value">—</span></div>
+        <div class="dn-actions"><button type="button" data-action="matches" class="dn-primary cursor-interaction">Matches DN</button><button type="button" data-action="start" class="cursor-interaction">Start count</button></div>
+        <button type="button" data-action="set" class="dn-quiet cursor-interaction">Set counted total…</button>`;
+    }
+    if (item.status === 'verified') {
+      const variance = item.qty - item.dn;
+      return `<div class="dn-row"><span>Physical count</span><span class="dn-value">${item.qty} PC</span></div>
+        <div class="dn-meta ${variance ? 'dn-variance' : ''}">${variance ? `${variance < 0 ? 'Shortage' : 'Excess'} ${signed(variance)} PC · ${safe(item.reason)}` : 'Matches DN · Checked'}</div>
+        ${submitted ? '' : '<button type="button" data-action="reopen" class="dn-quiet cursor-interaction">Reopen count</button>'}`;
+    }
+    const remaining = item.dn - item.qty;
+    return `<div class="dn-row"><span>Physical count</span><span class="dn-meta">Running total</span></div>
+      <div class="dn-counter"><button type="button" data-action="minus" aria-label="Remove one from article ${item.article}" class="cursor-interaction" ${item.qty === 0 ? 'disabled' : ''}>−</button><button type="button" data-action="set" class="dn-number cursor-interaction" aria-label="Set counted total for article ${item.article}">${item.qty} <small>PC ✎</small></button><button type="button" data-action="plus" aria-label="Add one to article ${item.article}" class="cursor-interaction">+</button></div>
+      <div class="dn-meta">${remaining > 0 ? `${remaining} PC left to match DN` : remaining === 0 ? 'DN quantity reached · Finish to verify' : `${-remaining} PC above DN`}</div>
+      <div class="dn-actions">${design.showBatch ? '<button type="button" data-action="batch" class="cursor-interaction">Add batch</button>' : ''}<button type="button" data-action="finish" class="dn-primary cursor-interaction">Finish count</button></div>`;
+  }
+  function itemMarkup(item) {
+    return `<article class="dn-item" data-id="${item.id}" aria-label="Article ${item.article}, page ${item.page}">
+      <div class="dn-row"><h3>Article ${safe(item.article)}</h3><span class="dn-badge" data-state="${item.status}">${stateLabel(item.status)}</span></div>
+      <div class="dn-row dn-document"><span>On DN: ${item.dn} PC</span><button type="button" data-action="source" class="dn-quiet cursor-interaction">Page ${item.page} · Source</button></div>
+      ${countMarkup(item)}
+    </article>`;
+  }
+  function renderList() {
+    const list = main.querySelector('.dn-items');
+    if (!list) return;
+    const visible = items.filter(item => (!search || item.article.includes(search)) && (filter === 'all' || (filter === 'unchecked' ? ['unchecked', 'recheck'].includes(item.status) : item.status === filter)));
+    list.innerHTML = visible.length ? visible.map(itemMarkup).join('') : '<div class="dn-empty">No items in this view</div>';
+    for (const button of main.querySelectorAll('[data-filter]')) button.setAttribute('aria-pressed', String(button.dataset.filter === filter));
+  }
+  function render() {
+    app.style.setProperty('--dn-item-padding', design.spacing === 'Compact' ? '10px' : '14px');
+    root.querySelector('.dn-subtitle').textContent = `3 / 3 pages · ${pendingSourceReview.size ? `${pendingSourceReview.size} source review pending` : 'Source checked'}`;
+    for (const button of root.querySelectorAll('[data-stage]')) {
+      if (button.dataset.stage === stage) button.setAttribute('aria-current', 'step'); else button.removeAttribute('aria-current');
+    }
+    if (stage === 'receive') {
+      main.innerHTML = `<div><div class="dn-row"><h3>Physical verification</h3><span class="dn-meta">${verifiedCount()} / ${items.length} verified</span></div><div class="dn-progress" aria-label="${verifiedCount()} of ${items.length} items verified"><span style="width:${verifiedCount() / items.length * 100}%"></span></div></div>
+        <input type="search" class="dn-search" aria-label="Search article number" placeholder="Search article number…" value="${safe(search)}">
+        <div class="dn-filters" aria-label="Physical count status">${[['all', 'All'], ['unchecked', 'To check'], ['counting', 'Counting'], ['verified', 'Verified']].map(([value, label]) => `<button type="button" data-filter="${value}" aria-pressed="${filter === value}" class="cursor-interaction">${label}</button>`).join('')}</div>
+        <div class="dn-items"></div>`;
+      renderList();
+      footer.innerHTML = `<div class="dn-meta">${submitted ? 'Submitted locally · Read only' : pendingSourceReview.size ? 'Complete DN source review before final review' : ready() ? 'All physical counts verified' : `${items.length - verifiedCount()} items still need verification`}</div><button type="button" data-action="final" class="dn-primary cursor-interaction" ${ready() ? '' : 'disabled'}>${submitted ? 'View submitted form' : 'Review final form'}</button>`;
+      if (submitted) for (const button of main.querySelectorAll('[data-action]:not([data-action="source"])')) button.disabled = true;
+    } else if (stage === 'source') {
+      main.innerHTML = `<div class="dn-row"><h3>Check scan against DN</h3><span class="dn-meta">${3 - pendingSourceReview.size} / 3 checked</span></div>
+        ${[1, 2, 3].map(page => `<section class="dn-item dn-page"><div><h3>Page ${page} of 3</h3><div class="dn-meta">${pendingSourceReview.has(page) ? 'DN values changed · Check source again' : 'Identity · Articles · Quantities · Coverage checked'}</div></div><button type="button" data-action="page" data-page="${page}" class="cursor-interaction">${pendingSourceReview.has(page) ? 'Check page' : 'View page'}</button></section>`).join('')}
+        <div class="dn-item"><h3>Document totals</h3><p>Item quantities: ${items.reduce((total, item) => total + item.dn, 0)} PC</p><div class="dn-meta">All printed receiving rows included</div></div>`;
+      footer.innerHTML = `<div class="dn-meta">${pendingSourceReview.size ? 'Check corrected pages to continue' : 'All pages scanned and checked'}</div><button type="button" data-action="receive" class="dn-primary cursor-interaction" ${pendingSourceReview.size ? 'disabled' : ''}>${submitted ? 'View physical counts' : 'Open receiving list'}</button>`;
+    } else {
+      const varianceItems = items.filter(item => item.status === 'verified' && item.qty !== item.dn);
+      main.innerHTML = `<h3>${submitted ? 'Submitted locally' : 'Final receiving form'}</h3>
+        <div class="dn-item"><div class="dn-row"><span>DN quantity</span><span class="dn-value">${items.reduce((total, item) => total + item.dn, 0)} PC</span></div><div class="dn-row"><span>Verified physical count</span><span class="dn-value">${items.filter(item => item.status === 'verified').reduce((total, item) => total + item.qty, 0)} PC</span></div><div class="dn-meta">${verifiedCount()} / ${items.length} items verified · ${3 - pendingSourceReview.size} / 3 DN pages checked</div></div>
+        <div class="dn-item"><h3>Variances · ${varianceItems.length}</h3>${varianceItems.length ? varianceItems.map(item => `<div class="dn-summary-line"><div class="dn-row"><span>Article ${safe(item.article)}</span><span class="dn-variance">${signed(item.qty - item.dn)} PC</span></div><div class="dn-meta">DN ${item.dn} · Physical ${item.qty} · ${safe(item.reason)}</div></div>`).join('') : '<p class="dn-meta">No verified variances</p>'}</div>
+        ${ready() ? '' : '<p class="dn-variance">Complete all source checks and physical counts before submitting.</p>'}
+        <button type="button" data-action="receive" class="cursor-interaction">${submitted ? 'View items' : 'Back to receiving list'}</button>`;
+      footer.innerHTML = `<div class="dn-meta">${submitted ? 'Saved on this device · Submitted form locked' : 'Ready to submit on this device'}</div><button type="button" data-action="submit" class="dn-primary cursor-interaction" ${!ready() || submitted ? 'disabled' : ''}>${submitted ? 'Submitted locally' : 'Confirm and submit locally'}</button>`;
+    }
+  }
+  function closeSheet() {
+    overlay.hidden = true;
+    overlay.innerHTML = '';
+    const focusTarget = returnFocus;
+    returnFocus = null;
+    if (focusTarget && focusTarget.isConnected) focusTarget.focus();
+  }
+  function sheet(markup) {
+    returnFocus = document.activeElement;
+    overlay.innerHTML = `<section class="dn-sheet" role="dialog" aria-modal="true" aria-labelledby="dn-sheet-title">${markup}</section>`;
+    overlay.hidden = false;
+    const field = overlay.querySelector('input, select, button');
+    if (field) field.focus();
+  }
+  function sheetActions(label) {
+    return `<div class="dn-error" role="alert"></div><div class="dn-actions"><button type="button" data-action="cancel" class="cursor-interaction">Cancel</button><button type="button" data-action="save-sheet" class="dn-primary cursor-interaction">${label}</button></div>`;
+  }
+  function editQuantity(item, mode) {
+    if (submitted) return;
+    const isBatch = mode === 'batch';
+    sheet(`<h3 id="dn-sheet-title">${isBatch ? 'Add arriving batch' : 'Set counted total'}</h3><div class="dn-meta">Article ${safe(item.article)} · ${isBatch ? `Current count: ${item.qty} PC` : `On DN: ${item.dn} PC`}</div><form data-form="quantity" data-id="${item.id}" data-mode="${mode}"><label for="dn-quantity">${isBatch ? 'How many arrived now?' : 'Total physically counted'}</label><input id="dn-quantity" name="quantity" type="number" inputmode="numeric" min="${isBatch ? 1 : 0}" step="1" value="${isBatch || item.qty === null ? '' : item.qty}" required>${sheetActions(isBatch ? 'Add to count' : 'Save total')}</form>`);
+  }
+  function finish(item) {
+    if (item.qty === item.dn) {
+      item.status = 'verified'; item.reason = ''; render(); saveView(); notify(`Article ${item.article} verified · Matches DN`); return;
+    }
+    const variance = item.qty - item.dn;
+    sheet(`<h3 id="dn-sheet-title">Finish physical count</h3><div class="dn-meta">Article ${safe(item.article)} · DN ${item.dn} PC · Physical ${item.qty} PC</div><p class="dn-variance">${variance < 0 ? 'Shortage' : 'Excess'} ${signed(variance)} PC</p><form data-form="finish" data-id="${item.id}"><label for="dn-reason">Variance reason</label><select id="dn-reason" name="reason" required><option value="">Choose a reason…</option>${(variance < 0 ? ['Short received', 'Not received', 'Damaged items excluded', 'Other'] : ['Extra received', 'Other']).map(reason => `<option value="${reason}">${reason}</option>`).join('')}</select><label for="dn-detail">Details <span class="dn-meta">(required for Other)</span></label><textarea id="dn-detail" name="detail" rows="2" placeholder="Optional details"></textarea>${sheetActions('Verify count')}</form>`);
+  }
+  function showSource(item) {
+    sheet(`<h3 id="dn-sheet-title">DN source · Page ${item.page}</h3><div class="dn-item"><div class="dn-row"><span>Article</span><span>${safe(item.article)}</span></div><div class="dn-row"><span>Printed quantity</span><span>${item.dn} PC</span></div><div class="dn-meta">${pendingSourceReview.has(item.page) ? 'Needs source review' : 'Source values checked'}</div></div><div class="dn-actions"><button type="button" data-action="cancel" class="cursor-interaction">Close</button>${submitted ? '' : `<button type="button" data-action="correct" data-id="${item.id}" class="cursor-interaction">Correct DN values</button>`}</div>`);
+  }
+  function correctSource(item) {
+    sheet(`<h3 id="dn-sheet-title">Correct DN values</h3><div class="dn-meta">Page ${item.page} · Check the printed delivery note</div><form data-form="correct" data-id="${item.id}"><label for="dn-article">Printed article number</label><input id="dn-article" name="article" type="text" inputmode="numeric" pattern="[0-9]{6,10}" value="${safe(item.article)}" required><label for="dn-printed">Printed quantity · PC</label><input id="dn-printed" name="quantity" type="number" inputmode="numeric" min="0" step="1" value="${item.dn}" required><label for="dn-correction-reason">Correction reason</label><input id="dn-correction-reason" name="reason" type="text" required>${sheetActions('Save DN correction')}</form>`);
+  }
+  root.addEventListener('input', event => {
+    if (!event.target.matches('.dn-search')) return;
+    search = event.target.value.trim(); renderList(); saveView();
+  });
+  root.addEventListener('click', event => {
+    const button = event.target.closest('button');
+    if (!button || button.disabled || !root.contains(button)) return;
+    if (button.dataset.stage) { stage = button.dataset.stage; render(); saveView(); return; }
+    if (button.dataset.filter) { filter = button.dataset.filter; renderList(); saveView(); return; }
+    const action = button.dataset.action;
+    if (!action) return;
+    if (action === 'cancel') { closeSheet(); return; }
+    if (action === 'save-sheet') { const form = button.closest('form'); if (form && form.reportValidity()) submitSheet(form); return; }
+    if (['receive', 'final'].includes(action)) { closeSheet(); stage = action; render(); saveView(); return; }
+    if (action === 'submit') { if (ready()) { submitted = true; render(); saveView(); notify('Receiving form submitted locally'); } return; }
+    if (action === 'page') {
+      const page = Number(button.dataset.page);
+      const pageItems = items.filter(item => item.page === page);
+      sheet(`<h3 id="dn-sheet-title">Check DN page ${page}</h3>${pageItems.map(item => `<div class="dn-item" data-id="${item.id}"><div class="dn-row"><span>Article ${safe(item.article)}</span><span>${item.dn} PC</span></div>${submitted ? '' : `<button type="button" data-action="correct" data-id="${item.id}" class="dn-quiet cursor-interaction">Correct DN values</button>`}</div>`).join('')}<div class="dn-actions"><button type="button" data-action="cancel" class="cursor-interaction">Close</button>${submitted ? '' : `<button type="button" data-action="confirm-page" data-page="${page}" class="dn-primary cursor-interaction">DN and coverage checked</button>`}</div>`);
+      return;
+    }
+    if (action === 'confirm-page') { pendingSourceReview.delete(Number(button.dataset.page)); closeSheet(); render(); saveView(); notify('DN source and page coverage confirmed'); return; }
+    const item = itemById(button.dataset.id || (button.closest('[data-id]') || {}).dataset?.id);
+    if (!item) return;
+    if (action === 'source') { showSource(item); return; }
+    if (submitted) return;
+    if (action === 'correct') { correctSource(item); return; }
+    if (action === 'set' || action === 'batch') { if (suppressNumberClick && action === 'set') { suppressNumberClick = false; return; } editQuantity(item, action); return; }
+    if (action === 'finish') { finish(item); return; }
+    if (action === 'matches') { item.qty = item.dn; item.status = 'verified'; item.reason = ''; notify(`Article ${item.article} verified · Matches DN`); }
+    if (action === 'start') { item.qty = 0; item.status = 'counting'; notify(`Article ${item.article} · Counting started from zero`); }
+    if (action === 'reopen') { item.status = 'counting'; item.reason = ''; notify(`Article ${item.article} reopened at ${item.qty} PC`); }
+    if (action === 'plus' || action === 'minus') { item.qty = Math.max(0, item.qty + (action === 'plus' ? 1 : -1)); item.status = 'counting'; item.reason = ''; notify(`Article ${item.article} · ${item.qty} PC counted`); }
+    render(); saveView();
+  });
+  function submitSheet(form) {
+    const item = itemById(form.dataset.id);
+    if (!item || submitted) return;
+    const data = new FormData(form);
+    const error = form.querySelector('.dn-error');
+    if (form.dataset.form === 'quantity') {
+      const value = Number(data.get('quantity'));
+      const total = form.dataset.mode === 'batch' ? item.qty + value : value;
+      if (!Number.isSafeInteger(value) || value < (form.dataset.mode === 'batch' ? 1 : 0) || !Number.isSafeInteger(total)) { error.textContent = 'Enter a valid whole number.'; return; }
+      item.qty = total; item.status = 'counting'; item.reason = ''; closeSheet(); render(); saveView(); notify(`Article ${item.article} · Count is ${item.qty} PC`);
+    } else if (form.dataset.form === 'finish') {
+      const reason = String(data.get('reason') || '').trim();
+      const detail = String(data.get('detail') || '').trim();
+      if (!reason || (reason === 'Other' && !detail)) { error.textContent = 'Choose a reason and add details for Other.'; return; }
+      item.reason = detail ? `${reason}: ${detail}` : reason; item.status = 'verified'; closeSheet(); render(); saveView(); notify(`Article ${item.article} verified · Variance recorded`);
+    } else if (form.dataset.form === 'correct') {
+      const article = String(data.get('article') || '').trim();
+      const quantity = Number(data.get('quantity'));
+      const reason = String(data.get('reason') || '').trim();
+      if (!/^\d{6,10}$/.test(article) || !Number.isSafeInteger(quantity) || quantity < 0 || !reason) { error.textContent = 'Enter valid DN values and a correction reason.'; return; }
+      if (article !== item.article) { error.textContent = 'Article identity changed. Resolve the existing count in DN review before applying this change.'; return; }
+      if (item.dn !== quantity) { item.dn = quantity; item.reason = ''; if (item.qty !== null) item.status = 'recheck'; pendingSourceReview.add(item.page); }
+      closeSheet(); render(); saveView(); notify('DN correction saved · Running count retained · Source and count need review');
+    }
+  }
+  root.addEventListener('submit', event => { event.preventDefault(); submitSheet(event.target); });
+  root.addEventListener('pointerdown', event => {
+    const button = event.target.closest('.dn-number');
+    if (!button || submitted) return;
+    suppressNumberClick = false;
+    pressTimer = setTimeout(() => {
+      const item = itemById(button.closest('[data-id]').dataset.id);
+      suppressNumberClick = true;
+      editQuantity(item, 'set');
+    }, 500);
+  });
+  for (const eventName of ['pointerup', 'pointercancel', 'pointerleave']) root.addEventListener(eventName, () => clearTimeout(pressTimer));
+  root.addEventListener('keydown', event => {
+    if (overlay.hidden) return;
+    if (event.key === 'Escape') { event.preventDefault(); closeSheet(); return; }
+    if (event.key === 'Enter' && event.target.matches('input')) { event.preventDefault(); const form = event.target.closest('form'); if (form && form.reportValidity()) submitSheet(form); return; }
+    if (event.key === 'Tab') {
+      const controls = [...overlay.querySelectorAll('input, select, textarea, button')].filter(control => !control.disabled);
+      const first = controls[0]; const last = controls[controls.length - 1];
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+    }
+  });
+  restore(window.openai && window.openai.widgetState);
+  render();
+  window.addEventListener('openai:set_globals', event => {
+    const snapshot = event.detail && event.detail.globals && event.detail.globals.widgetState;
+    if (snapshot) { restore(snapshot); closeSheet(); notify(''); render(); }
+  });
+  if (globalThis.Tweak) {
+    const tweak = new Tweak({ container: app, onChange: () => { render(); saveView(); } });
+    tweak.addToggle(design, 'showBatch', { label: 'Batch entry action' });
+    tweak.addSelect(design, 'spacing', { label: 'Item spacing', options: ['Comfortable', 'Compact'] });
+  }
+})();
+</script>

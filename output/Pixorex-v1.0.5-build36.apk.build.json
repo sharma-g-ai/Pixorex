@@ -1,0 +1,30 @@
+{
+  "apk": "/home/suchithgoud/Downloads/Label_Reader/output/Pixorex-v1.0.5-build36.apk",
+  "package": "com.amzur.equiptrack",
+  "version": "1.0.5",
+  "build_number": 36,
+  "size_bytes": 90917692,
+  "sha256": "1469defdf67a135d0d14030d30bc718fa5edb92832a31be5ae27d42dbfd04d05",
+  "archive_verified": true,
+  "signature_verified": true,
+  "upgrade_signing_matches_build35": true,
+  "signing": "Existing demo/review debug keystore",
+  "tests_passed": 71,
+  "static_analysis": "No issues found",
+  "included": [
+    "Receiving scanner icon and button",
+    "Live on-device article OCR",
+    "Three-frame article confirmation",
+    "Exact current-DN article match",
+    "Explicit one-can acceptance",
+    "Atomic count/audit save and retry deduplication"
+  ],
+  "embedded_feature_checks": {
+    "scanner_button_in_flutter_binary": true,
+    "accept_can_button_in_flutter_binary": true,
+    "native_camera_ocr_channel_in_dex": true,
+    "native_frame_handler_in_dex": true
+  },
+  "physical_camera_tested": false,
+  "device_test_limit": "No connected Android device; physical can accuracy remains to be measured"
+}

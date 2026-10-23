@@ -1,0 +1,2685 @@
+<!doctype html>
+<html lang="en" data-visualize-standalone>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; style-src 'unsafe-inline' blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; img-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; font-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; media-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; worker-src blob:; connect-src blob: data:; frame-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<title>Seastock Receiving Wireframes</title>
+<style>:root{color-scheme:light dark;background:light-dark(rgb(255 255 255), rgb(24 24 24))}html,body{margin:0}body{box-sizing:border-box;padding:1rem;background:inherit}iframe{display:block;width:100%;height:calc(100vh - 2rem);margin:0 auto;border:0}</style>
+</head>
+<body>
+<iframe id="codex-visualization" sandbox="allow-scripts" referrerpolicy="no-referrer" title="Seastock Receiving Wireframes" data-srcdoc="&lt;!doctype html&gt;
+&lt;html lang=&quot;en&quot; data-visualize-standalone&gt;
+&lt;head&gt;
+&lt;meta charset=&quot;utf-8&quot;&gt;
+&lt;meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1&quot;&gt;
+&lt;meta name=&quot;referrer&quot; content=&quot;no-referrer&quot;&gt;
+&lt;meta http-equiv=&quot;Content-Security-Policy&quot; content=&quot;default-src &#x27;none&#x27;; script-src &#x27;unsafe-inline&#x27; &#x27;unsafe-eval&#x27; &#x27;wasm-unsafe-eval&#x27; blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; style-src &#x27;unsafe-inline&#x27; blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; img-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; font-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; media-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; worker-src blob:; connect-src blob: data:; frame-src &#x27;none&#x27;; object-src &#x27;none&#x27;; base-uri &#x27;none&#x27;; form-action &#x27;none&#x27;&quot;&gt;
+&lt;title&gt;Seastock Receiving Wireframes&lt;/title&gt;
+&lt;style&gt;:root {
+  color-scheme: light dark;
+  background-color: var(
+    --background,
+    var(--color-background-primary, light-dark(rgb(255 255 255), rgb(24 24 24)))
+  ) !important;
+
+  /* Agent-facing contract; keep in sync with SKILL.md. */
+  --background: var(
+    --color-background-primary,
+    light-dark(rgb(255 255 255), rgb(24 24 24))
+  );
+  --foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --card: color-mix(in oklab, var(--foreground) 5%, var(--background));
+  --card-foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --popover: var(
+    --color-background-secondary,
+    light-dark(rgb(255 255 255), rgb(45 45 45))
+  );
+  --popover-foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --primary: var(
+    --color-text-info,
+    light-dark(rgb(51 156 255), rgb(131 195 255))
+  );
+  --primary-foreground: var(
+    --color-text-inverse,
+    light-dark(rgb(255 255 255), rgb(13 13 13))
+  );
+  --secondary: var(
+    --color-background-secondary,
+    light-dark(rgb(255 255 255 / 96%), rgb(54 54 54 / 96%))
+  );
+  --secondary-foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --muted: color-mix(in srgb, var(--foreground) 10%, transparent);
+  --muted-foreground: var(
+    --color-text-secondary,
+    light-dark(rgb(26 28 31 / 49.4%), rgb(255 255 255 / 49.8%))
+  );
+  --accent: var(
+    --color-background-info,
+    light-dark(rgb(229 242 255), rgb(13 39 63))
+  );
+  --accent-foreground: var(
+    --color-text-info,
+    light-dark(rgb(51 156 255), rgb(131 195 255))
+  );
+  --destructive: var(
+    --color-text-warning,
+    light-dark(rgb(226 85 7), rgb(255 133 73))
+  );
+  --border: var(
+    --color-border-secondary,
+    light-dark(rgb(26 28 31 / 8%), rgb(255 255 255 / 8.2%))
+  );
+  --input: var(
+    --color-border-primary,
+    light-dark(
+      rgb(26 28 31 / 11.8%),
+      color-mix(in oklab, rgb(0 0 0) 10%, transparent)
+    )
+  );
+  --ring: var(
+    --color-ring-primary,
+    light-dark(rgb(51 156 255), rgb(131 195 255 / 76%))
+  );
+  --font-size-base: var(--font-text-md-size, 14px);
+  --blue: light-dark(rgb(51 156 255), rgb(51 156 255));
+  --orange: light-dark(rgb(226 85 7), rgb(251 106 34));
+  --green: light-dark(rgb(0 162 64), rgb(64 201 119));
+  --red: light-dark(rgb(224 46 42), rgb(255 103 100));
+  --purple: light-dark(rgb(146 79 247), rgb(173 123 249));
+  --yellow: light-dark(rgb(255 195 0), rgb(255 210 64));
+  --viz-series-1: var(--primary);
+  --viz-series-2: light-dark(rgb(243 136 59), rgb(245 154 86));
+  --viz-series-3: light-dark(rgb(93 201 119), rgb(116 213 139));
+  --viz-series-4: light-dark(rgb(235 119 177), rgb(240 143 192));
+  --viz-series-5: light-dark(rgb(155 121 236), rgb(170 145 239));
+  --viz-series-6: light-dark(rgb(58 185 177), rgb(90 203 194));
+
+  /* Internal implementation variables; not part of the agent contract. */
+  --font-sans: -apple-system, system-ui, &quot;Segoe UI&quot;, sans-serif;
+  --font-mono:
+    ui-monospace, SFMono-Regular, &quot;SF Mono&quot;, Menlo, Consolas, &quot;Liberation Mono&quot;,
+    monospace;
+  --font-size-normal: max(11px, var(--font-size-base));
+  --font-size-tooltip: calc(var(--font-size-base) - 1px);
+  --font-size-small: max(11px, calc(var(--font-size-base) - 2px));
+  --font-size-h1: calc(var(--font-size-normal) * 1.7142857143);
+  --font-size-h2: calc(var(--font-size-normal) * 1.4285714286);
+  --font-size-h3: calc(var(--font-size-normal) * 1.2857142857);
+  --font-weight-normal: 430;
+  --font-weight-medium: 500;
+  --icon-size: 16px;
+  --line-height-normal: calc(var(--font-size-normal) * 1.5);
+  --line-height-tooltip: calc(var(--font-size-tooltip) * 1.4285714286);
+  --line-height-small: calc(var(--font-size-small) + 4px);
+  --corner-shape: round;
+  --radius: var(--border-radius-lg, 10px);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-2xl: calc(var(--radius) * 1.6);
+  --radius-full: 9999px;
+  --shadow-sm: 0 1px 2px -1px rgb(0 0 0 / 8%);
+  --checkmark-image: url(&quot;data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 17 17&#x27;%3E%3Cpath d=&#x27;M12.8961 3.64101C13.1297 3.41418 13.4984 3.37523 13.7779 3.56581C14.0571 3.75635 14.1554 4.11331 14.0299 4.41347L13.9615 4.53847L7.71151 13.7045C7.59411 13.8767 7.4063 13.9877 7.19881 14.0072C6.99136 14.0267 6.78564 13.9533 6.63826 13.806L2.88826 10.056L2.79842 9.9457C2.6192 9.67407 2.64927 9.30496 2.88826 9.06581C3.12738 8.82669 3.49647 8.79676 3.76815 8.97597L3.8785 9.06581L7.03084 12.2182L12.8053 3.74941L12.8961 3.64101Z&#x27;/%3E%3C/svg%3E&quot;);
+
+  /* Legacy aliases; not part of the current agent contract. */
+  --viz-bg: transparent;
+  --viz-panel: var(--card);
+  --viz-border: var(--border);
+  --viz-text: var(--foreground);
+  --viz-muted: var(--muted-foreground);
+  --viz-accent: var(--primary);
+  --viz-accent-text: var(--primary-foreground);
+  --viz-accent-bg: var(--accent);
+  --viz-font-size: var(--font-size-base);
+  --viz-warning: var(--destructive);
+}
+
+:root[data-theme=&quot;light&quot;] {
+  color-scheme: light;
+}
+
+:root[data-theme=&quot;dark&quot;] {
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html &gt; body {
+  /* Preserve MCP aliases for older inline renderers without creating :root cycles. */
+  --color-background-primary: var(
+    --background,
+    light-dark(rgb(255 255 255), rgb(24 24 24))
+  );
+  --color-text-primary: var(
+    --foreground,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --color-border-secondary: var(
+    --border,
+    light-dark(rgb(26 28 31 / 8%), rgb(255 255 255 / 8.2%))
+  );
+
+  margin: 0;
+  padding: var(--visualize-paint-gutter, 0px);
+  color: var(--foreground);
+  background: transparent !important;
+  font-family: var(--font-sans) !important;
+  font-size: var(--font-size-normal);
+  font-weight: var(--font-weight-normal);
+  line-height: var(--line-height-normal);
+}
+
+.cursor-interaction {
+  cursor: var(--cursor-interaction, pointer);
+}
+
+a {
+  color: color-mix(in srgb, var(--viz-accent) 80%, var(--viz-text) 20%);
+  cursor: var(--cursor-interaction, pointer);
+  font-weight: var(--font-weight-medium, 500);
+  text-decoration: none;
+  text-underline-offset: 2px;
+}
+
+a:is(:hover, :focus-visible) {
+  text-decoration-line: underline;
+  text-decoration-style: dashed;
+  text-decoration-thickness: 0.5px;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p {
+  margin-block: 0;
+}
+
+h1 {
+  font-size: var(--font-size-h1);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+h2 {
+  font-size: var(--font-size-h2);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+h3,
+h4,
+h5,
+h6 {
+  font-size: var(--font-size-h3);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.3;
+}
+
+b,
+strong,
+th {
+  font-weight: var(--font-weight-medium);
+}
+
+code:not(pre code) {
+  display: inline;
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  corner-shape: var(--corner-shape);
+  background: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+  overflow-wrap: anywhere;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  word-break: break-word;
+}
+
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  color: var(--foreground);
+  font: inherit;
+  text-align: start;
+}
+
+.table :is(th, td) {
+  padding-block: 10px;
+  padding-inline: 0 24px;
+  overflow-wrap: anywhere;
+  border-bottom: 1px solid var(--border);
+  text-align: start;
+  vertical-align: top;
+}
+
+.table-responsive &gt; .table :is(th, td) {
+  overflow-wrap: break-word;
+}
+
+.table :is(th, td):last-child {
+  padding-inline-end: 0;
+}
+
+.table :is(caption, thead th) {
+  font-weight: 600;
+}
+
+.table thead th {
+  padding-block: 8px;
+  border-bottom-color: color-mix(in srgb, var(--foreground) 16%, transparent);
+}
+
+.table tbody tr:last-child :is(th, td) {
+  border-bottom: 0;
+}
+
+.table.table-sm :is(th, td) {
+  padding-block: 6px;
+}
+
+.table.table-sm :is(th, td):not(:last-child) {
+  padding-inline-end: 16px;
+}
+
+.table :is(.text-end, [align=&quot;right&quot;]) {
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+
+.table :is(.text-center, [align=&quot;center&quot;]) {
+  text-align: center;
+}
+
+.table .text-nowrap {
+  white-space: nowrap;
+}
+
+#widget {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  padding: 0;
+  background: transparent !important;
+}
+
+.card {
+  min-width: 0;
+  padding: 12px;
+  overflow: hidden;
+  overflow-wrap: break-word;
+  border-radius: var(--radius-2xl);
+  corner-shape: var(--corner-shape);
+  color: var(--card-foreground);
+  background: var(--card);
+}
+
+.widget {
+  min-width: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: var(--radius-lg);
+  corner-shape: var(--corner-shape);
+  box-shadow: 0 0 0 0.5px var(--border-strong, var(--border));
+  color: var(--foreground);
+  background: var(--background);
+}
+
+#widget &gt; :not(.card, .widget, .progress) {
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.tooltip {
+  position: fixed;
+  z-index: 50;
+  top: 0;
+  left: 0;
+  width: max-content;
+  max-width: min(
+    20rem,
+    var(--tooltip-available-width, calc(100vw - 10px)),
+    calc(100vw - 10px)
+  );
+  max-height: min(
+    var(--tooltip-available-height, calc(100vh - 10px)),
+    calc(100vh - 10px)
+  );
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  corner-shape: var(--corner-shape);
+  color: var(--popover-foreground);
+  background: var(--popover);
+  box-shadow: none;
+  font-size: var(--font-size-tooltip);
+  line-height: var(--line-height-tooltip);
+  overflow-wrap: break-word;
+  white-space: normal;
+  pointer-events: none;
+  user-select: none;
+}
+
+.viz-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(max(180px, 24%), 1fr));
+  gap: 10px;
+}
+
+.viz-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.viz-stat-value {
+  font-size: var(--font-size-h2);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+.viz-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+hr {
+  width: 100%;
+  height: 1px;
+  margin-block: 6px;
+  border: 0;
+  background: var(--border);
+}
+
+.nav {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 4px;
+}
+
+.progress {
+  display: flex;
+  height: 8px;
+  margin-block: calc((var(--line-height-normal, 1.5em) - 8px) / 2);
+  overflow: hidden;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: var(--muted);
+}
+
+.progress-bar:only-child {
+  border-radius: var(--radius-full);
+}
+
+.progress-bar {
+  height: 100%;
+  flex-shrink: 0;
+  border: 0;
+  background: var(--viz-series-1);
+}
+
+.viz-badge {
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+  color: var(--accent-foreground);
+  background: var(--accent);
+  font-weight: var(--font-weight-medium);
+}
+
+small,
+.text-small,
+.viz-badge {
+  font-size: var(--font-size-small);
+  line-height: var(--line-height-small);
+}
+
+.text-muted {
+  color: var(--muted-foreground);
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.viz-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.viz-controls &gt; .form-label {
+  display: grid;
+  min-width: min(100%, 260px);
+  flex: 1 1 280px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 2px 12px;
+  margin-bottom: 0;
+}
+
+.viz-controls &gt; .form-label &gt; :is(.form-control, .form-range, .form-select) {
+  grid-column: 1 / -1;
+}
+
+.btn,
+.nav-link,
+.form-check-input,
+.form-control,
+.form-range,
+.form-select {
+  font: inherit;
+}
+
+.btn,
+.nav-link {
+  appearance: button;
+  display: inline-flex;
+  inline-size: fit-content;
+  max-inline-size: 100%;
+  min-height: 28px;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  margin: 0;
+  padding: 0 8px;
+  -webkit-app-region: no-drag;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  corner-shape: var(--corner-shape);
+  color: var(--secondary-foreground);
+  background: var(--secondary);
+  cursor: var(--cursor-interaction, pointer);
+  text-align: center;
+  text-decoration: none;
+  white-space: nowrap;
+  user-select: none;
+  -webkit-font-smoothing: antialiased;
+}
+
+.btn:is(.btn-block, .viz-tile) {
+  inline-size: 100%;
+}
+
+.btn.viz-tile {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+a.btn {
+  cursor: var(--cursor-interaction, pointer);
+  text-decoration: none;
+}
+
+.btn:not(:disabled):hover,
+.nav-link:not(:disabled):not([aria-disabled=&quot;true&quot;]):hover {
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.btn-primary {
+  border-color: transparent;
+  color: var(--primary-foreground);
+  background: var(--foreground);
+  background-clip: padding-box;
+}
+
+.btn-primary .text-muted {
+  color: color-mix(in srgb, var(--primary-foreground) 50%, transparent);
+}
+
+.btn-primary:not(:disabled):hover {
+  background: color-mix(in srgb, var(--foreground) 80%, transparent);
+  background-clip: padding-box;
+}
+
+.btn-ghost {
+  border-color: transparent;
+  color: var(--muted-foreground);
+  background: transparent;
+}
+
+.btn-ghost:not(:disabled):hover {
+  color: var(--foreground);
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.nav-pills .nav-link {
+  min-width: 0;
+  border-color: transparent;
+  color: var(--muted-foreground);
+  background: transparent;
+}
+
+.nav-justified .nav-link {
+  flex: 1 1 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.nav-pills .nav-link.active {
+  color: var(--foreground);
+  background: var(--muted);
+}
+
+/* Shared preview chrome; product styles stay inside each variant. */
+.viz-dotted-background {
+  background-image: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--foreground) 14%, transparent) 0.8px,
+    transparent 0.8px
+  );
+  background-position: center;
+  background-size: 16px 16px;
+}
+
+.viz-carousel {
+  position: relative;
+  min-width: 0;
+}
+
+.viz-carousel:has(&gt; .viz-carousel-controls) {
+  min-height: calc(60px + var(--viz-carousel-picker-height, 0px));
+  padding-bottom: 60px;
+}
+
+.viz-carousel &gt; [data-variant][hidden] {
+  display: none !important;
+}
+
+.viz-carousel &gt; [data-variant] {
+  isolation: isolate;
+}
+
+.viz-carousel-controls {
+  --viz-carousel-hover: light-dark(
+    color-mix(in srgb, var(--foreground) 5.4%, transparent),
+    color-mix(in srgb, var(--foreground) 7.8%, transparent)
+  );
+  position: absolute;
+  z-index: 2;
+  bottom: 8px;
+  left: 50%;
+  display: flex;
+  width: max-content;
+  /* Leave room for the host&#x27;s design-controls launcher at the trailing edge. */
+  max-width: calc(100% - 96px);
+  align-items: center;
+  gap: 0;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  color: var(--foreground);
+  background: var(--background);
+  font-family: var(--font-sans);
+  /* Match the settings dropdown chrome independently of the content font size. */
+  font-size: 13px;
+  font-weight: var(--font-weight-normal);
+  line-height: 18px;
+  transform: translateX(-50%);
+  user-select: none;
+}
+
+.viz-carousel-controls button,
+.viz-carousel-picker &gt; summary {
+  display: flex;
+  min-height: 30px;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 0 6px;
+  -webkit-app-region: no-drag;
+  border: 0;
+  border-radius: 14px;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.viz-carousel-controls &gt; button,
+.viz-carousel-picker &gt; summary {
+  position: relative;
+  isolation: isolate;
+}
+
+.viz-carousel-controls &gt; button {
+  --icon-size: 16px;
+  width: 30px;
+  padding: 0;
+}
+
+.viz-carousel-picker &gt; summary {
+  padding-inline: 12px;
+}
+
+.viz-carousel-controls .viz-carousel-caret {
+  width: 14px;
+  height: 14px;
+  flex: none;
+  margin: 0;
+  color: inherit;
+  transform: rotate(180deg);
+}
+
+.viz-carousel-controls &gt; button &gt; svg,
+.viz-carousel-controls .viz-carousel-caret,
+.viz-carousel-count {
+  opacity: 0.5;
+}
+
+.viz-carousel-controls &gt; button::before,
+.viz-carousel-picker &gt; summary::before {
+  position: absolute;
+  z-index: -1;
+  inset: 3px;
+  border-radius: 12px;
+  content: &quot;&quot;;
+  pointer-events: none;
+}
+
+.viz-carousel-controls &gt; button:hover::before,
+.viz-carousel-picker &gt; summary:hover::before {
+  background: var(--viz-carousel-hover);
+}
+
+.viz-carousel-controls &gt; button,
+.viz-carousel-controls [data-lucide],
+.viz-carousel-controls .lucide {
+  flex-shrink: 0;
+}
+
+.viz-carousel-picker {
+  min-width: 0;
+}
+
+.viz-carousel-picker &gt; summary {
+  min-width: 0;
+  list-style: none;
+}
+
+.viz-carousel-picker &gt; summary::-webkit-details-marker {
+  display: none;
+}
+
+.viz-carousel-count {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.viz-carousel-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.viz-carousel-options {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 4px);
+  left: 0;
+  display: flex;
+  max-height: 240px;
+  flex-direction: column;
+  gap: 2px;
+  overflow: auto;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--background);
+  box-shadow: 0 4px 12px light-dark(rgb(0 0 0 / 6%), rgb(0 0 0 / 25%));
+}
+
+.viz-carousel-options &gt; button {
+  width: 100%;
+  min-height: 28px;
+  justify-content: flex-start;
+  padding: 4px 8px;
+  font-size: var(--font-size-small);
+  text-align: start;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.viz-carousel-options &gt; [aria-current=&quot;true&quot;],
+.viz-carousel-options &gt; button:hover {
+  background: var(--viz-carousel-hover);
+}
+
+.btn:disabled,
+.nav-link:disabled,
+.nav-link[aria-disabled=&quot;true&quot;] {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+[data-lucide] {
+  stroke-width: 1.6;
+}
+
+.form-label {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--foreground);
+}
+
+.form-control {
+  display: block;
+  width: 100%;
+  min-height: 28px;
+  padding: 0 8px;
+  outline: none;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  corner-shape: var(--corner-shape);
+  color: var(--foreground);
+  background: var(--secondary);
+}
+
+.form-control::placeholder {
+  color: var(--muted-foreground);
+}
+
+.form-control[type=&quot;file&quot;] {
+  padding: 0;
+  overflow: hidden;
+  cursor: var(--cursor-interaction, pointer);
+}
+
+.form-control[type=&quot;file&quot;]::file-selector-button {
+  min-height: 26px;
+  margin-right: 8px;
+  padding: 0 8px;
+  border: 0;
+  border-right: 1px solid var(--input);
+  color: var(--secondary-foreground);
+  background: var(--secondary);
+  cursor: inherit;
+  font: inherit;
+}
+
+.form-control[type=&quot;file&quot;]:not(:disabled):hover::file-selector-button {
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.form-control-color[type=&quot;color&quot;] {
+  width: 40px;
+  height: 28px;
+  padding: 3px;
+  cursor: var(--cursor-interaction, pointer);
+}
+
+.form-control-color[type=&quot;color&quot;]::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.form-control-color[type=&quot;color&quot;]::-webkit-color-swatch {
+  border: 0;
+  border-radius: calc(var(--radius-lg) - 4px);
+  corner-shape: var(--corner-shape);
+}
+
+textarea.form-control {
+  height: auto;
+  min-height: 72px;
+  padding: 8px 10px;
+  resize: vertical;
+}
+
+.form-control:focus-visible {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-control:disabled,
+.form-select:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.form-select {
+  appearance: none;
+  display: block;
+  width: 100%;
+  min-height: 28px;
+  margin: 0;
+  padding: 0 32px 0 8px;
+  outline: none;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  corner-shape: var(--corner-shape);
+  color: var(--foreground);
+  background-color: var(--secondary);
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--muted-foreground) 50%),
+    linear-gradient(135deg, var(--muted-foreground) 50%, transparent 50%);
+  background-position:
+    calc(100% - 14px) 50%,
+    calc(100% - 10px) 50%;
+  background-repeat: no-repeat;
+  background-size: 4px 4px;
+  cursor: var(--cursor-interaction, default);
+}
+
+.form-select:not(:disabled):hover {
+  background-color: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.form-select:focus-visible {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-check {
+  display: flex;
+  min-height: 20px;
+  align-items: center;
+  gap: 6px;
+}
+
+.form-check-input {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+  margin: 0;
+  border: 1px solid var(--input);
+  color: var(--primary-foreground);
+  background-color: transparent;
+  cursor: var(--cursor-interaction, default);
+  transition:
+    background-color 150ms,
+    border-color 150ms,
+    box-shadow 150ms;
+}
+
+.form-check:not(.form-switch) .form-check-input[type=&quot;checkbox&quot;] {
+  border-color: var(--input);
+  border-radius: var(--radius-sm);
+  corner-shape: var(--corner-shape);
+  background-color: var(--secondary);
+  box-shadow: var(--shadow-sm);
+}
+
+.form-check:not(.form-switch)
+  .form-check-input:not(:disabled):not(:checked):hover {
+  background-color: var(--card);
+}
+
+.form-check:not(.form-switch) .form-check-input[type=&quot;checkbox&quot;]:checked {
+  border-color: var(--primary);
+  background-color: var(--primary);
+}
+
+.form-check:not(.form-switch)
+  .form-check-input[type=&quot;checkbox&quot;]:checked::before {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--primary-foreground);
+  content: &quot;&quot;;
+  mask: var(--checkmark-image) center / 12px 12px no-repeat;
+}
+
+.form-check-input[type=&quot;radio&quot;] {
+  width: 14px;
+  height: 14px;
+  border-radius: var(--radius-full);
+}
+
+.form-check-input[type=&quot;radio&quot;]:checked {
+  border: 2px solid var(--primary);
+  background:
+    radial-gradient(circle, var(--primary-foreground) 0 2.5px, transparent 3px),
+    var(--primary);
+}
+
+.form-check:not(.form-switch) .form-check-input:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+.form-check:not(.form-switch) .form-check-input:disabled {
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.form-check:not(.form-switch) .form-check-input:disabled + .form-check-label {
+  cursor: not-allowed;
+}
+
+.form-switch .form-check-input:disabled,
+.form-switch .form-check-input:disabled + .form-check-label {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.form-check-label {
+  color: var(--foreground);
+  cursor: var(--cursor-interaction, default);
+}
+
+.form-switch .form-check-input {
+  position: relative;
+  width: 32px;
+  height: 20px;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: var(--muted);
+  box-shadow: none;
+  transition: background-color 200ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+.form-switch .form-check-input::before {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 16px;
+  height: 16px;
+  box-sizing: border-box;
+  border: 1px solid light-dark(var(--primary-foreground), var(--foreground));
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+  box-shadow: var(--shadow-sm);
+  content: &quot;&quot;;
+  transform: translate(2px, -50%);
+  transition: transform 200ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+.form-switch .form-check-input:checked {
+  background: var(--primary);
+}
+
+.form-switch .form-check-input:checked::before {
+  transform: translate(14px, -50%);
+}
+
+.form-switch .form-check-input:focus-visible {
+  box-shadow: 0 0 0 2px var(--ring);
+}
+
+.form-range {
+  appearance: none;
+  display: block;
+  width: 100%;
+  height: 28px;
+  flex: 1;
+  margin: 0;
+  padding: 0;
+  outline: none;
+  border: 0;
+  accent-color: var(--primary);
+  background: linear-gradient(
+      color-mix(in srgb, var(--foreground) 7%, transparent),
+      color-mix(in srgb, var(--foreground) 7%, transparent)
+    )
+    center / 100% 2px no-repeat;
+}
+
+.form-range::-webkit-slider-runnable-track {
+  height: 28px;
+  background: transparent;
+}
+
+.form-range::-webkit-slider-thumb {
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  margin-top: 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+}
+
+.form-range:focus-visible::-webkit-slider-thumb {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-range::-moz-range-track {
+  height: 28px;
+  background: transparent;
+}
+
+.form-range::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+}
+
+.form-range:focus-visible::-moz-range-thumb {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-range:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.btn:not(.btn-primary, .viz-tile):is(
+  [aria-pressed=&quot;true&quot;],
+  [aria-selected=&quot;true&quot;],
+  .is-selected
+) {
+  border-color: var(--primary);
+  color: var(--primary-foreground);
+  background: var(--primary);
+}
+
+.btn.viz-tile:is([aria-pressed=&quot;true&quot;], [aria-selected=&quot;true&quot;], .is-selected) {
+  border-color: var(--primary);
+  box-shadow: inset 0 0 0 1px var(--primary);
+}
+
+.btn:focus-visible,
+.nav-link:focus-visible,
+.viz-carousel-controls :is(button, summary):focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+@media (pointer: coarse) {
+  .viz-carousel:has(&gt; .viz-carousel-controls) {
+    min-height: calc(76px + var(--viz-carousel-picker-height, 0px));
+    padding-bottom: 76px;
+  }
+
+  .btn,
+  .nav-link,
+  .viz-carousel-controls button,
+  .viz-carousel-picker &gt; summary,
+  .form-control,
+  .form-select {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  /* Keep small-screen WebKit from zooming when a text field receives focus. */
+  .form-control,
+  .form-select {
+    font-size: max(16px, var(--font-size-normal));
+  }
+
+  .form-control[type=&quot;file&quot;]::file-selector-button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .form-control-color[type=&quot;color&quot;] {
+    width: 44px;
+    height: 44px;
+  }
+
+  .form-control:is(
+    [type=&quot;date&quot;],
+    [type=&quot;datetime-local&quot;],
+    [type=&quot;month&quot;],
+    [type=&quot;time&quot;],
+    [type=&quot;week&quot;]
+  ) {
+    min-width: 0;
+    max-width: 100%;
+    padding-block: 8px;
+  }
+
+  .form-check {
+    min-height: 44px;
+    padding-inline: 15px;
+  }
+
+  .form-check-input {
+    position: relative;
+  }
+
+  .form-check-input::after {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 44px;
+    height: 44px;
+    content: &quot;&quot;;
+    transform: translate(-50%, -50%);
+  }
+
+  .form-check-label {
+    display: inline-flex;
+    min-width: 44px;
+    min-height: 44px;
+    align-items: center;
+  }
+
+  .form-range {
+    height: 44px;
+    touch-action: pan-y;
+  }
+
+  .form-range::-webkit-slider-runnable-track {
+    height: 44px;
+  }
+
+  .form-range::-moz-range-track {
+    height: 44px;
+  }
+
+  .form-range::-webkit-slider-thumb {
+    margin-top: 12px;
+  }
+}
+
+svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+#widget &gt; svg {
+  width: 100%;
+}
+
+/* Model-authored chart rules can otherwise stretch icons after these styles load. */
+svg.lucide {
+  display: block;
+  width: var(--icon-size) !important;
+  height: var(--icon-size) !important;
+  flex: none;
+  margin: 0 !important;
+  stroke-width: 1.6;
+}
+
+.text-warning,
+.text-destructive {
+  color: var(--destructive);
+}
+
+html&gt;body{padding:0}&lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+&lt;script type=&quot;application/json&quot; id=&quot;codex-visualization-widget-state&quot;&gt;__CODEX_VISUALIZATION_WIDGET_STATE__&lt;/script&gt;
+&lt;script&gt;(() =&gt; {
+  const root = document.documentElement;
+  const mediaQuery = globalThis.matchMedia(&quot;(prefers-color-scheme: dark)&quot;);
+  const apply = Reflect.apply;
+  const isArray = Array.isArray;
+  const hasOwn = Object.hasOwn;
+  const parentWindow = globalThis.parent;
+  const stringify = JSON.stringify;
+  const parse = JSON.parse;
+  const encode = TextEncoder.prototype.encode.bind(new TextEncoder());
+  const initialStateElement = document.getElementById(
+    &quot;codex-visualization-widget-state&quot;,
+  );
+  const initialGlobals = parse(initialStateElement?.textContent ?? &quot;{}&quot;);
+  initialStateElement?.remove();
+  /** @type {Record&lt;string, unknown&gt; | null} */
+  let state = initialGlobals.widgetState ?? null;
+  const statePersistence = initialGlobals.statePersistence ?? &quot;none&quot;;
+  let nextStateRequestId = 0;
+  /** @type {Map&lt;number, { resolve: () =&gt; void; reject: (error: Error) =&gt; void; timeout: ReturnType&lt;typeof globalThis.setTimeout&gt;; serializedState: string }&gt;} */
+  const pendingStateWrites = new Map();
+  const persistenceError = () =&gt;
+    Object.assign(
+      new Error(&quot;The host could not persist the widget state update&quot;),
+      {
+        code: -32000,
+        data: { code: &quot;widget_state_persistence_failed&quot;, retryable: false },
+      },
+    );
+  /**
+   * @param {object} prototype
+   * @param {string} property
+   */
+  const getPrototypeGetter = (prototype, property) =&gt; {
+    // oxlint-disable-next-line typescript/unbound-method -- invoked through captured Reflect.apply
+    const getter = Object.getOwnPropertyDescriptor(prototype, property)?.get;
+    if (getter == null) {
+      throw new Error(`Missing ${property} getter`);
+    }
+    return getter;
+  };
+  const getMessageData = getPrototypeGetter(MessageEvent.prototype, &quot;data&quot;);
+  const getMessagePorts = getPrototypeGetter(MessageEvent.prototype, &quot;ports&quot;);
+  const getMessageSource = getPrototypeGetter(MessageEvent.prototype, &quot;source&quot;);
+  // oxlint-disable-next-line typescript/unbound-method -- captured before the untrusted fragment runs
+  const addHostMessageListener = MessagePort.prototype.addEventListener;
+  // oxlint-disable-next-line typescript/unbound-method -- captured before the untrusted fragment runs
+  const postHostMessage = MessagePort.prototype.postMessage;
+  // oxlint-disable-next-line typescript/unbound-method -- captured before the untrusted fragment runs
+  const startHostPort = MessagePort.prototype.start;
+  // oxlint-disable-next-line typescript/unbound-method -- captured before the untrusted fragment runs
+  const stopMessagePropagation = Event.prototype.stopImmediatePropagation;
+  /** @type {MessagePort | null} */
+  let hostPort = null;
+  const postToHost = (type, payload) =&gt; {
+    if (hostPort != null) {
+      apply(postHostMessage, hostPort, [{ type, ...payload }]);
+    }
+  };
+  const openExternal = ({ href }) =&gt; {
+    if (globalThis.navigator.userActivation?.isActive === true) {
+      postToHost(&quot;open-external&quot;, { href });
+    }
+  };
+  const sendFollowUpMessage = ({ context, prompt, title }) =&gt; {
+    if (globalThis.navigator.userActivation?.isActive === true) {
+      postToHost(&quot;follow-up&quot;, { context, prompt, title });
+    }
+    return Promise.resolve();
+  };
+  /**
+   * @param {Record&lt;string, unknown&gt; | ((previous: Record&lt;string, unknown&gt; | null) =&gt; Record&lt;string, unknown&gt;)} next
+   * @returns {Promise&lt;void&gt;}
+   */
+  const setWidgetState = async (next) =&gt; {
+    const nextState = typeof next === &quot;function&quot; ? next(state) : next;
+    if (
+      nextState == null ||
+      typeof nextState !== &quot;object&quot; ||
+      isArray(nextState)
+    ) {
+      throw new TypeError(&quot;Widget state must be a JSON object&quot;);
+    }
+    const inputState = stringify(
+      nextState,
+      (_key, /** @type {unknown} */ value) =&gt; {
+        if (
+          typeof value === &quot;undefined&quot; ||
+          typeof value === &quot;function&quot; ||
+          typeof value === &quot;symbol&quot; ||
+          (typeof value === &quot;number&quot; &amp;&amp; !Number.isFinite(value))
+        ) {
+          throw new TypeError(&quot;Widget state must be a JSON object&quot;);
+        }
+        return value;
+      },
+    );
+    const parsedState = parse(inputState);
+    if (
+      parsedState == null ||
+      typeof parsedState !== &quot;object&quot; ||
+      isArray(parsedState)
+    ) {
+      throw new TypeError(&quot;Widget state must be a JSON object&quot;);
+    }
+    const storedState = {
+      modelContent: null,
+      privateContent: null,
+      ...parsedState,
+    };
+    const serializedState = stringify(storedState);
+    if (encode(serializedState).length &gt; 16 * 1024) {
+      throw new TypeError(
+        &quot;Widget state must be a JSON object of at most 16 KiB&quot;,
+      );
+    }
+    if (
+      hasOwn(storedState, &quot;imageIds&quot;) &amp;&amp;
+      (!isArray(storedState.imageIds) ||
+        storedState.imageIds.some(
+          (/** @type {unknown} */ id) =&gt; typeof id !== &quot;string&quot;,
+        ))
+    ) {
+      throw new TypeError(&quot;Widget state imageIds must be an array of strings&quot;);
+    }
+    if (storedState.imageIds?.length &gt; 0) {
+      throw Object.assign(
+        new TypeError(&quot;Visualization state does not support image attachments&quot;),
+        { code: -32602, data: { code: &quot;images_unsupported&quot; } },
+      );
+    }
+    state = storedState;
+    globalThis.openai.widgetState = state;
+    globalThis.dispatchEvent(
+      new CustomEvent(&quot;openai:set_globals&quot;, {
+        detail: { globals: { widgetState: state } },
+      }),
+    );
+    if (statePersistence === &quot;none&quot;) {
+      throw persistenceError();
+    }
+    const id = ++nextStateRequestId;
+    return new Promise((resolve, reject) =&gt; {
+      const timeout = globalThis.setTimeout(() =&gt; {
+        pendingStateWrites.delete(id);
+        reject(persistenceError());
+      }, 30_000);
+      pendingStateWrites.set(id, { resolve, reject, timeout, serializedState });
+      postToHost(&quot;widget-state-write&quot;, { id, state: serializedState });
+    });
+  };
+  const syncTheme = () =&gt; {
+    const theme = mediaQuery.matches ? &quot;dark&quot; : &quot;light&quot;;
+    root.dataset.theme = theme;
+    globalThis.openai = {
+      ...globalThis.openai,
+      openExternal,
+      sendFollowUpMessage,
+      setWidgetState,
+      theme,
+      visualizationStyleVariables: {},
+      visualizationTheme: theme,
+      widgetState: state,
+      statePersistence,
+      stateModelContext: &quot;none&quot;,
+    };
+    globalThis.dispatchEvent(
+      new CustomEvent(&quot;openai:set_globals&quot;, {
+        detail: { globals: globalThis.openai },
+      }),
+    );
+  };
+  const sendHeight = () =&gt; {
+    postToHost(&quot;height&quot;, {
+      height: Math.ceil(
+        Math.max(
+          document.body.scrollHeight,
+          document.body.getBoundingClientRect().height,
+        ),
+      ),
+    });
+  };
+
+  globalThis.addEventListener(
+    &quot;message&quot;,
+    (event) =&gt; {
+      const data = apply(getMessageData, event, []);
+      const ports = apply(getMessagePorts, event, []);
+      const source = apply(getMessageSource, event, []);
+      if (
+        hostPort != null ||
+        source !== parentWindow ||
+        typeof data !== &quot;object&quot; ||
+        data?.type !== &quot;codex-visualization-initialize&quot; ||
+        !isArray(ports) ||
+        ports.length !== 1
+      ) {
+        return;
+      }
+      apply(stopMessagePropagation, event, []);
+      const nextHostPort = ports[0];
+      try {
+        apply(addHostMessageListener, nextHostPort, [
+          &quot;message&quot;,
+          (event) =&gt; {
+            const data = apply(getMessageData, event, []);
+            if (typeof data === &quot;object&quot; &amp;&amp; data?.type === &quot;measure&quot;) {
+              sendHeight();
+            } else if (
+              typeof data === &quot;object&quot; &amp;&amp;
+              data?.type === &quot;widget-state-result&quot;
+            ) {
+              /** @type {unknown} */
+              const id = data.id;
+              if (typeof id !== &quot;number&quot;) {
+                return;
+              }
+              const pending = pendingStateWrites.get(id);
+              if (pending != null) {
+                pendingStateWrites.delete(id);
+                globalThis.clearTimeout(pending.timeout);
+                if (data.ok === true) {
+                  pending.resolve();
+                } else {
+                  pending.reject(persistenceError());
+                }
+              }
+            }
+          },
+        ]);
+        apply(startHostPort, nextHostPort, []);
+      } catch {
+        return;
+      }
+      hostPort = nextHostPort;
+      for (const [id, { serializedState }] of pendingStateWrites) {
+        postToHost(&quot;widget-state-write&quot;, { id, state: serializedState });
+      }
+      sendHeight();
+    },
+    { capture: true },
+  );
+  document.currentScript?.remove();
+  mediaQuery.addEventListener(&quot;change&quot;, syncTheme);
+  globalThis.addEventListener(&quot;click&quot;, (event) =&gt; {
+    if (event.defaultPrevented) {
+      return;
+    }
+    let element = null;
+    if (event.target instanceof globalThis.Element) {
+      element = event.target;
+    } else if (event.target instanceof globalThis.Node) {
+      element = event.target.parentElement;
+    }
+    const link = element?.closest(&quot;a[href]&quot;);
+    const href = link?.getAttribute(&quot;href&quot;);
+    if (href == null) {
+      return;
+    }
+    if (href.startsWith(&quot;#&quot;)) {
+      let id;
+      try {
+        id = decodeURIComponent(href.slice(1));
+      } catch {
+        return;
+      }
+      const target = id.length === 0 ? root : document.getElementById(id);
+      if (
+        target == null ||
+        globalThis.navigator.userActivation?.isActive !== true
+      ) {
+        return;
+      }
+      event.preventDefault();
+      postToHost(&quot;scroll-to&quot;, {
+        top: target.getBoundingClientRect().top + globalThis.scrollY,
+      });
+      return;
+    }
+    event.preventDefault();
+    openExternal({ href });
+  });
+  new ResizeObserver(sendHeight).observe(document.body);
+  syncTheme();
+})();
+&lt;/script&gt;
+&lt;div id=&quot;seastock-receiving-wireframes&quot; class=&quot;viz-dotted-background&quot;&gt;
+  &lt;div class=&quot;ss-preview&quot;&gt;
+    &lt;span&gt;Receiving wireframes · Simulated camera&lt;/span&gt;
+    &lt;div class=&quot;ss-preview-controls&quot; hidden&gt;
+      &lt;label&gt;Preview observation
+        &lt;select class=&quot;ss-observation&quot; aria-label=&quot;Preview camera observation&quot;&gt;
+          &lt;option value=&quot;matched&quot;&gt;Clear article · confirmed&lt;/option&gt;
+          &lt;option value=&quot;verifying&quot;&gt;Article · verifying&lt;/option&gt;
+          &lt;option value=&quot;searching&quot;&gt;Searching&lt;/option&gt;
+          &lt;option value=&quot;blur&quot;&gt;Motion blur&lt;/option&gt;
+          &lt;option value=&quot;glare&quot;&gt;Glare&lt;/option&gt;
+          &lt;option value=&quot;hidden&quot;&gt;Article not visible&lt;/option&gt;
+          &lt;option value=&quot;conflict&quot;&gt;Conflicting frames&lt;/option&gt;
+          &lt;option value=&quot;unexpected&quot;&gt;Attachment article · not on DN&lt;/option&gt;
+          &lt;option value=&quot;duplicate&quot;&gt;Repeated DN article&lt;/option&gt;
+        &lt;/select&gt;
+      &lt;/label&gt;
+      &lt;label&gt;Printed article
+        &lt;input class=&quot;ss-observed-article&quot; type=&quot;text&quot; inputmode=&quot;numeric&quot; value=&quot;445386&quot; aria-label=&quot;Simulated printed article number&quot;&gt;
+      &lt;/label&gt;
+      &lt;button type=&quot;button&quot; data-action=&quot;preview&quot; class=&quot;cursor-interaction&quot;&gt;Show scan&lt;/button&gt;
+    &lt;/div&gt;
+  &lt;/div&gt;
+  &lt;div class=&quot;ss-app&quot; aria-label=&quot;Pixorex Sea Stock receiving&quot;&gt;
+    &lt;header class=&quot;ss-header&quot;&gt;&lt;/header&gt;
+    &lt;nav class=&quot;ss-stages&quot; aria-label=&quot;Receiving workflow&quot;&gt;&lt;/nav&gt;
+    &lt;main class=&quot;ss-main&quot;&gt;&lt;/main&gt;
+    &lt;footer class=&quot;ss-footer&quot;&gt;&lt;/footer&gt;
+    &lt;div class=&quot;ss-announcement&quot; role=&quot;status&quot; aria-live=&quot;polite&quot;&gt;&lt;/div&gt;
+    &lt;div class=&quot;ss-overlay&quot; hidden&gt;&lt;/div&gt;
+  &lt;/div&gt;
+&lt;/div&gt;
+&lt;style&gt;
+  #seastock-receiving-wireframes { padding: 12px 8px; }
+  #seastock-receiving-wireframes, #seastock-receiving-wireframes * { box-sizing: border-box; }
+  #seastock-receiving-wireframes {
+    --ss-bg: light-dark(#edf1f7, #131c2c);
+    --ss-surface: light-dark(#ffffff, #1f2c42);
+    --ss-fg: light-dark(#122443, #eef3ff);
+    --ss-muted: light-dark(#52627b, #bac8df);
+    --ss-border: light-dark(#d4dfef, #435573);
+    --ss-primary: light-dark(#2563eb, #aac6ff);
+    --ss-on-primary: light-dark(#ffffff, #0b1f44);
+    --ss-soft: light-dark(#eaf1ff, #2a3e60);
+    --ss-good: light-dark(#176340, #9be0b8);
+    --ss-good-bg: light-dark(#e8f6ed, #233e36);
+    --ss-warn: light-dark(#89500b, #ffd18d);
+    --ss-warn-bg: light-dark(#fff3df, #42372a);
+    --ss-bad: light-dark(#aa2436, #ffb0be);
+    --ss-bad-bg: light-dark(#fff0f2, #482a36);
+    color-scheme: light dark; color: var(--ss-fg); font: 14px/1.5 Roboto, system-ui, sans-serif;
+  }
+  #seastock-receiving-wireframes .ss-preview { max-width: 460px; margin: 0 auto 12px; color: var(--ss-muted); font-size: 12px; }
+  #seastock-receiving-wireframes .ss-preview-controls { display: flex; gap: 8px; align-items: end; flex-wrap: wrap; margin-top: 8px; }
+  #seastock-receiving-wireframes .ss-preview-controls[hidden] { display: none; }
+  #seastock-receiving-wireframes .ss-preview-controls label { flex: 1 1 140px; }
+  #seastock-receiving-wireframes .ss-app { max-width: 460px; margin: 0 auto; background: var(--ss-bg); border: 1px solid var(--ss-border); border-radius: 20px; overflow: hidden; position: relative; }
+  #seastock-receiving-wireframes h2 { font-size: 22px; line-height: 1.3; font-weight: 500; margin: 4px 0; color: var(--ss-fg); }
+  #seastock-receiving-wireframes h3 { font-size: 16px; line-height: 1.4; font-weight: 500; margin: 0; color: var(--ss-fg); }
+  #seastock-receiving-wireframes p { margin: 8px 0; }
+  #seastock-receiving-wireframes button { min-height: 44px; border: 1px solid var(--ss-border); border-radius: 10px; background: var(--ss-surface); color: var(--ss-primary); padding: 10px 12px; font: inherit; font-weight: 500; }
+  #seastock-receiving-wireframes button:disabled { opacity: .48; cursor: default; }
+  #seastock-receiving-wireframes .ss-primary { background: var(--ss-primary); color: var(--ss-on-primary); border-color: var(--ss-primary); }
+  #seastock-receiving-wireframes .ss-quiet { background: transparent; border-color: transparent; padding: 8px 4px; }
+  #seastock-receiving-wireframes .ss-header { padding: 16px; background: var(--ss-surface); }
+  #seastock-receiving-wireframes .ss-header-row, #seastock-receiving-wireframes .ss-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+  #seastock-receiving-wireframes .ss-brand { color: var(--ss-muted); font-size: 12px; }
+  #seastock-receiving-wireframes .ss-meta { color: var(--ss-muted); font-size: 12px; }
+  #seastock-receiving-wireframes .ss-value { font-weight: 500; font-size: 21px; font-variant-numeric: tabular-nums; }
+  #seastock-receiving-wireframes .ss-code { font-variant-numeric: tabular-nums; letter-spacing: .5px; }
+  #seastock-receiving-wireframes .ss-stages { display: grid; grid-template-columns: repeat(3, 1fr); border-bottom: 1px solid var(--ss-border); background: var(--ss-surface); }
+  #seastock-receiving-wireframes .ss-stages:empty { display: none; }
+  #seastock-receiving-wireframes .ss-stages button { padding: 10px 3px; border: 0; border-radius: 0; font-size: 12px; color: var(--ss-muted); }
+  #seastock-receiving-wireframes .ss-stages button[aria-current=&quot;step&quot;] { color: var(--ss-primary); background: var(--ss-soft); box-shadow: inset 0 -2px var(--ss-primary); }
+  #seastock-receiving-wireframes .ss-main { padding: 16px; min-height: 400px; }
+  #seastock-receiving-wireframes .ss-main &gt; * + * { margin-top: 12px; }
+  #seastock-receiving-wireframes .ss-card { background: var(--ss-surface); border: 1px solid var(--ss-border); border-radius: 14px; padding: var(--ss-card-padding, 14px); }
+  #seastock-receiving-wireframes .ss-card + .ss-card { margin-top: 10px; }
+  #seastock-receiving-wireframes .ss-badge { display: inline-flex; padding: 3px 8px; border-radius: 20px; background: var(--ss-soft); color: var(--ss-primary); font-size: 12px; }
+  #seastock-receiving-wireframes .ss-badge.good { background: var(--ss-good-bg); color: var(--ss-good); }
+  #seastock-receiving-wireframes .ss-badge.warn { background: var(--ss-warn-bg); color: var(--ss-warn); }
+  #seastock-receiving-wireframes .ss-badge.bad { background: var(--ss-bad-bg); color: var(--ss-bad); }
+  #seastock-receiving-wireframes .ss-good { color: var(--ss-good); }
+  #seastock-receiving-wireframes .ss-warn { color: var(--ss-warn); }
+  #seastock-receiving-wireframes .ss-bad { color: var(--ss-bad); }
+  #seastock-receiving-wireframes .ss-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+  #seastock-receiving-wireframes .ss-actions &gt; button { flex: 1 1 auto; }
+  #seastock-receiving-wireframes .ss-rule { border-top: 1px solid var(--ss-border); margin-top: 12px; padding-top: 12px; }
+  #seastock-receiving-wireframes .ss-progress { height: 5px; background: var(--ss-border); border-radius: 5px; overflow: hidden; margin: 10px 0 4px; }
+  #seastock-receiving-wireframes .ss-progress span { display: block; height: 100%; background: var(--ss-primary); }
+  #seastock-receiving-wireframes .ss-footer { padding: 14px 16px; border-top: 1px solid var(--ss-border); background: var(--ss-surface); }
+  #seastock-receiving-wireframes .ss-footer button { width: 100%; margin-top: 8px; }
+  #seastock-receiving-wireframes .ss-announcement { padding: 8px 16px; min-height: 36px; font-size: 12px; color: var(--ss-muted); }
+  #seastock-receiving-wireframes input, #seastock-receiving-wireframes select, #seastock-receiving-wireframes textarea { display: block; width: 100%; min-width: 0; min-height: 44px; border: 1px solid var(--ss-border); border-radius: 10px; padding: 9px 10px; background: var(--ss-surface); color: var(--ss-fg); font: 16px/1.5 Roboto, system-ui, sans-serif; }
+  #seastock-receiving-wireframes input::placeholder { color: var(--ss-muted); }
+  #seastock-receiving-wireframes label { display: block; }
+  #seastock-receiving-wireframes .ss-filters { display: flex; gap: 6px; flex-wrap: wrap; }
+  #seastock-receiving-wireframes .ss-filters button { font-size: 12px; padding: 8px 10px; }
+  #seastock-receiving-wireframes .ss-filters button[aria-pressed=&quot;true&quot;] { background: var(--ss-primary); color: var(--ss-on-primary); }
+  #seastock-receiving-wireframes .ss-camera { min-height: 200px; border-radius: 14px; padding: 20px 16px; background: light-dark(#dfe6f2, #172238); display: flex; flex-direction: column; align-items: center; gap: 20px; }
+  #seastock-receiving-wireframes .ss-label { background: var(--ss-surface); color: var(--ss-fg); width: 100%; max-width: 275px; padding: 25px 15px; border-radius: 26px / 12px; text-align: center; border: 1px solid var(--ss-border); }
+  #seastock-receiving-wireframes .ss-label.blur { filter: blur(3px); }
+  #seastock-receiving-wireframes .ss-label.glare { opacity: .25; }
+  #seastock-receiving-wireframes .ss-allocation { display: grid; gap: 8px; margin-top: 12px; }
+  #seastock-receiving-wireframes .ss-allocation button { text-align: left; color: var(--ss-fg); }
+  #seastock-receiving-wireframes .ss-allocation button[aria-pressed=&quot;true&quot;] { background: var(--ss-soft); border-color: var(--ss-primary); }
+  #seastock-receiving-wireframes .ss-overlay[hidden] { display: none; }
+  #seastock-receiving-wireframes .ss-overlay { position: absolute; inset: 0; z-index: 5; background: light-dark(#0b1f4466, #040913aa); display: flex; align-items: flex-start; justify-content: center; padding: 12px; }
+  #seastock-receiving-wireframes .ss-sheet { width: 100%; max-width: 420px; margin-top: 70px; background: var(--ss-surface); color: var(--ss-fg); border-radius: 16px; border: 1px solid var(--ss-border); padding: 18px; }
+  #seastock-receiving-wireframes .ss-sheet label { margin: 14px 0 6px; }
+  #seastock-receiving-wireframes .ss-check { display: flex; align-items: flex-start; gap: 10px; padding: 8px 0; }
+  #seastock-receiving-wireframes .ss-check input { width: 20px; min-height: 20px; flex: 0 0 20px; margin-top: 2px; }
+  #seastock-receiving-wireframes .ss-error { color: var(--ss-bad); margin: 8px 0; min-height: 20px; }
+  #seastock-receiving-wireframes .ss-debug { font-size: 12px; color: var(--ss-muted); }
+  @media (max-width: 360px) {
+    #seastock-receiving-wireframes { padding: 8px 0; }
+    #seastock-receiving-wireframes .ss-main, #seastock-receiving-wireframes .ss-header, #seastock-receiving-wireframes .ss-footer { padding: 12px; }
+    #seastock-receiving-wireframes .ss-actions &gt; button { flex-basis: 100%; }
+    #seastock-receiving-wireframes .ss-preview-controls label:first-child { flex-basis: 100%; }
+  }
+&lt;/style&gt;
+&lt;script&gt;
+(() =&gt; {
+  const root = document.getElementById(&#x27;seastock-receiving-wireframes&#x27;);
+  const app = root.querySelector(&#x27;.ss-app&#x27;);
+  const header = root.querySelector(&#x27;.ss-header&#x27;);
+  const nav = root.querySelector(&#x27;.ss-stages&#x27;);
+  const main = root.querySelector(&#x27;.ss-main&#x27;);
+  const footer = root.querySelector(&#x27;.ss-footer&#x27;);
+  const overlay = root.querySelector(&#x27;.ss-overlay&#x27;);
+  const notice = root.querySelector(&#x27;.ss-announcement&#x27;);
+  const preview = root.querySelector(&#x27;.ss-preview-controls&#x27;);
+  const designs = { spacing: &#x27;Comfortable&#x27;, diagnostics: false };
+  const data = [
+    { id: &#x27;5319364114&#x27;, pages: 4, piece: 62, label: &#x27;Source DN fixture&#x27;, rows: [
+      [&#x27;445235&#x27;, 15, 2, &#x27;S COVER 456 BAS GREY&#x27;], [&#x27;445182&#x27;, 15, 2, &#x27;S COVER 256/435/456/522 HRD&#x27;],
+      [&#x27;475212&#x27;, 7, 3, &#x27;S PRIME 200 BAS YEL/GREEN&#x27;], [&#x27;475210&#x27;, 7, 3, &#x27;S PRIME 200 HRD&#x27;],
+      [&#x27;445377&#x27;, 2, 3, &#x27;S RINE 48 GREEN&#x27;], [&#x27;445386&#x27;, 8, 3, &#x27;S RINE 48 RED&#x27;], [&#x27;445374&#x27;, 8, 4, &#x27;S RINE 48 BLUE&#x27;]
+    ] },
+    { id: &#x27;5319358250&#x27;, pages: 6, piece: 100, label: &#x27;Source DN fixture&#x27;, rows: [
+      [&#x27;445276&#x27;, 4, 2, &#x27;S DUR 550 BAS GREY&#x27;], [&#x27;445254&#x27;, 4, 2, &#x27;S DUR 520/550 HRD&#x27;],
+      [&#x27;475211&#x27;, 15, 3, &#x27;S PRIME 200 BAS GREY&#x27;], [&#x27;475210&#x27;, 15, 3, &#x27;S PRIME 200 HRD&#x27;],
+      [&#x27;475212&#x27;, 5, 3, &#x27;S PRIME 200 BAS YEL/GREEN&#x27;], [&#x27;475210&#x27;, 5, 4, &#x27;S PRIME 200 HRD&#x27;],
+      [&#x27;445332&#x27;, 1, 4, &#x27;S GUARD CSF 585 BAS BLUE&#x27;], [&#x27;468181&#x27;, 1, 4, &#x27;S GUARD CSF 585 HRD&#x27;],
+      [&#x27;445450&#x27;, 3, 5, &#x27;THINNER 21-06&#x27;], [&#x27;445458&#x27;, 3, 5, &#x27;THINNER 91-92&#x27;],
+      [&#x27;445365&#x27;, 4, 5, &#x27;S RINE 28 REDBROWN&#x27;], [&#x27;445382&#x27;, 16, 6, &#x27;S RINE 48 GREY&#x27;],
+      [&#x27;445378&#x27;, 16, 6, &#x27;S RINE 48 GREEN&#x27;], [&#x27;445430&#x27;, 8, 6, &#x27;S THERM 500&#x27;]
+    ] },
+    { id: &#x27;LABEL-TEST&#x27;, pages: 1, piece: 7, label: &#x27;Illustrative label-test DN&#x27;, rows: [
+      [&#x27;00240476&#x27;, 1, 1, &#x27;SIGMADUR 550 · BASE&#x27;], [&#x27;121186&#x27;, 1, 1, &#x27;SIGMADUR 550 · BASE&#x27;],
+      [&#x27;00464138&#x27;, 1, 1, &#x27;SIGMACOVER 350 · BASE&#x27;], [&#x27;00220294&#x27;, 1, 1, &#x27;SIGMACOVER 350 · HARDENER&#x27;],
+      [&#x27;30082418&#x27;, 1, 1, &#x27;SIGMATHERM 350 · ONE COMPONENT&#x27;], [&#x27;00121186&#x27;, 1, 1, &#x27;THINNER 91-92&#x27;],
+      [&#x27;30013603&#x27;, 1, 1, &#x27;SIGMARINE ONE 648 · ONE COMPONENT&#x27;]
+    ] }
+  ];
+  const makeSessions = () =&gt; data.map(dn =&gt; ({ id: dn.id, finalised: false, revision: 1, summaryReviewed: false,
+    checked: Array.from({ length: dn.pages }, (_, i) =&gt; i + 1), submitted: false,
+    rows: dn.rows.map((row, i) =&gt; ({ id: `${dn.id}:row:${i}`, article: row[0], expected: row[1], page: row[2], product: row[3], qty: 0, scanned: 0, manual: 0, status: &#x27;untouched&#x27;, reason: &#x27;&#x27; })),
+    events: [], exceptions: []
+  }));
+  let sessions = makeSessions();
+  let selected = data[0].id;
+  let stage = &#x27;landing&#x27;;
+  let search = &#x27;&#x27;;
+  let filter = &#x27;all&#x27;;
+  let scan = { state: &#x27;searching&#x27;, article: &#x27;&#x27;, target: null, accepted: false };
+  let returnFocus = null;
+  let serial = 0;
+  let lastWriteId = null;
+  const safe = value =&gt; String(value).replace(/[&amp;&lt;&gt;&quot;&#x27;]/g, char =&gt; ({ &#x27;&amp;&#x27;: &#x27;&amp;amp;&#x27;, &#x27;&lt;&#x27;: &#x27;&amp;lt;&#x27;, &#x27;&gt;&#x27;: &#x27;&amp;gt;&#x27;, &#x27;&quot;&#x27;: &#x27;&amp;quot;&#x27;, &quot;&#x27;&quot;: &#x27;&amp;#39;&#x27; })[char]);
+  const current = () =&gt; sessions.find(s =&gt; s.id === selected);
+  const fixture = () =&gt; data.find(d =&gt; d.id === selected);
+  const total = (s, key) =&gt; s.rows.reduce((n, row) =&gt; n + row[key], 0);
+  const verified = s =&gt; s.rows.filter(row =&gt; row.status === &#x27;verified&#x27;).length;
+  const pending = s =&gt; s.exceptions.filter(e =&gt; !e.resolved).length;
+  const summaryMismatch = s =&gt; total(s, &#x27;expected&#x27;) !== data.find(d =&gt; d.id === s.id).piece;
+  const sourceReady = s =&gt; s.checked.length === data.find(d =&gt; d.id === s.id).pages &amp;&amp; (!summaryMismatch(s) || s.summaryReviewed);
+  const ready = s =&gt; s.finalised &amp;&amp; sourceReady(s) &amp;&amp; verified(s) === s.rows.length &amp;&amp; s.rows.every(r =&gt; r.qty === r.expected || r.reason.trim()) &amp;&amp; !pending(s);
+  const statusLabel = row =&gt; ({ untouched: &#x27;Not started&#x27;, counting: &#x27;Counting&#x27;, recheck: &#x27;Recheck count&#x27;, verified: &#x27;Verified&#x27; })[row.status];
+  const signed = n =&gt; n &gt; 0 ? &#x27;+&#x27; + n : String(n);
+  const rowById = id =&gt; current().rows.find(row =&gt; row.id === id);
+  const matchRows = article =&gt; current().rows.filter(row =&gt; row.article === article);
+  const button = (action, label, primary = false, disabled = false, extra = &#x27;&#x27;) =&gt; `&lt;button type=&quot;button&quot; data-action=&quot;${action}&quot; class=&quot;${primary ? &#x27;ss-primary &#x27; : &#x27;&#x27;}cursor-interaction&quot; ${disabled ? &#x27;disabled&#x27; : &#x27;&#x27;} ${extra}&gt;${label}&lt;/button&gt;`;
+  const announce = text =&gt; { notice.textContent = text; };
+  function save() {
+    if (!window.openai || typeof window.openai.setWidgetState !== &#x27;function&#x27;) return;
+    lastWriteId = `${Date.now()}:${++serial}`;
+    const state = { modelContent: { workflow: &#x27;dn-scoped-can-count-v1&#x27;, selectedDn: selected,
+      deliveries: sessions.map(s =&gt; ({ dn: s.id, finalised: s.finalised, accepted: total(s, &#x27;qty&#x27;), expected: total(s, &#x27;expected&#x27;), verifiedRows: verified(s), unexpected: pending(s), submitted: s.submitted })) },
+      privateContent: { sessions: sessions.map(s =&gt; ({ ...s, events: s.events.slice(-4) })), stage, search, filter, writeId: lastWriteId } };
+    window.openai.setWidgetState(state).catch(() =&gt; {});
+  }
+  function restore(snapshot) {
+    const saved = snapshot?.privateContent;
+    if (snapshot?.modelContent?.workflow !== &#x27;dn-scoped-can-count-v1&#x27; || !saved || !Array.isArray(saved.sessions) || saved.sessions.length !== data.length) return;
+    const baseline = makeSessions();
+    if (!saved.sessions.every((s, i) =&gt; s.id === baseline[i].id &amp;&amp; typeof s.finalised === &#x27;boolean&#x27; &amp;&amp; typeof s.submitted === &#x27;boolean&#x27; &amp;&amp; Array.isArray(s.checked) &amp;&amp; new Set(s.checked).size === s.checked.length &amp;&amp; s.checked.every(p =&gt; Number.isInteger(p) &amp;&amp; p &gt;= 1 &amp;&amp; p &lt;= data[i].pages) &amp;&amp; Array.isArray(s.rows) &amp;&amp; s.rows.length === baseline[i].rows.length &amp;&amp; s.rows.every((row, j) =&gt; row.id === baseline[i].rows[j].id &amp;&amp; row.article === baseline[i].rows[j].article &amp;&amp; Number.isSafeInteger(row.expected) &amp;&amp; row.expected &gt;= 0 &amp;&amp; Number.isSafeInteger(row.qty) &amp;&amp; row.qty &gt;= 0 &amp;&amp; Number.isSafeInteger(row.scanned) &amp;&amp; row.scanned &gt;= 0 &amp;&amp; Number.isSafeInteger(row.manual) &amp;&amp; row.manual &gt;= 0 &amp;&amp; row.qty === row.scanned + row.manual &amp;&amp; [&#x27;untouched&#x27;, &#x27;counting&#x27;, &#x27;recheck&#x27;, &#x27;verified&#x27;].includes(row.status) &amp;&amp; typeof row.reason === &#x27;string&#x27;) &amp;&amp; Array.isArray(s.events) &amp;&amp; Array.isArray(s.exceptions) &amp;&amp; s.exceptions.every(e =&gt; typeof e.article === &#x27;string&#x27; &amp;&amp; typeof e.resolved === &#x27;boolean&#x27; &amp;&amp; typeof e.reason === &#x27;string&#x27;))) return;
+    sessions = structuredClone(saved.sessions);
+    selected = data.some(d =&gt; d.id === snapshot.modelContent.selectedDn) ? snapshot.modelContent.selectedDn : data[0].id;
+    stage = [&#x27;landing&#x27;, &#x27;document&#x27;, &#x27;count&#x27;, &#x27;summary&#x27;, &#x27;scan&#x27;].includes(saved.stage) ? saved.stage : &#x27;landing&#x27;;
+    if (stage === &#x27;scan&#x27;) stage = &#x27;count&#x27;;
+    search = typeof saved.search === &#x27;string&#x27; ? saved.search : &#x27;&#x27;;
+    filter = [&#x27;all&#x27;, &#x27;pending&#x27;, &#x27;verified&#x27;].includes(saved.filter) ? saved.filter : &#x27;all&#x27;;
+  }
+  function goto(next) { stage = next; scan = { state: &#x27;searching&#x27;, article: &#x27;&#x27;, target: null, accepted: false }; closeSheet(); render(); save(); }
+  function openDn(id) { selected = id; search = &#x27;&#x27;; filter = &#x27;all&#x27;; goto(current().submitted ? &#x27;summary&#x27; : current().finalised ? &#x27;count&#x27; : &#x27;document&#x27;); }
+  function sourceRow(row) {
+    return `&lt;section class=&quot;ss-card&quot; data-row=&quot;${safe(row.id)}&quot;&gt;&lt;div class=&quot;ss-row&quot;&gt;&lt;h3 class=&quot;ss-code&quot;&gt;${safe(row.article)}&lt;/h3&gt;&lt;span&gt;${row.expected} PC&lt;/span&gt;&lt;/div&gt;&lt;div&gt;${safe(row.product)}&lt;/div&gt;&lt;div class=&quot;ss-row&quot;&gt;&lt;span class=&quot;ss-meta&quot;&gt;Page ${row.page} · Receiving row ${current().rows.indexOf(row) + 1}&lt;/span&gt;${button(&#x27;correct&#x27;, &#x27;Source / correct&#x27;, false, current().submitted, `data-id=&quot;${row.id}&quot;`)}&lt;/div&gt;&lt;/section&gt;`;
+  }
+  function countRow(row) {
+    const done = row.status === &#x27;verified&#x27;;
+    const delta = row.qty - row.expected;
+    return `&lt;section class=&quot;ss-card&quot; data-row=&quot;${row.id}&quot;&gt;&lt;div class=&quot;ss-row&quot;&gt;&lt;h3 class=&quot;ss-code&quot;&gt;${safe(row.article)}&lt;/h3&gt;&lt;span class=&quot;ss-badge ${done ? &#x27;good&#x27; : row.status === &#x27;recheck&#x27; ? &#x27;warn&#x27; : &#x27;&#x27;}&quot;&gt;${statusLabel(row)}&lt;/span&gt;&lt;/div&gt;
+      &lt;p&gt;${safe(row.product)}&lt;/p&gt;&lt;div class=&quot;ss-meta&quot;&gt;DN page ${row.page} · Row ${current().rows.indexOf(row) + 1}&lt;/div&gt;
+      &lt;div class=&quot;ss-row ss-rule&quot;&gt;&lt;span&gt;Expected on DN&lt;/span&gt;&lt;span&gt;${row.expected} PC&lt;/span&gt;&lt;/div&gt;
+      &lt;div class=&quot;ss-row&quot;&gt;&lt;span&gt;Physical count&lt;/span&gt;&lt;span class=&quot;ss-value&quot;&gt;${row.status === &#x27;untouched&#x27; ? &#x27;—&#x27; : row.qty + &#x27; PC&#x27;}&lt;/span&gt;&lt;/div&gt;
+      &lt;div class=&quot;ss-meta&quot;&gt;${row.scanned} scanned · ${row.manual} manual${done ? ` · ${delta ? &#x27;Variance &#x27; + signed(delta) + &#x27; PC&#x27; : &#x27;Matches DN&#x27;}` : &#x27;&#x27;}&lt;/div&gt;
+      ${done &amp;&amp; delta ? `&lt;p class=&quot;ss-warn&quot;&gt;${safe(row.reason)}&lt;/p&gt;` : &#x27;&#x27;}
+      ${current().submitted ? &#x27;&#x27; : `&lt;div class=&quot;ss-actions&quot;&gt;${button(&#x27;row-scan&#x27;, &#x27;Scan can&#x27;, true, !current().finalised, `data-id=&quot;${row.id}&quot;`)}${button(done ? &#x27;reopen&#x27; : &#x27;finish&#x27;, done ? &#x27;Reopen count&#x27; : &#x27;Finish count&#x27;, false, !current().finalised || row.status === &#x27;untouched&#x27;, `data-id=&quot;${row.id}&quot;`)}&lt;/div&gt;${button(&#x27;manual&#x27;, row.status === &#x27;untouched&#x27; ? &#x27;Manual count / zero received&#x27; : &#x27;Manual count / correction&#x27;, false, !current().finalised, `data-id=&quot;${row.id}&quot;`)}`}
+    &lt;/section&gt;`;
+  }
+  function renderCountRows() {
+    const container = main.querySelector(&#x27;.ss-count-rows&#x27;);
+    if (!container) return;
+    const rows = current().rows.filter(row =&gt; (!search || row.article.includes(search) || row.product.toLowerCase().includes(search.toLowerCase())) &amp;&amp; (filter === &#x27;all&#x27; || (filter === &#x27;verified&#x27; ? row.status === &#x27;verified&#x27; : row.status !== &#x27;verified&#x27;)));
+    container.innerHTML = rows.length ? rows.map(countRow).join(&#x27;&#x27;) : &#x27;&lt;p class=&quot;ss-meta&quot;&gt;No receiving rows in this view.&lt;/p&gt;&#x27;;
+  }
+  function render() {
+    const s = current(); const d = fixture();
+    app.style.setProperty(&#x27;--ss-card-padding&#x27;, designs.spacing === &#x27;Compact&#x27; ? &#x27;10px&#x27; : &#x27;14px&#x27;);
+    preview.hidden = stage !== &#x27;scan&#x27;;
+    header.innerHTML = `&lt;div class=&quot;ss-header-row&quot;&gt;&lt;span class=&quot;ss-brand&quot;&gt;Pixorex · Sea Stock&lt;/span&gt;${stage === &#x27;landing&#x27; ? &#x27;&#x27; : button(&#x27;landing&#x27;, &#x27;Delivery notes&#x27;)}&lt;/div&gt;&lt;h2&gt;${stage === &#x27;landing&#x27; ? &#x27;Delivery notes&#x27; : &#x27;DN &#x27; + safe(s.id)}&lt;/h2&gt;&lt;div class=&quot;ss-meta&quot;&gt;${stage === &#x27;landing&#x27; ? &#x27;Document → Can count → Receiving summary&#x27; : safe(d.label) + &#x27; · &#x27; + (s.submitted ? &#x27;Saved locally&#x27; : s.finalised ? &#x27;Document finalised · rev &#x27; + s.revision : &#x27;Document review&#x27;)}&lt;/div&gt;`;
+    nav.innerHTML = stage === &#x27;landing&#x27; ? &#x27;&#x27; : [[&#x27;document&#x27;, &#x27;1 · Document&#x27;], [&#x27;count&#x27;, &#x27;2 · Physical count&#x27;], [&#x27;summary&#x27;, &#x27;3 · Summary&#x27;]].map(([value, label]) =&gt; `&lt;button type=&quot;button&quot; data-stage=&quot;${value}&quot; class=&quot;cursor-interaction&quot; ${((stage === &#x27;scan&#x27; ? &#x27;count&#x27; : stage) === value) ? &#x27;aria-current=&quot;step&quot;&#x27; : &#x27;&#x27;} ${value === &#x27;count&#x27; &amp;&amp; !s.finalised ? &#x27;disabled&#x27; : &#x27;&#x27;}&gt;${label}&lt;/button&gt;`).join(&#x27;&#x27;);
+    if (stage === &#x27;landing&#x27;) {
+      main.innerHTML = `&lt;h3&gt;Receive against a delivery note&lt;/h3&gt;&lt;p class=&quot;ss-meta&quot;&gt;Finalise the paper, then scan each physical can.&lt;/p&gt;${button(&#x27;new&#x27;, &#x27;New delivery note&#x27;, true)}&lt;div class=&quot;ss-rule&quot;&gt;&lt;h3&gt;Saved delivery notes&lt;/h3&gt;&lt;/div&gt;${sessions.map(item =&gt; {
+        const dn = data.find(dn =&gt; dn.id === item.id);
+        const label = item.submitted ? &#x27;Saved locally&#x27; : item.finalised ? total(item, &#x27;qty&#x27;) ? &#x27;Counting&#x27; : &#x27;Ready to count&#x27; : &#x27;Ready to finalise&#x27;;
+        return `&lt;section class=&quot;ss-card&quot;&gt;&lt;div class=&quot;ss-row&quot;&gt;&lt;h3&gt;${safe(item.id)}&lt;/h3&gt;&lt;span class=&quot;ss-badge ${item.submitted ? &#x27;good&#x27; : &#x27;&#x27;}&quot;&gt;${label}&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;ss-meta&quot;&gt;${safe(dn.label)} · ${dn.pages} pages&lt;/div&gt;&lt;div class=&quot;ss-row ss-rule&quot;&gt;&lt;span&gt;Accepted physical count&lt;/span&gt;&lt;span&gt;${total(item, &#x27;qty&#x27;)} / ${total(item, &#x27;expected&#x27;)} PC&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;ss-meta&quot;&gt;${verified(item)} / ${item.rows.length} receiving rows verified&lt;/div&gt;&lt;div class=&quot;ss-actions&quot;&gt;${button(&#x27;open-dn&#x27;, item.submitted ? &#x27;View saved form&#x27; : item.finalised ? total(item, &#x27;qty&#x27;) ? &#x27;Resume can count&#x27; : &#x27;Start can count&#x27; : &#x27;Review document&#x27;, true, false, `data-dn=&quot;${item.id}&quot;`)}&lt;/div&gt;&lt;/section&gt;`;
+      }).join(&#x27;&#x27;)}`;
+      footer.innerHTML = &#x27;&lt;div class=&quot;ss-meta&quot;&gt;Counts belong to the selected DN.&lt;/div&gt;&#x27;;
+    } else if (stage === &#x27;document&#x27;) {
+      main.innerHTML = `&lt;div class=&quot;ss-row&quot;&gt;&lt;h3&gt;Document summary&lt;/h3&gt;&lt;span class=&quot;ss-badge ${s.finalised ? &#x27;good&#x27; : &#x27;&#x27;}&quot;&gt;${s.finalised ? &#x27;Finalised&#x27; : sourceReady(s) ? &#x27;Source checked&#x27; : &#x27;Review pending&#x27;}&lt;/span&gt;&lt;/div&gt;
+        &lt;section class=&quot;ss-card&quot;&gt;&lt;div class=&quot;ss-row&quot;&gt;&lt;span&gt;Reviewed pages&lt;/span&gt;&lt;span&gt;${s.checked.length} / ${d.pages}&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;ss-row&quot;&gt;&lt;span&gt;Receiving rows / unique articles&lt;/span&gt;&lt;span&gt;${s.rows.length} / ${new Set(s.rows.map(r =&gt; r.article)).size}&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;ss-row&quot;&gt;&lt;span&gt;Expected on DN&lt;/span&gt;&lt;span class=&quot;ss-value&quot;&gt;${total(s, &#x27;expected&#x27;)} PC&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;ss-meta&quot;&gt;Printed Piece: ${d.piece} PC · Physical counts remain separate.&lt;/div&gt;${summaryMismatch(s) ? `&lt;p class=&quot;ss-warn&quot;&gt;The item total differs from the printed Piece summary.&lt;/p&gt;&lt;label class=&quot;ss-check&quot;&gt;&lt;input type=&quot;checkbox&quot; class=&quot;ss-summary-review&quot; ${s.summaryReviewed ? &#x27;checked&#x27; : &#x27;&#x27;} ${s.submitted ? &#x27;disabled&#x27; : &#x27;&#x27;}&gt;&lt;span&gt;I checked this summary discrepancy against the DN.&lt;/span&gt;&lt;/label&gt;` : &#x27;&#x27;}&lt;/section&gt;
+        &lt;details&gt;&lt;summary&gt;DN page checks · ${s.checked.length}/${d.pages}&lt;/summary&gt;${Array.from({ length: d.pages }, (_, i) =&gt; `&lt;div class=&quot;ss-row ss-rule&quot;&gt;&lt;span&gt;Page ${i + 1} · Identity, content, coverage&lt;/span&gt;${button(&#x27;check-page&#x27;, s.checked.includes(i + 1) ? &#x27;Checked&#x27; : &#x27;Confirm page checked&#x27;, false, s.submitted, `data-page=&quot;${i + 1}&quot;`)}&lt;/div&gt;`).join(&#x27;&#x27;)}&lt;/details&gt;
+        &lt;h3&gt;Expected receiving articles&lt;/h3&gt;${s.rows.map(sourceRow).join(&#x27;&#x27;)}`;
+      footer.innerHTML = `&lt;div class=&quot;ss-meta&quot;&gt;${s.finalised ? &#x27;This DN is the reference for each can match.&#x27; : &#x27;Finalising records expected articles; it does not count stock.&#x27;}&lt;/div&gt;${button(s.finalised ? &#x27;count&#x27; : &#x27;finalise&#x27;, s.finalised ? s.submitted ? &#x27;View physical counts&#x27; : &#x27;Start / resume can count&#x27; : &#x27;Finalise DN and start can count&#x27;, true, !s.finalised &amp;&amp; !sourceReady(s))}`;
+    } else if (stage === &#x27;count&#x27;) {
+      main.innerHTML = `&lt;div class=&quot;ss-row&quot;&gt;&lt;h3&gt;Physical can count&lt;/h3&gt;&lt;span class=&quot;ss-badge ${s.finalised ? &#x27;good&#x27; : &#x27;warn&#x27;}&quot;&gt;${s.finalised ? &#x27;DN finalised&#x27; : &#x27;Re-finalise DN&#x27;}&lt;/span&gt;&lt;/div&gt;
+        &lt;section class=&quot;ss-card&quot;&gt;&lt;div class=&quot;ss-row&quot;&gt;&lt;span&gt;Accepted physical count&lt;/span&gt;&lt;span class=&quot;ss-value&quot;&gt;${total(s, &#x27;qty&#x27;)} / ${total(s, &#x27;expected&#x27;)} PC&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;ss-progress&quot; role=&quot;progressbar&quot; aria-label=&quot;Receiving rows verified&quot; aria-valuemin=&quot;0&quot; aria-valuemax=&quot;${s.rows.length}&quot; aria-valuenow=&quot;${verified(s)}&quot;&gt;&lt;span style=&quot;width:${verified(s) / s.rows.length * 100}%&quot;&gt;&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;ss-meta&quot;&gt;${verified(s)} / ${s.rows.length} rows verified · ${total(s, &#x27;scanned&#x27;)} scanned · ${total(s, &#x27;manual&#x27;)} manual&lt;/div&gt;${s.submitted ? &#x27;&#x27; : `&lt;div class=&quot;ss-actions&quot;&gt;${button(&#x27;scan&#x27;, &#x27;Scan next can&#x27;, true, !s.finalised)}&lt;/div&gt;`}&lt;/section&gt;
+        ${pending(s) ? `&lt;p class=&quot;ss-warn&quot;&gt;${pending(s)} unexpected article${pending(s) === 1 ? &#x27;&#x27; : &#x27;s&#x27;} need review in the summary.&lt;/p&gt;` : &#x27;&#x27;}
+        &lt;input class=&quot;ss-search&quot; type=&quot;search&quot; placeholder=&quot;Search article or DN description&quot; aria-label=&quot;Search receiving articles&quot; value=&quot;${safe(search)}&quot;&gt;
+        &lt;div class=&quot;ss-filters&quot; aria-label=&quot;Receiving row status&quot;&gt;${[[&#x27;all&#x27;, &#x27;All&#x27;], [&#x27;pending&#x27;, &#x27;To verify&#x27;], [&#x27;verified&#x27;, &#x27;Verified&#x27;]].map(([value, label]) =&gt; `&lt;button type=&quot;button&quot; data-filter=&quot;${value}&quot; aria-pressed=&quot;${filter === value}&quot; class=&quot;cursor-interaction&quot;&gt;${label}&lt;/button&gt;`).join(&#x27;&#x27;)}&lt;/div&gt;&lt;div class=&quot;ss-count-rows&quot;&gt;&lt;/div&gt;`;
+      renderCountRows();
+      footer.innerHTML = `&lt;div class=&quot;ss-meta&quot;&gt;${s.submitted ? &#x27;Saved locally · Read only&#x27; : &#x27;Only a deliberate accepted can adds +1.&#x27;}&lt;/div&gt;${button(&#x27;summary&#x27;, &#x27;Review count summary&#x27;, true)}`;
+    } else if (stage === &#x27;scan&#x27;) {
+      renderScan();
+    } else {
+      const variances = s.rows.filter(r =&gt; r.status === &#x27;verified&#x27; &amp;&amp; r.qty !== r.expected);
+      main.innerHTML = `&lt;div class=&quot;ss-row&quot;&gt;&lt;h3&gt;${s.submitted ? &#x27;Receiving form saved&#x27; : &#x27;Receiving summary&#x27;}&lt;/h3&gt;&lt;span class=&quot;ss-badge ${s.submitted || ready(s) ? &#x27;good&#x27; : &#x27;warn&#x27;}&quot;&gt;${s.submitted ? &#x27;Saved locally&#x27; : ready(s) ? &#x27;Ready to submit&#x27; : &#x27;Checks pending&#x27;}&lt;/span&gt;&lt;/div&gt;
+        &lt;section class=&quot;ss-card&quot;&gt;&lt;div class=&quot;ss-row&quot;&gt;&lt;span&gt;Expected on DN&lt;/span&gt;&lt;span&gt;${total(s, &#x27;expected&#x27;)} PC&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;ss-row&quot;&gt;&lt;span&gt;Saved running count&lt;/span&gt;&lt;span class=&quot;ss-value&quot;&gt;${total(s, &#x27;qty&#x27;)} PC&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;ss-row&quot;&gt;&lt;span&gt;Verified physical count&lt;/span&gt;&lt;span&gt;${s.rows.filter(r =&gt; r.status === &#x27;verified&#x27;).reduce((n, r) =&gt; n + r.qty, 0)} PC&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;ss-rule ss-meta&quot;&gt;${s.checked.length}/${d.pages} DN pages checked · ${s.finalised ? &#x27;Finalised&#x27; : &#x27;Not finalised&#x27;} · ${verified(s)}/${s.rows.length} receiving rows verified&lt;br&gt;${total(s, &#x27;scanned&#x27;)} scan-confirmed units · ${total(s, &#x27;manual&#x27;)} manually recorded units&lt;/div&gt;&lt;/section&gt;
+        &lt;section class=&quot;ss-card&quot;&gt;&lt;h3&gt;Completed variances · ${variances.length}&lt;/h3&gt;${variances.length ? variances.map(row =&gt; `&lt;div class=&quot;ss-rule&quot;&gt;&lt;div class=&quot;ss-row&quot;&gt;&lt;span class=&quot;ss-code&quot;&gt;${safe(row.article)} · Page ${row.page}&lt;/span&gt;&lt;span class=&quot;ss-warn&quot;&gt;${signed(row.qty - row.expected)} PC&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;ss-meta&quot;&gt;DN ${row.expected} · Count ${row.qty} · ${safe(row.reason)}&lt;/div&gt;&lt;/div&gt;`).join(&#x27;&#x27;) : &#x27;&lt;p class=&quot;ss-meta&quot;&gt;No completed variances. Pending rows remain to verify.&lt;/p&gt;&#x27;}&lt;/section&gt;
+        &lt;section class=&quot;ss-card&quot;&gt;&lt;h3&gt;Unexpected articles · ${pending(s)} unresolved&lt;/h3&gt;${s.exceptions.length ? s.exceptions.map((e, i) =&gt; `&lt;div class=&quot;ss-rule&quot;&gt;&lt;div class=&quot;ss-row&quot;&gt;&lt;span class=&quot;ss-code&quot;&gt;${safe(e.article)}&lt;/span&gt;&lt;span class=&quot;ss-badge ${e.resolved ? &#x27;good&#x27; : &#x27;bad&#x27;}&quot;&gt;${e.resolved ? &#x27;Set aside&#x27; : &#x27;Not on DN&#x27;}&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;ss-meta&quot;&gt;No count added${e.resolved ? &#x27; · &#x27; + safe(e.reason) : &#x27;&#x27;}&lt;/div&gt;${e.resolved || s.submitted ? &#x27;&#x27; : button(&#x27;resolve&#x27;, &#x27;Record disposition&#x27;, false, false, `data-exception=&quot;${i}&quot;`)}&lt;/div&gt;`).join(&#x27;&#x27;) : &#x27;&lt;p class=&quot;ss-meta&quot;&gt;No unexpected article events recorded.&lt;/p&gt;&#x27;}&lt;/section&gt;
+        &lt;h3&gt;All receiving rows&lt;/h3&gt;${s.rows.map(row =&gt; `&lt;section class=&quot;ss-card&quot;&gt;&lt;div class=&quot;ss-row&quot;&gt;&lt;h3 class=&quot;ss-code&quot;&gt;${safe(row.article)}&lt;/h3&gt;&lt;span class=&quot;ss-badge ${row.status === &#x27;verified&#x27; ? &#x27;good&#x27; : &#x27;warn&#x27;}&quot;&gt;${statusLabel(row)}&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;ss-meta&quot;&gt;${safe(row.product)} · Page ${row.page}&lt;/div&gt;&lt;div class=&quot;ss-row&quot;&gt;&lt;span&gt;Expected ${row.expected} PC&lt;/span&gt;&lt;span&gt;Count ${row.status === &#x27;untouched&#x27; ? &#x27;—&#x27; : row.qty + &#x27; PC&#x27;}&lt;/span&gt;&lt;/div&gt;&lt;/section&gt;`).join(&#x27;&#x27;)}
+        ${s.submitted ? &#x27;&lt;p class=&quot;ss-good&quot;&gt;Immutable receiving form saved on this device.&lt;/p&gt;&#x27; : !ready(s) ? &#x27;&lt;p class=&quot;ss-warn&quot;&gt;Finalise the document, finish every row, and resolve unexpected articles before submitting.&lt;/p&gt;&#x27; : &#x27;&#x27;}`;
+      footer.innerHTML = `&lt;div class=&quot;ss-meta&quot;&gt;${s.submitted ? &#x27;Counts and reasons retained in the saved form.&#x27; : &#x27;Submit saves the receiving form on this device.&#x27;}&lt;/div&gt;${button(&#x27;submit&#x27;, s.submitted ? &#x27;Saved locally&#x27; : &#x27;Confirm and submit locally&#x27;, true, s.submitted || !ready(s))}${button(&#x27;count&#x27;, s.submitted ? &#x27;View physical counts&#x27; : &#x27;Back to physical count&#x27;)}`;
+    }
+  }
+  function renderScan() {
+    const s = current();
+    const matches = scan.state === &#x27;matched&#x27; ? matchRows(scan.article) : [];
+    const target = rowById(scan.target);
+    const good = matches.length &amp;&amp; target;
+    const labels = { searching: [&#x27;Searching&#x27;, &#x27;Find the printed Article no. field.&#x27;], verifying: [&#x27;Verifying article&#x27;, &#x27;Hold steady while the article is confirmed.&#x27;], blur: [&#x27;Hold steady&#x27;, &#x27;The article is blurred. Keep scanning.&#x27;], glare: [&#x27;Reduce glare&#x27;, &#x27;Tilt the can or camera slightly.&#x27;], hidden: [&#x27;Article not visible&#x27;, &#x27;Rotate the can slightly to show Article no.&#x27;], conflict: [&#x27;Article not confirmed&#x27;, &#x27;Conflicting readings. Keep scanning.&#x27;], matched: [&#x27;Article matched&#x27;, &#x27;Exact article found on this DN.&#x27;], unexpected: [&#x27;Not on this DN&#x27;, &#x27;This article is absent from the current DN.&#x27;] };
+    const [title, guidance] = scan.accepted ? [&#x27;One can saved&#x27;, &#x27;Move this can aside, then scan the next can.&#x27;] : labels[scan.state] || labels.searching;
+    main.innerHTML = `&lt;div class=&quot;ss-row&quot;&gt;&lt;h3&gt;Scan can article&lt;/h3&gt;&lt;span class=&quot;ss-badge&quot;&gt;Receiving · PC&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;ss-camera&quot; role=&quot;img&quot; aria-label=&quot;Simulated camera observation&quot;&gt;&lt;span class=&quot;ss-meta&quot;&gt;Camera preview · Simulation&lt;/span&gt;&lt;div class=&quot;ss-label ${scan.state}&quot;&gt;${[&#x27;hidden&#x27;, &#x27;searching&#x27;].includes(scan.state) ? &#x27;&lt;span class=&quot;ss-meta&quot;&gt;Article field outside the visible area&lt;/span&gt;&#x27; : `&lt;span class=&quot;ss-meta&quot;&gt;Printed Article no.&lt;/span&gt;&lt;div class=&quot;ss-value ss-code&quot;&gt;${safe(scan.article || &#x27;00464138&#x27;)}&lt;/div&gt;`}&lt;/div&gt;&lt;span class=&quot;ss-meta&quot;&gt;Show the article field on the can.&lt;/span&gt;&lt;/div&gt;
+      &lt;section class=&quot;ss-card&quot;&gt;&lt;div class=&quot;ss-row&quot;&gt;&lt;h3&gt;${title}&lt;/h3&gt;&lt;span class=&quot;ss-badge ${scan.accepted || good ? &#x27;good&#x27; : scan.state === &#x27;unexpected&#x27; ? &#x27;bad&#x27; : &#x27;&#x27;}&quot;&gt;${scan.accepted ? &#x27;+1 saved&#x27; : scan.state === &#x27;matched&#x27; &amp;&amp; matches.length &gt; 1 ? &#x27;Choose row&#x27; : scan.state === &#x27;matched&#x27; ? &#x27;DN match&#x27; : &#x27;No count added&#x27;}&lt;/span&gt;&lt;/div&gt;&lt;p&gt;${guidance}&lt;/p&gt;
+      ${scan.article ? `&lt;div class=&quot;ss-row&quot;&gt;&lt;span&gt;Article&lt;/span&gt;&lt;span class=&quot;ss-value ss-code&quot;&gt;${safe(scan.article)}&lt;/span&gt;&lt;/div&gt;` : &#x27;&#x27;}
+      ${matches.length &gt; 1 &amp;&amp; !scan.accepted ? `&lt;p class=&quot;ss-warn&quot;&gt;This article appears in ${matches.length} receiving rows. Choose one.&lt;/p&gt;&lt;div class=&quot;ss-allocation&quot;&gt;${matches.map(row =&gt; `&lt;button type=&quot;button&quot; data-action=&quot;allocate&quot; data-id=&quot;${row.id}&quot; aria-pressed=&quot;${scan.target === row.id}&quot; class=&quot;cursor-interaction&quot;&gt;Page ${row.page} · Row ${s.rows.indexOf(row) + 1}&lt;br&gt;${safe(row.product)}&lt;br&gt;DN ${row.expected} PC · Counted ${row.qty} PC&lt;/button&gt;`).join(&#x27;&#x27;)}&lt;/div&gt;` : &#x27;&#x27;}
+      ${target ? `&lt;div class=&quot;ss-rule&quot;&gt;&lt;p&gt;${safe(target.product)}&lt;/p&gt;&lt;div class=&quot;ss-meta&quot;&gt;DN ${safe(s.id)} · Page ${target.page} · Row ${s.rows.indexOf(target) + 1}&lt;/div&gt;&lt;div class=&quot;ss-row&quot;&gt;&lt;span&gt;Expected on DN&lt;/span&gt;&lt;span&gt;${target.expected} PC&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;ss-row&quot;&gt;&lt;span&gt;Saved physical count&lt;/span&gt;&lt;span&gt;${target.qty} PC&lt;/span&gt;&lt;/div&gt;${target.status === &#x27;verified&#x27; &amp;&amp; !scan.accepted ? &#x27;&lt;p class=&quot;ss-warn&quot;&gt;This row is finished. Reopen its count before adding another can.&lt;/p&gt;&#x27; : &#x27;&#x27;}&lt;/div&gt;` : &#x27;&#x27;}&lt;/section&gt;
+      ${scan.state === &#x27;unexpected&#x27; ? `&lt;div class=&quot;ss-actions&quot;&gt;${button(&#x27;unexpected&#x27;, &#x27;Set aside / record unexpected article&#x27;)}${button(&#x27;document&#x27;, &#x27;Review this DN&#x27;)}&lt;/div&gt;` : &#x27;&#x27;}
+      ${designs.diagnostics ? `&lt;div class=&quot;ss-debug&quot;&gt;TEST VIEW · ${safe(scan.state.toUpperCase())} · Visual confirmation: ${scan.state === &#x27;matched&#x27; || scan.state === &#x27;unexpected&#x27; ? &#x27;2 usable frames (simulated)&#x27; : &#x27;pending&#x27;} · Current-DN matches: ${matches.length}&lt;/div&gt;` : &#x27;&#x27;}`;
+    footer.innerHTML = `&lt;div class=&quot;ss-meta&quot;&gt;${s.finalised ? &#x27;Validated against the finalised articles in DN &#x27; + safe(s.id) : &#x27;Document changed. Re-finalise the DN to continue.&#x27;}&lt;/div&gt;${button(scan.accepted ? &#x27;next&#x27; : &#x27;accept&#x27;, scan.accepted ? &#x27;Scan next can&#x27; : &#x27;Add this can (+1)&#x27;, true, !scan.accepted &amp;&amp; (!s.finalised || !good || target.status === &#x27;verified&#x27; || s.submitted))}${scan.accepted ? button(&#x27;undo&#x27;, &#x27;Undo this can&#x27;) : &#x27;&#x27;}${button(&#x27;count&#x27;, &#x27;Back to count list&#x27;)}`;
+  }
+  function previewScan(state = root.querySelector(&#x27;.ss-observation&#x27;).value, article = root.querySelector(&#x27;.ss-observed-article&#x27;).value.trim()) {
+    if (!current().finalised || current().submitted) return;
+    if (scan.accepted) { announce(&#x27;This can is already saved. Choose Scan next can before accepting another.&#x27;); return; }
+    if (state === &#x27;unexpected&#x27;) article = &#x27;00464138&#x27;;
+    if (state === &#x27;duplicate&#x27;) { article = &#x27;475210&#x27;; state = &#x27;matched&#x27;; }
+    const matches = matchRows(article);
+    if (state === &#x27;matched&#x27;) state = /^\d+$/.test(article) &amp;&amp; matches.length ? &#x27;matched&#x27; : &#x27;unexpected&#x27;;
+    if (state === &#x27;unexpected&#x27; &amp;&amp; matches.length) state = &#x27;matched&#x27;;
+    scan = { state, article: [&#x27;searching&#x27;, &#x27;hidden&#x27;].includes(state) ? &#x27;&#x27; : article, target: state === &#x27;matched&#x27; &amp;&amp; matches.length === 1 ? matches[0].id : null, accepted: false };
+    render(); announce(state === &#x27;matched&#x27; ? &#x27;Exact article matches the current DN. Count unchanged until accepted.&#x27; : &#x27;No can added.&#x27;);
+  }
+  function closeSheet() {
+    overlay.hidden = true; overlay.innerHTML = &#x27;&#x27;;
+    if (returnFocus?.isConnected) returnFocus.focus();
+    returnFocus = null;
+    header.inert = false; nav.inert = false; main.inert = false; footer.inert = false;
+  }
+  function sheet(title, contents) {
+    returnFocus = document.activeElement;
+    overlay.innerHTML = `&lt;section class=&quot;ss-sheet&quot; role=&quot;dialog&quot; aria-modal=&quot;true&quot; aria-labelledby=&quot;ss-sheet-title&quot;&gt;&lt;h3 id=&quot;ss-sheet-title&quot;&gt;${title}&lt;/h3&gt;${contents}&lt;/section&gt;`;
+    overlay.hidden = false;
+    header.inert = true; nav.inert = true; main.inert = true; footer.inert = true;
+    overlay.querySelector(&#x27;input,select,button&#x27;)?.focus();
+  }
+  function formActions(label) { return `&lt;div class=&quot;ss-error&quot; role=&quot;alert&quot;&gt;&lt;/div&gt;&lt;div class=&quot;ss-actions&quot;&gt;${button(&#x27;cancel&#x27;, &#x27;Cancel&#x27;)}${button(&#x27;save-form&#x27;, label, true)}&lt;/div&gt;`; }
+  function startScan(article = &#x27;&#x27;) {
+    if (!current().finalised || current().submitted) return;
+    stage = &#x27;scan&#x27;;
+    root.querySelector(&#x27;.ss-observation&#x27;).value = &#x27;matched&#x27;;
+    root.querySelector(&#x27;.ss-observed-article&#x27;).value = article || current().rows.find(r =&gt; r.status !== &#x27;verified&#x27;)?.article || current().rows[0].article;
+    scan = { state: &#x27;searching&#x27;, article: &#x27;&#x27;, target: null, accepted: false };
+    render(); save(); announce(&#x27;Camera observation is simulated. Use the preview controls to show a scan.&#x27;);
+  }
+  function finishRow(row) {
+    if (!row || !current().finalised || row.status === &#x27;untouched&#x27; || current().submitted) return;
+    if (row.qty === row.expected) { row.status = &#x27;verified&#x27;; row.reason = &#x27;&#x27;; render(); save(); announce(&#x27;Physical count verified for &#x27; + row.article); return; }
+    sheet(&#x27;Finish physical count&#x27;, `&lt;p&gt;Article ${safe(row.article)} · DN ${row.expected} PC · Physical ${row.qty} PC&lt;/p&gt;&lt;p class=&quot;ss-warn&quot;&gt;${row.qty &lt; row.expected ? &#x27;Shortage&#x27; : &#x27;Excess&#x27;} ${Math.abs(row.qty - row.expected)} PC&lt;/p&gt;&lt;form data-form=&quot;finish&quot; data-id=&quot;${row.id}&quot;&gt;&lt;label for=&quot;ss-reason&quot;&gt;Variance reason&lt;/label&gt;&lt;select id=&quot;ss-reason&quot; name=&quot;reason&quot; required&gt;&lt;option value=&quot;&quot;&gt;Choose a reason&lt;/option&gt;${(row.qty &lt; row.expected ? [&#x27;Short received&#x27;, &#x27;Not received&#x27;, &#x27;Damaged cans excluded&#x27;, &#x27;Other&#x27;] : [&#x27;Extra received&#x27;, &#x27;Other&#x27;]).map(r =&gt; `&lt;option&gt;${r}&lt;/option&gt;`).join(&#x27;&#x27;)}&lt;/select&gt;&lt;label for=&quot;ss-details&quot;&gt;Details (required for Other)&lt;/label&gt;&lt;textarea id=&quot;ss-details&quot; name=&quot;details&quot; rows=&quot;2&quot;&gt;&lt;/textarea&gt;${formActions(&#x27;Verify count&#x27;)}&lt;/form&gt;`);
+  }
+  root.addEventListener(&#x27;input&#x27;, event =&gt; {
+    if (!event.target.matches(&#x27;.ss-search&#x27;)) return;
+    search = event.target.value.trim(); renderCountRows(); save();
+  });
+  root.addEventListener(&#x27;change&#x27;, event =&gt; {
+    if (!event.target.matches(&#x27;.ss-summary-review&#x27;) || current().submitted) return;
+    current().summaryReviewed = event.target.checked; current().finalised = false; render(); save();
+  });
+  root.addEventListener(&#x27;click&#x27;, event =&gt; {
+    const control = event.target.closest(&#x27;button&#x27;);
+    if (!control || control.disabled || !root.contains(control)) return;
+    const action = control.dataset.action;
+    const s = current();
+    if (control.dataset.stage) { goto(control.dataset.stage); return; }
+    if (control.dataset.filter) { filter = control.dataset.filter; render(); save(); return; }
+    if (action === &#x27;cancel&#x27;) { closeSheet(); return; }
+    if (action === &#x27;save-form&#x27;) { const form = control.closest(&#x27;form&#x27;); if (form?.reportValidity()) submitForm(form); return; }
+    if ([&#x27;landing&#x27;, &#x27;document&#x27;, &#x27;count&#x27;, &#x27;summary&#x27;].includes(action)) { if (action === &#x27;count&#x27; &amp;&amp; !s.finalised) goto(&#x27;document&#x27;); else goto(action); return; }
+    if (action === &#x27;open-dn&#x27;) { openDn(control.dataset.dn); return; }
+    if (action === &#x27;new&#x27;) { sheet(&#x27;Capture a delivery note&#x27;, `&lt;p&gt;Scan every printed page, check articles and quantities, then finalise the document.&lt;/p&gt;&lt;div class=&quot;ss-meta&quot;&gt;Wireframe uses captured fixture data.&lt;/div&gt;&lt;div class=&quot;ss-actions&quot;&gt;${button(&#x27;cancel&#x27;, &#x27;Close&#x27;)}${button(&#x27;new-fixture&#x27;, &#x27;Open captured DN fixture&#x27;, true)}&lt;/div&gt;`); return; }
+    if (action === &#x27;new-fixture&#x27;) { selected = data[0].id; goto(&#x27;document&#x27;); return; }
+    if (action === &#x27;check-page&#x27; &amp;&amp; !s.submitted) { const page = Number(control.dataset.page); s.checked = s.checked.includes(page) ? s.checked.filter(p =&gt; p !== page) : [...s.checked, page]; s.finalised = false; s.rows.filter(r =&gt; r.page === page &amp;&amp; r.status === &#x27;verified&#x27;).forEach(r =&gt; { r.status = &#x27;recheck&#x27;; }); render(); save(); return; }
+    if (action === &#x27;finalise&#x27;) { if (sourceReady(s) &amp;&amp; !s.submitted) { s.finalised = true; goto(&#x27;count&#x27;); announce(&#x27;DN finalised. Physical count starts from zero for untouched rows.&#x27;); } return; }
+    if (action === &#x27;scan&#x27; || action === &#x27;next&#x27;) { startScan(); return; }
+    if (action === &#x27;preview&#x27;) { previewScan(); return; }
+    if (action === &#x27;allocate&#x27; &amp;&amp; !scan.accepted) { scan.target = control.dataset.id; render(); announce(&#x27;Receiving row selected. No can added yet.&#x27;); return; }
+    if (action === &#x27;accept&#x27;) {
+      const row = rowById(scan.target);
+      if (s.submitted || !s.finalised || scan.accepted || scan.state !== &#x27;matched&#x27; || !row || row.article !== scan.article || row.status === &#x27;verified&#x27;) return;
+      row.qty++; row.scanned++; row.status = &#x27;counting&#x27;; row.reason = &#x27;&#x27;;
+      s.events.push({ id: `${Date.now()}:${++serial}`, article: row.article, row: row.id, delta: 1, method: &#x27;scan&#x27;, revision: s.revision });
+      scan.accepted = true; render(); save(); announce(&#x27;One can saved for article &#x27; + row.article + &#x27;. Count &#x27; + row.qty + &#x27; PC.&#x27;); return;
+    }
+    if (action === &#x27;undo&#x27;) {
+      const row = rowById(scan.target);
+      if (!scan.accepted || !row || s.submitted || row.scanned &lt; 1) return;
+      row.qty--; row.scanned--; row.status = &#x27;counting&#x27;; row.reason = &#x27;&#x27;;
+      s.events.push({ id: `${Date.now()}:${++serial}`, article: row.article, row: row.id, delta: -1, method: &#x27;undo&#x27;, revision: s.revision });
+      scan.accepted = false; render(); save(); announce(&#x27;Last accepted can undone. Count history retained.&#x27;); return;
+    }
+    if (action === &#x27;unexpected&#x27;) {
+      if (s.submitted || scan.state !== &#x27;unexpected&#x27; || !scan.article || !/^\d+$/.test(scan.article) || matchRows(scan.article).length) return;
+      s.exceptions.push({ article: scan.article, resolved: false, reason: &#x27;&#x27; }); goto(&#x27;summary&#x27;); announce(&#x27;Unexpected article recorded. Physical count unchanged.&#x27;); return;
+    }
+    if (action === &#x27;resolve&#x27; &amp;&amp; !s.submitted) { sheet(&#x27;Set unexpected can aside&#x27;, `&lt;p&gt;Article ${safe(s.exceptions[Number(control.dataset.exception)].article)} · No count was added to this DN.&lt;/p&gt;&lt;form data-form=&quot;resolve&quot; data-exception=&quot;${control.dataset.exception}&quot;&gt;&lt;label for=&quot;ss-disposition&quot;&gt;Disposition / reason&lt;/label&gt;&lt;input id=&quot;ss-disposition&quot; name=&quot;reason&quot; required placeholder=&quot;Wrong delivery; can set aside&quot;&gt;${formActions(&#x27;Save disposition&#x27;)}&lt;/form&gt;`); return; }
+    if (action === &#x27;submit&#x27;) { if (ready(s) &amp;&amp; !s.submitted) { s.submitted = true; render(); save(); announce(&#x27;Receiving form saved locally.&#x27;); } return; }
+    const row = rowById(control.dataset.id);
+    if (!row || s.submitted) return;
+    if (action === &#x27;row-scan&#x27;) { startScan(row.article); return; }
+    if (action === &#x27;reopen&#x27; &amp;&amp; s.finalised) { row.status = &#x27;counting&#x27;; row.reason = &#x27;&#x27;; render(); save(); announce(&#x27;Count reopened; total retained.&#x27;); return; }
+    if (action === &#x27;finish&#x27;) { finishRow(row); return; }
+    if (action === &#x27;manual&#x27; &amp;&amp; s.finalised) {
+      sheet(&#x27;Manual count / correction&#x27;, `&lt;p&gt;Article ${safe(row.article)} · Page ${row.page} · DN ${row.expected} PC&lt;/p&gt;&lt;div class=&quot;ss-meta&quot;&gt;Manually recorded quantities are shown separately from scanned cans.&lt;/div&gt;&lt;form data-form=&quot;manual&quot; data-id=&quot;${row.id}&quot;&gt;&lt;label for=&quot;ss-quantity&quot;&gt;Total manually counted cans&lt;/label&gt;&lt;input id=&quot;ss-quantity&quot; name=&quot;quantity&quot; type=&quot;number&quot; min=&quot;0&quot; step=&quot;1&quot; required value=&quot;${row.manual}&quot;&gt;&lt;div class=&quot;ss-meta&quot;&gt;${row.scanned} scan-confirmed cans retained. New total = scanned + manual.&lt;/div&gt;&lt;label for=&quot;ss-manual-reason&quot;&gt;Reason&lt;/label&gt;&lt;input id=&quot;ss-manual-reason&quot; name=&quot;reason&quot; required placeholder=&quot;Label unreadable / zero received / correction&quot;&gt;${formActions(&#x27;Save manual count&#x27;)}&lt;/form&gt;`); return;
+    }
+    if (action === &#x27;correct&#x27;) { sheet(&#x27;DN source correction&#x27;, `&lt;p&gt;Article ${safe(row.article)} · Page ${row.page}&lt;/p&gt;&lt;div class=&quot;ss-meta&quot;&gt;Saved can counts are retained. Correction requires source and physical recheck.&lt;/div&gt;&lt;form data-form=&quot;correct&quot; data-id=&quot;${row.id}&quot;&gt;&lt;label for=&quot;ss-expected&quot;&gt;Verified printed quantity · PC&lt;/label&gt;&lt;input id=&quot;ss-expected&quot; name=&quot;quantity&quot; type=&quot;number&quot; min=&quot;0&quot; step=&quot;1&quot; required value=&quot;${row.expected}&quot;&gt;&lt;label for=&quot;ss-correction-reason&quot;&gt;Correction reason&lt;/label&gt;&lt;input id=&quot;ss-correction-reason&quot; name=&quot;reason&quot; required&gt;${formActions(&#x27;Save DN correction&#x27;)}&lt;/form&gt;`); }
+  });
+  function submitForm(form) {
+    const s = current(); if (s.submitted) return;
+    const fields = new FormData(form); const error = form.querySelector(&#x27;.ss-error&#x27;);
+    const reason = String(fields.get(&#x27;reason&#x27;) || &#x27;&#x27;).trim();
+    if (!reason) { error.textContent = &#x27;Enter a reason.&#x27;; return; }
+    const row = rowById(form.dataset.id);
+    if (form.dataset.form === &#x27;resolve&#x27;) {
+      const item = s.exceptions[Number(form.dataset.exception)]; if (!item) return;
+      item.resolved = true; item.reason = reason;
+    } else if (form.dataset.form === &#x27;finish&#x27;) {
+      if (!row || !s.finalised) return;
+      const detail = String(fields.get(&#x27;details&#x27;) || &#x27;&#x27;).trim();
+      if (reason === &#x27;Other&#x27; &amp;&amp; !detail) { error.textContent = &#x27;Explain the variance for Other.&#x27;; return; }
+      row.reason = detail ? reason + &#x27;: &#x27; + detail : reason; row.status = &#x27;verified&#x27;;
+    } else {
+      if (!row) return;
+      const raw = String(fields.get(&#x27;quantity&#x27;) || &#x27;&#x27;).trim(); const quantity = Number(raw);
+      if (!/^\d+$/.test(raw) || !Number.isSafeInteger(quantity) || quantity &lt; 0 || quantity &gt; 100000) { error.textContent = &#x27;Enter a whole quantity between zero and 100000.&#x27;; return; }
+      if (form.dataset.form === &#x27;manual&#x27;) {
+        if (!s.finalised) return;
+        const before = row.qty; row.manual = quantity; row.qty = row.scanned + quantity; row.status = &#x27;counting&#x27;; row.reason = &#x27;&#x27;;
+        s.events.push({ id: `${Date.now()}:${++serial}`, article: row.article, row: row.id, delta: row.qty - before, method: &#x27;manual&#x27;, reason, revision: s.revision });
+      } else if (form.dataset.form === &#x27;correct&#x27;) {
+        if (row.expected !== quantity) {
+          row.expected = quantity; s.finalised = false; s.summaryReviewed = false; s.revision++; s.checked = s.checked.filter(p =&gt; p !== row.page); if (row.status !== &#x27;untouched&#x27;) row.status = &#x27;recheck&#x27;; row.reason = &#x27;&#x27;;
+        }
+      }
+    }
+    closeSheet(); render(); save(); announce(&#x27;Saved in the workflow preview.&#x27;);
+  }
+  root.addEventListener(&#x27;submit&#x27;, event =&gt; { event.preventDefault(); if (event.target.reportValidity()) submitForm(event.target); });
+  root.addEventListener(&#x27;keydown&#x27;, event =&gt; {
+    if (overlay.hidden) return;
+    if (event.key === &#x27;Escape&#x27;) { event.preventDefault(); closeSheet(); }
+    if (event.key === &#x27;Tab&#x27;) {
+      const controls = [...overlay.querySelectorAll(&#x27;input,select,textarea,button&#x27;)].filter(c =&gt; !c.disabled);
+      if (event.shiftKey &amp;&amp; document.activeElement === controls[0]) { event.preventDefault(); controls.at(-1)?.focus(); }
+      else if (!event.shiftKey &amp;&amp; document.activeElement === controls.at(-1)) { event.preventDefault(); controls[0]?.focus(); }
+    }
+  });
+  restore(window.openai?.widgetState);
+  render();
+  window.addEventListener(&#x27;openai:set_globals&#x27;, event =&gt; {
+    const snapshot = event.detail?.globals?.widgetState;
+    if (!snapshot || snapshot.privateContent?.writeId === lastWriteId) return;
+    restore(snapshot); scan = { state: &#x27;searching&#x27;, article: &#x27;&#x27;, target: null, accepted: false }; closeSheet(); render();
+  });
+  if (globalThis.Tweak) {
+    const tweak = new Tweak({ container: app, onChange: () =&gt; { render(); save(); } });
+    tweak.addSelect(designs, &#x27;spacing&#x27;, { label: &#x27;Row spacing&#x27;, options: [&#x27;Comfortable&#x27;, &#x27;Compact&#x27;] });
+    tweak.addToggle(designs, &#x27;diagnostics&#x27;, { label: &#x27;Scanner test diagnostics&#x27; });
+  }
+})();
+&lt;/script&gt;
+
+&lt;script src=&quot;https://unpkg.com/@floating-ui/core@1.7.3/dist/floating-ui.core.umd.min.js&quot;&gt;&lt;/script&gt;
+&lt;script src=&quot;https://unpkg.com/@floating-ui/dom@1.7.4/dist/floating-ui.dom.umd.min.js&quot;&gt;&lt;/script&gt;
+&lt;script&gt;
+(() =&gt; {
+  if (window.FloatingUIDOM == null) {
+    return;
+  }
+  const { autoUpdate, computePosition, flip, offset, shift, size } =
+    window.FloatingUIDOM;
+  const tooltipPlacements = new Set([&quot;top&quot;, &quot;right&quot;, &quot;bottom&quot;, &quot;left&quot;]);
+  const tooltipId = `codex-visualization-tooltip-${
+    window.crypto?.randomUUID?.() ?? Date.now().toString(36)
+  }`;
+  const tooltipGap = 5;
+  const hoverDelay = 700;
+  const skipDelay = 300;
+  let activeTrigger = null;
+  let pendingTrigger = null;
+  let tooltip = null;
+  let openTimeout = null;
+  let autoUpdateCleanup = null;
+  let positionRequest = 0;
+  let skipDelayUntil = 0;
+  let lastPointerWasTouch = false;
+  let pinnedByTouch = false;
+
+  const getTrigger = (event) =&gt; {
+    for (const target of event.composedPath()) {
+      if (target?.nodeType === Node.ELEMENT_NODE) {
+        const trigger = target.closest(&quot;[data-tooltip]&quot;);
+        if (trigger) return trigger;
+      }
+    }
+    return null;
+  };
+  const containsTarget = (trigger, target) =&gt;
+    target?.nodeType != null &amp;&amp; trigger.contains(target);
+  const getContent = (trigger) =&gt;
+    trigger.getAttribute(&quot;data-tooltip&quot;)?.trim() ?? &quot;&quot;;
+  const getPlacement = (trigger) =&gt; {
+    const placement = trigger.getAttribute(&quot;data-tooltip-placement&quot;);
+    return tooltipPlacements.has(placement) ? placement : &quot;top&quot;;
+  };
+  const getTooltip = () =&gt; {
+    if (tooltip == null) {
+      tooltip = document.createElement(&quot;div&quot;);
+      tooltip.id = tooltipId;
+      tooltip.className = &quot;tooltip&quot;;
+      tooltip.setAttribute(&quot;role&quot;, &quot;tooltip&quot;);
+    }
+    return tooltip;
+  };
+  const setDescribedBy = (trigger, described) =&gt; {
+    const ids = new Set(
+      (trigger.getAttribute(&quot;aria-describedby&quot;) ?? &quot;&quot;)
+        .split(/\s+/)
+        .filter(Boolean),
+    );
+    if (described) {
+      ids.add(tooltipId);
+    } else {
+      ids.delete(tooltipId);
+    }
+    if (ids.size === 0) {
+      trigger.removeAttribute(&quot;aria-describedby&quot;);
+    } else {
+      trigger.setAttribute(&quot;aria-describedby&quot;, [...ids].join(&quot; &quot;));
+    }
+  };
+  const clearOpenTimeout = () =&gt; {
+    if (openTimeout != null) {
+      window.clearTimeout(openTimeout);
+      openTimeout = null;
+    }
+    pendingTrigger = null;
+  };
+  const closeTooltip = (activateSkipDelay = true) =&gt; {
+    clearOpenTimeout();
+    pinnedByTouch = false;
+    positionRequest += 1;
+    autoUpdateCleanup?.();
+    autoUpdateCleanup = null;
+    if (activeTrigger == null) {
+      return;
+    }
+    setDescribedBy(activeTrigger, false);
+    activeTrigger = null;
+    tooltip?.remove();
+    if (activateSkipDelay) {
+      skipDelayUntil = Date.now() + skipDelay;
+    }
+  };
+  const updatePosition = (trigger, floating) =&gt; {
+    const request = ++positionRequest;
+    void computePosition(trigger, floating, {
+      middleware: [
+        offset(tooltipGap),
+        flip({ padding: tooltipGap }),
+        shift({ padding: tooltipGap }),
+        size({
+          padding: tooltipGap,
+          apply({ availableHeight, availableWidth, elements }) {
+            elements.floating.style.setProperty(
+              &quot;--tooltip-available-width&quot;,
+              `${Math.max(0, availableWidth)}px`,
+            );
+            elements.floating.style.setProperty(
+              &quot;--tooltip-available-height&quot;,
+              `${Math.max(0, availableHeight)}px`,
+            );
+          },
+        }),
+      ],
+      placement: getPlacement(trigger),
+      strategy: &quot;fixed&quot;,
+    })
+      .then(({ x, y }) =&gt; {
+        if (activeTrigger !== trigger || request !== positionRequest) {
+          return;
+        }
+        const scale = window.devicePixelRatio || 1;
+        floating.style.transform = `translate(${Math.round(x * scale) / scale}px, ${Math.round(y * scale) / scale}px)`;
+        floating.style.visibility = &quot;visible&quot;;
+      })
+      .catch(() =&gt; {
+        if (activeTrigger === trigger &amp;&amp; request === positionRequest) {
+          closeTooltip(false);
+        }
+      });
+  };
+  const openTooltip = (trigger) =&gt; {
+    const content = getContent(trigger);
+    if (!trigger.isConnected || content.length === 0) {
+      return;
+    }
+    clearOpenTimeout();
+    if (activeTrigger === trigger) {
+      return;
+    }
+    closeTooltip();
+    const floating = getTooltip();
+    floating.textContent = content;
+    floating.style.visibility = &quot;hidden&quot;;
+    floating.style.transform = &quot;translate(0, 0)&quot;;
+    document.body.appendChild(floating);
+    activeTrigger = trigger;
+    setDescribedBy(trigger, true);
+    autoUpdateCleanup = autoUpdate(trigger, floating, () =&gt; {
+      updatePosition(trigger, floating);
+    });
+  };
+  const requestOpen = (trigger, immediate = false) =&gt; {
+    if (
+      getContent(trigger).length === 0 ||
+      activeTrigger === trigger ||
+      pendingTrigger === trigger
+    ) {
+      return;
+    }
+    clearOpenTimeout();
+    pendingTrigger = trigger;
+    const delay =
+      immediate || activeTrigger != null || Date.now() &lt; skipDelayUntil
+        ? 0
+        : hoverDelay;
+    if (delay === 0) {
+      openTooltip(trigger);
+      return;
+    }
+    openTimeout = window.setTimeout(() =&gt; {
+      openTimeout = null;
+      pendingTrigger = null;
+      openTooltip(trigger);
+    }, delay);
+  };
+  const handlePointerOpen = (event) =&gt; {
+    if (event.pointerType === &quot;touch&quot;) {
+      return;
+    }
+    const trigger = getTrigger(event);
+    if (trigger == null || containsTarget(trigger, event.relatedTarget)) {
+      return;
+    }
+    requestOpen(trigger);
+  };
+  const handlePointer = (event) =&gt; {
+    lastPointerWasTouch =
+      event.type === &quot;pointerdown&quot; &amp;&amp; event.pointerType === &quot;touch&quot;;
+  };
+  const handleTouchClick = (event) =&gt; {
+    const isTouch = event.pointerType === &quot;touch&quot; || lastPointerWasTouch;
+    lastPointerWasTouch = false;
+    if (!isTouch || event.detail === 0) {
+      return;
+    }
+    const trigger = getTrigger(event);
+    if (
+      trigger == null ||
+      !trigger.isConnected ||
+      getContent(trigger).length === 0 ||
+      (pinnedByTouch &amp;&amp; activeTrigger === trigger)
+    ) {
+      if (pinnedByTouch) {
+        closeTooltip();
+      }
+      return;
+    }
+    openTooltip(trigger);
+    pinnedByTouch = activeTrigger === trigger;
+    window.setTimeout(() =&gt; {
+      if (activeTrigger === trigger &amp;&amp; !trigger.isConnected) {
+        closeTooltip(false);
+      }
+    }, 0);
+  };
+  const handleLeave = (event) =&gt; {
+    if (pinnedByTouch) {
+      return;
+    }
+    const trigger = getTrigger(event);
+    if (trigger == null || containsTarget(trigger, event.relatedTarget)) {
+      return;
+    }
+    if (activeTrigger === trigger || pendingTrigger === trigger) {
+      closeTooltip();
+    }
+  };
+  const handleFocusIn = (event) =&gt; {
+    const trigger = getTrigger(event);
+    if (trigger?.matches(&quot;:focus-visible&quot;)) {
+      requestOpen(trigger, true);
+    }
+  };
+  const handleKeyDown = (event) =&gt; {
+    if (event.key === &quot;Escape&quot;) {
+      closeTooltip();
+    }
+  };
+  const handleContextMenu = (event) =&gt; {
+    lastPointerWasTouch = false;
+    const trigger = getTrigger(event);
+    if (activeTrigger === trigger || pendingTrigger === trigger) {
+      closeTooltip();
+    }
+  };
+  const handlers = {
+    pointerover: handlePointerOpen,
+    pointerdown: handlePointer,
+    pointercancel: handlePointer,
+    click: handleTouchClick,
+    pointerout: handleLeave,
+    focusin: handleFocusIn,
+    focusout: handleLeave,
+    keydown: handleKeyDown,
+    contextmenu: handleContextMenu,
+  };
+  const roots = new Map();
+  const handledEvents = new WeakSet();
+  const handleEvent = (event) =&gt; {
+    if (handledEvents.has(event)) return;
+    handledEvents.add(event);
+    handlers[event.type](event);
+  };
+  const discoverRoots = (node) =&gt; {
+    if (node.shadowRoot) listen(node.shadowRoot);
+    for (const element of node.querySelectorAll(&quot;*&quot;)) {
+      if (element.shadowRoot) listen(element.shadowRoot);
+    }
+  };
+  const listen = (root) =&gt; {
+    if (roots.has(root)) return;
+    for (const type of Object.keys(handlers)) root.addEventListener(type, handleEvent);
+    const observer = new window.MutationObserver((records) =&gt; {
+      for (const { addedNodes } of records) {
+        for (const node of addedNodes) {
+          if (node.nodeType === Node.ELEMENT_NODE) discoverRoots(node);
+        }
+      }
+      for (const [root, cleanup] of roots) {
+        if (root.host &amp;&amp; !root.host.isConnected) {
+          cleanup();
+          roots.delete(root);
+        }
+      }
+      if (activeTrigger &amp;&amp; !activeTrigger.isConnected) closeTooltip(false);
+    });
+    observer.observe(root, { childList: true, subtree: true });
+    roots.set(root, () =&gt; {
+      observer.disconnect();
+      for (const type of Object.keys(handlers)) root.removeEventListener(type, handleEvent);
+    });
+    discoverRoots(root);
+  };
+  const destroy = () =&gt; {
+    closeTooltip(false);
+    lastPointerWasTouch = false;
+    for (const cleanup of roots.values()) cleanup();
+    roots.clear();
+    tooltip = null;
+  };
+
+  // Events between children of one shadow root never reach the document.
+  listen(document);
+  window.addEventListener(&quot;pagehide&quot;, destroy, { once: true });
+})();
+&lt;/script&gt;
+&lt;script id=&quot;codex-visualization-tabs&quot;&gt;
+(() =&gt; {
+  const selector = &#x27;.nav[role=&quot;tablist&quot;] [role=&quot;tab&quot;]&#x27;;
+  const disabled = &#x27;:disabled,[aria-disabled=&quot;true&quot;]&#x27;;
+  const selectTab = (selected) =&gt; {
+    const panelId = selected.getAttribute(&quot;aria-controls&quot;);
+    for (const tab of selected.closest(&#x27;[role=&quot;tablist&quot;]&#x27;).querySelectorAll(&#x27;[role=&quot;tab&quot;]&#x27;)) {
+      const active = tab === selected;
+      tab.classList.toggle(&quot;active&quot;, active);
+      tab.setAttribute(&quot;aria-selected&quot;, String(active));
+      const id = tab.getAttribute(&quot;aria-controls&quot;);
+      const panel = id &amp;&amp; document.getElementById(id);
+      if (panel != null) {
+        panel.hidden = id !== panelId;
+        if (!panel.hidden &amp;&amp; selected.id) {
+          panel.setAttribute(&quot;aria-labelledby&quot;, selected.id);
+        }
+      }
+    }
+  };
+  const interact = (event) =&gt; {
+    const tab = event.target?.closest?.(selector);
+    if (event.defaultPrevented || tab == null || tab.matches(disabled)) {
+      return;
+    }
+    if (event.type === &quot;click&quot;) {
+      selectTab(tab);
+      return;
+    }
+    const tabs = Array.from(
+      tab.closest(&#x27;[role=&quot;tablist&quot;]&#x27;).querySelectorAll(&#x27;[role=&quot;tab&quot;]&#x27;),
+    ).filter((candidate) =&gt; !candidate.matches(disabled));
+    const current = tabs.indexOf(tab);
+    let next;
+    if (event.key === &quot;ArrowRight&quot; || event.key === &quot;ArrowDown&quot;) {
+      next = (current + 1) % tabs.length;
+    } else if (event.key === &quot;ArrowLeft&quot; || event.key === &quot;ArrowUp&quot;) {
+      next = (current + tabs.length - 1) % tabs.length;
+    } else if (event.key === &quot;Home&quot;) {
+      next = 0;
+    } else if (event.key === &quot;End&quot;) {
+      next = tabs.length - 1;
+    } else {
+      return;
+    }
+    event.preventDefault();
+    tabs[next].focus();
+    selectTab(tabs[next]);
+  };
+
+  for (const list of document.querySelectorAll(&#x27;.nav[role=&quot;tablist&quot;]&#x27;)) {
+    const selected =
+      list.querySelector(&#x27;[role=&quot;tab&quot;][aria-selected=&quot;true&quot;]&#x27;) ??
+      list.querySelector(&#x27;[role=&quot;tab&quot;].active&#x27;) ??
+      list.querySelector(&#x27;[role=&quot;tab&quot;]&#x27;);
+    if (selected != null) {
+      selectTab(selected);
+    }
+  }
+  document.addEventListener(&quot;click&quot;, interact);
+  document.addEventListener(&quot;keydown&quot;, interact);
+  window.addEventListener(&quot;pagehide&quot;, () =&gt; {
+    document.removeEventListener(&quot;click&quot;, interact);
+    document.removeEventListener(&quot;keydown&quot;, interact);
+  }, { once: true });
+})();
+&lt;/script&gt;
+&lt;script id=&quot;codex-visualization-carousel&quot;&gt;
+  (() =&gt; {
+    for (const root of document.querySelectorAll(&quot;.viz-carousel&quot;)) {
+      const panels = Array.from(
+        root.querySelectorAll(&quot;:scope &gt; [data-variant]&quot;),
+      );
+      if (panels.length === 0) {
+        continue;
+      }
+      root.setAttribute(&quot;role&quot;, &quot;group&quot;);
+      panels.forEach((panel, index) =&gt; {
+        panel.hidden = index !== 0;
+        panel.setAttribute(&quot;role&quot;, &quot;group&quot;);
+        if (!panel.hasAttribute(&quot;aria-label&quot;)) {
+          panel.setAttribute(&quot;aria-label&quot;, panel.dataset.variant);
+        }
+      });
+      root.dataset.activeVariant = panels[0].dataset.variant;
+      if (panels.length === 1) {
+        continue;
+      }
+
+      const controls = document.createElement(&quot;div&quot;);
+      controls.className = &quot;viz-carousel-controls&quot;;
+      // Portable copy of the settings dropdown&#x27;s legacy glyph; no 14px icon-package preset matches it.
+      // https://github.com/openai/openai/blob/master/codex/codex-apps/webview/src/icons/chevron.svg
+      controls.innerHTML = `
+      &lt;button type=&quot;button&quot; class=&quot;viz-carousel-previous cursor-interaction&quot;&gt;&lt;i data-lucide=&quot;chevron-left&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/button&gt;
+      &lt;details class=&quot;viz-carousel-picker&quot;&gt;
+        &lt;summary class=&quot;cursor-interaction&quot;&gt;
+          &lt;span class=&quot;viz-carousel-count tabular-nums&quot;&gt;&lt;/span&gt;
+          &lt;span class=&quot;viz-carousel-name&quot;&gt;&lt;/span&gt;
+          &lt;svg class=&quot;viz-carousel-caret&quot; width=&quot;14&quot; height=&quot;14&quot; viewBox=&quot;0 0 20 21&quot; fill=&quot;none&quot; aria-hidden=&quot;true&quot; focusable=&quot;false&quot;&gt;
+            &lt;path d=&quot;M15.2793 7.71101C15.539 7.45131 15.961 7.45131 16.2207 7.71101C16.4804 7.97071 16.4804 8.39272 16.2207 8.65242L10.4707 14.4024C10.211 14.6621 9.78902 14.6621 9.52932 14.4024L3.77932 8.65242L3.69436 8.54792C3.52385 8.28979 3.55205 7.93828 3.77932 7.71101C4.00659 7.48374 4.3581 7.45554 4.61623 7.62605L4.72073 7.71101L10 12.9903L15.2793 7.71101Z&quot; fill=&quot;currentColor&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;0.6&quot; /&gt;
+          &lt;/svg&gt;
+        &lt;/summary&gt;
+        &lt;div class=&quot;viz-carousel-options&quot;&gt;&lt;/div&gt;
+      &lt;/details&gt;
+      &lt;button type=&quot;button&quot; class=&quot;viz-carousel-next cursor-interaction&quot;&gt;&lt;i data-lucide=&quot;chevron-right&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/button&gt;`;
+      const previous = controls.querySelector(&quot;.viz-carousel-previous&quot;);
+      const next = controls.querySelector(&quot;.viz-carousel-next&quot;);
+      const picker = controls.querySelector(&quot;.viz-carousel-picker&quot;);
+      const summary = picker.querySelector(&quot;summary&quot;);
+      const count = controls.querySelector(&quot;.viz-carousel-count&quot;);
+      const name = controls.querySelector(&quot;.viz-carousel-name&quot;);
+      const options = controls.querySelector(&quot;.viz-carousel-options&quot;);
+      const status = document.createElement(&quot;span&quot;);
+      status.className = &quot;sr-only&quot;;
+      status.setAttribute(&quot;role&quot;, &quot;status&quot;);
+      status.setAttribute(&quot;aria-live&quot;, &quot;polite&quot;);
+      status.setAttribute(&quot;aria-atomic&quot;, &quot;true&quot;);
+      previous.setAttribute(
+        &quot;aria-label&quot;,
+        root.dataset.previousLabel ?? &quot;Previous variant&quot;,
+      );
+      next.setAttribute(&quot;aria-label&quot;, root.dataset.nextLabel ?? &quot;Next variant&quot;);
+
+      let active = 0;
+      const choices = panels.map((panel, index) =&gt; {
+        const choice = document.createElement(&quot;button&quot;);
+        choice.type = &quot;button&quot;;
+        choice.className = &quot;cursor-interaction&quot;;
+        choice.textContent = panel.dataset.variant;
+        choice.addEventListener(&quot;click&quot;, () =&gt; {
+          select(index);
+          summary.focus();
+        });
+        options.appendChild(choice);
+        return choice;
+      });
+      const select = (index) =&gt; {
+        const changed = active !== index;
+        active = index;
+        panels.forEach((panel, position) =&gt; {
+          panel.hidden = position !== active;
+          choices[position].setAttribute(
+            &quot;aria-current&quot;,
+            String(position === active),
+          );
+        });
+        root.dataset.activeVariant = panels[active].dataset.variant;
+        count.textContent = `${active + 1} / ${panels.length}`;
+        name.textContent = panels[active].dataset.variant;
+        picker.open = false;
+        if (changed) {
+          status.textContent = `${count.textContent}: ${name.textContent}`;
+        }
+      };
+      previous.addEventListener(&quot;click&quot;, () =&gt;
+        select((active + panels.length - 1) % panels.length),
+      );
+      next.addEventListener(&quot;click&quot;, () =&gt;
+        select((active + 1) % panels.length),
+      );
+      picker.addEventListener(&quot;keydown&quot;, (event) =&gt; {
+        if (event.key === &quot;Escape&quot; &amp;&amp; picker.open) {
+          event.preventDefault();
+          picker.open = false;
+          summary.focus();
+        }
+      });
+      const dismiss = (event) =&gt; {
+        if (!picker.contains(event.target)) {
+          picker.open = false;
+        }
+      };
+      const sizePicker = () =&gt; {
+        root.style.setProperty(
+          &quot;--viz-carousel-picker-height&quot;,
+          `${picker.open ? options.offsetHeight : 0}px`,
+        );
+      };
+      picker.addEventListener(&quot;toggle&quot;, sizePicker);
+      window.addEventListener(&quot;resize&quot;, sizePicker);
+      document.addEventListener(&quot;pointerdown&quot;, dismiss);
+      window.addEventListener(
+        &quot;pagehide&quot;,
+        () =&gt; {
+          document.removeEventListener(&quot;pointerdown&quot;, dismiss);
+          window.removeEventListener(&quot;resize&quot;, sizePicker);
+        },
+        { once: true },
+      );
+      root.append(controls, status);
+      select(0);
+    }
+  })();
+&lt;/script&gt;
+&lt;script id=&quot;codex-visualization-lucide&quot; async src=&quot;https://unpkg.com/lucide@1.17.0/dist/umd/lucide.js&quot;&gt;&lt;/script&gt;
+&lt;script&gt;
+(() =&gt; {
+  const initialize = () =&gt; {
+    globalThis.lucide?.createIcons({ attrs: { width: 16, height: 16 } });
+  };
+  if (globalThis.lucide != null) {
+    initialize();
+    return;
+  }
+  document
+    .getElementById(&quot;codex-visualization-lucide&quot;)
+    ?.addEventListener(&quot;load&quot;, initialize, { once: true });
+})();
+&lt;/script&gt;
+
+&lt;/body&gt;
+&lt;/html&gt;
+"></iframe>
+<script>(() => {
+  const frame = document.getElementById("codex-visualization");
+  if (!(frame instanceof HTMLIFrameElement)) {
+    return;
+  }
+  let viewportHeight = globalThis.innerHeight;
+  const storageKey = `codex:visualization-widget-state-v2:${JSON.stringify([
+    globalThis.location.pathname,
+    globalThis.location.search,
+  ])}`;
+  const parseState = (serializedState) => {
+    if (
+      typeof serializedState !== "string" ||
+      new TextEncoder().encode(serializedState).length > 16 * 1024
+    ) {
+      throw new TypeError(
+        "Widget state must be a JSON object of at most 16 KiB",
+      );
+    }
+    /** @type {unknown} */
+    const state = JSON.parse(serializedState);
+    if (
+      state == null ||
+      typeof state !== "object" ||
+      Array.isArray(state) ||
+      ("imageIds" in state &&
+        (!Array.isArray(state.imageIds) || state.imageIds.length > 0))
+    ) {
+      throw new TypeError("Widget state must be a JSON object");
+    }
+    const storedState = { modelContent: null, privateContent: null, ...state };
+    const canonicalState = JSON.stringify(
+      storedState,
+      (_key, /** @type {unknown} */ value) => {
+        if (typeof value === "number" && !Number.isFinite(value)) {
+          throw new TypeError("Widget state must contain finite numbers");
+        }
+        return value;
+      },
+    );
+    if (new TextEncoder().encode(canonicalState).length > 16 * 1024) {
+      throw new TypeError(
+        "Widget state must be a JSON object of at most 16 KiB",
+      );
+    }
+    return storedState;
+  };
+  let storage = null;
+  let state = null;
+  try {
+    const localStorage = globalThis.localStorage;
+    const probeKey = `${storageKey}:probe`;
+    localStorage.setItem(probeKey, "1");
+    localStorage.removeItem(probeKey);
+    storage = localStorage;
+    const savedState = storage.getItem(storageKey);
+    if (savedState != null) {
+      try {
+        state = parseState(savedState);
+      } catch {
+        // Invalid saved state does not disable future writes.
+      }
+    }
+  } catch {
+    storage = null;
+  }
+  const initialGlobals = {
+    widgetState: state,
+    statePersistence: storage == null ? "none" : "local",
+  };
+
+  const channel = new MessageChannel();
+  channel.port1.addEventListener("message", (event) => {
+    const data = event.data;
+    if (typeof data !== "object" || data == null) {
+      return;
+    }
+    if (data.type === "widget-state-write") {
+      if (!Number.isSafeInteger(data.id) || data.id <= 0) {
+        return;
+      }
+      let ok = false;
+      try {
+        if (storage != null) {
+          const state = parseState(data.state);
+          storage.setItem(storageKey, JSON.stringify(state));
+          ok = true;
+        }
+      } catch {
+        // Storage denial, quota limits, and invalid state return a failed receipt.
+      }
+      channel.port1.postMessage({
+        type: "widget-state-result",
+        id: data.id,
+        ok,
+      });
+      return;
+    }
+    if (data.type === "height") {
+      const height = data.height;
+      if (
+        typeof height === "number" &&
+        Number.isFinite(height) &&
+        height >= 0 &&
+        height <= 10_000
+      ) {
+        frame.style.height = Math.ceil(height) + "px";
+      }
+      return;
+    }
+    if (data.type === "scroll-to") {
+      const top = data.top;
+      if (
+        typeof top === "number" &&
+        Number.isFinite(top) &&
+        top >= 0 &&
+        globalThis.navigator.userActivation?.isActive === true
+      ) {
+        globalThis.scrollTo({
+          top: Math.ceil(
+            globalThis.scrollY + frame.getBoundingClientRect().top + top,
+          ),
+        });
+      }
+      return;
+    }
+    if (data.type === "open-external") {
+      const rawHref = data.href;
+      if (typeof rawHref !== "string") {
+        return;
+      }
+      let href;
+      try {
+        const url = new URL(rawHref, document.baseURI);
+        if (url.protocol !== "https:") {
+          return;
+        }
+        href = url.href;
+      } catch {
+        return;
+      }
+      if (globalThis.navigator.userActivation?.isActive === true) {
+        const anchor = document.createElement("a");
+        anchor.href = href;
+        anchor.rel = "noopener noreferrer";
+        anchor.target = "_blank";
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+      }
+      return;
+    }
+    if (data.type === "follow-up") {
+      const prompt = data.prompt;
+      if (
+        typeof prompt !== "string" ||
+        globalThis.navigator.userActivation?.isActive !== true
+      ) {
+        return;
+      }
+      const title = data.title;
+      globalThis.prompt(typeof title === "string" ? title : prompt, prompt);
+    }
+  });
+  channel.port1.start();
+  const srcdoc = frame.dataset.srcdoc;
+  if (srcdoc == null) {
+    return;
+  }
+  globalThis.addEventListener("resize", () => {
+    const height = Number.parseFloat(frame.style.height);
+    if (!Number.isFinite(height) || height <= viewportHeight) {
+      frame.style.removeProperty("height");
+    }
+    viewportHeight = globalThis.innerHeight;
+    channel.port1.postMessage({ type: "measure" });
+  });
+  frame.addEventListener(
+    "load",
+    () => {
+      frame.contentWindow?.postMessage(
+        { type: "codex-visualization-initialize" },
+        "*",
+        [channel.port2],
+      );
+    },
+    { once: true },
+  );
+  // Match the trusted bootstrap element, not the same text in an authored title.
+  frame.srcdoc = srcdoc.replace(
+    '<script type="application/json" id="codex-visualization-widget-state">__CODEX_VISUALIZATION_WIDGET_STATE__<\/script>',
+    () =>
+      '<script type="application/json" id="codex-visualization-widget-state">' +
+      JSON.stringify(initialGlobals).replaceAll("<", "\\u003c") +
+      "<\/script>",
+  );
+  delete frame.dataset.srcdoc;
+})();
+</script>
+</body>
+</html>

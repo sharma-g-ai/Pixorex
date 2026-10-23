@@ -1,0 +1,23 @@
+{
+  "equipment_type": "transformer",
+  "display_name": "Current Transformer Nameplate",
+  "fields": [
+    "manufacturer",
+    "location",
+    "country",
+    "model_no",
+    "serial_no",
+    "type",
+    "rated_voltage_kv",
+    "rated_current_primary",
+    "rated_current_secondary",
+    "ratio",
+    "burden_va",
+    "accuracy_class",
+    "frequency_hz",
+    "ins_class",
+    "weight_kg",
+    "made_in"
+  ],
+  "always_review": ["model_no", "serial_no", "ratio"]
+}

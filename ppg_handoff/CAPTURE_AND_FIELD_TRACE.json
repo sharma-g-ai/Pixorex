@@ -1,0 +1,73 @@
+{
+  "report_date": "2026-09-24",
+  "scope": "Code-path review plus supplied reference fixtures; no live device capture",
+  "reported_case": {
+    "operator_message": "expected 5319074922, got 5319364114; the printed DN is 5319364114",
+    "expected_value_found_in_supplied_fixtures": false,
+    "observed_value_matches_supplied_fixture": "fixtures/dn_5319364114.expected.json",
+    "classification": "session_or_reference_identity mismatch is supported by code; live OCR recognition cause is undetermined",
+    "camera_image_available": false,
+    "ocr_observation_available": false,
+    "session_id_available": false
+  },
+  "previous_failure_path": [
+    {
+      "stage": "first page OCR",
+      "behavior": "first non-null parsed delivery number populated session.deliveryNoteNumber",
+      "evidence": "frontend/lib/features/ppg_delivery_note/services/ppg_session_controller.dart"
+    },
+    {
+      "stage": "later page identity check",
+      "behavior": "a different OCR number marked the page failed and inactive before source review",
+      "effect": "operator could not confirm whether OCR or the page identity was wrong; a retained draft could repeat the mismatch"
+    }
+  ],
+  "corrected_path": [
+    {
+      "stage": "camera capture",
+      "status": "code inspected; no test capture",
+      "capture_resolution": "ResolutionPreset.high",
+      "source_image_persisted": true
+    },
+    {
+      "stage": "crop and transform",
+      "status": "code inspected; no test capture",
+      "operator_adjustment": "rotation and four-corner perspective crop",
+      "rectified_file": "PNG in temporary storage, copied to app-private evidence storage before OCR"
+    },
+    {
+      "stage": "OCR input",
+      "status": "code inspected; Android run not available",
+      "image": "rectified image, falling back to saved original only when rectified path is absent",
+      "engine": "bundled ML Kit Latin text recognizer",
+      "dependency": "com.google.mlkit:text-recognition:16.0.1",
+      "native_input": "BitmapFactory.decodeFile; InputImage.fromBitmap(bitmap, 0)",
+      "output_geometry": "word, line, and symbol boxes in rectified-image pixels from Kotlin; Dart persists word-level elements"
+    },
+    {
+      "stage": "identity verification",
+      "status": "implemented; not device-tested",
+      "behavior": "each page must have a verified note number matching the session before parsed rows consolidate",
+      "mismatch_behavior": "keep the source reviewable; require explicit correction or separate session; do not combine documents"
+    },
+    {
+      "stage": "field correction and final form",
+      "status": "implemented; parser/domain tests passed, widget/controller flow not integration-tested",
+      "retained_values": ["raw OCR", "verified document value", "physical count"],
+      "final_gates": ["verified page identity", "page coverage review", "physical count confirmation", "complete page set", "unresolved field checks"]
+    }
+  ],
+  "successful_reference_parser_path": {
+    "fixture": "fixtures/dn_5319364114.expected.json",
+    "source_sha256": "7c4e1acec8441193375ca36c8f77f935630913adbebd31f78dea3e82d886780c",
+    "source_method": "manual visual transcription",
+    "test_input": "synthetic OCR text boxes built from the transcribed values",
+    "result": "7 occurrences; 62 PC; two quantity-less set headings retained as context",
+    "actual_ocr_run": false
+  },
+  "limitations": [
+    "The live page, native OCR boxes, parser candidates, and capture/session revisions for the reported mismatch were not supplied.",
+    "The Flutter test environment had Linux desktop and Chrome, but no Android device/emulator or adb.",
+    "The reference parser trace is not OCR accuracy evidence."
+  ]
+}

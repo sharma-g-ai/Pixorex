@@ -1,0 +1,89 @@
+{
+  "fixture_id": "dn_5319364114",
+  "delivery_note_number": "5319364114",
+  "declared_page_count": 4,
+  "source_pdf": "source/DN_5319364114.pdf",
+  "source_sha256": "7c4e1acec8441193375ca36c8f77f935630913adbebd31f78dea3e82d886780c",
+  "header_piece_check": 62,
+  "quantity_bearing_rows": [
+    {
+      "order": 1,
+      "article_number": "445235",
+      "document_quantity": 15,
+      "unit": "PC",
+      "source_page": 2,
+      "product_context": "S COVER 456 BAS GREY"
+    },
+    {
+      "order": 2,
+      "article_number": "445182",
+      "document_quantity": 15,
+      "unit": "PC",
+      "source_page": 2,
+      "product_context": "S COVER 256/435/456/522 HRD"
+    },
+    {
+      "order": 3,
+      "article_number": "475212",
+      "document_quantity": 7,
+      "unit": "PC",
+      "source_page": 3,
+      "product_context": "S PRIME 200 BAS YEL/GREEN"
+    },
+    {
+      "order": 4,
+      "article_number": "475210",
+      "document_quantity": 7,
+      "unit": "PC",
+      "source_page": 3,
+      "product_context": "S PRIME 200 HRD"
+    },
+    {
+      "order": 5,
+      "article_number": "445377",
+      "document_quantity": 2,
+      "unit": "PC",
+      "source_page": 3,
+      "product_context": "S RINE 48 GREEN"
+    },
+    {
+      "order": 6,
+      "article_number": "445386",
+      "document_quantity": 8,
+      "unit": "PC",
+      "source_page": 3,
+      "product_context": "S RINE 48 RED",
+      "batch_detail_note": "batches 5 PC and 3 PC corroborate total 8; not extra receipt lines"
+    },
+    {
+      "order": 7,
+      "article_number": "445374",
+      "document_quantity": 8,
+      "unit": "PC",
+      "source_page": 4,
+      "product_context": "S RINE 48 BLUE"
+    }
+  ],
+  "set_headers_no_printed_quantity": [
+    {
+      "article_number": "179061",
+      "heading": "S'COVER 456 SET GREY",
+      "document_quantity": null,
+      "role": "SET_HEADER_NO_PRINTED_QUANTITY",
+      "source_page": 2
+    },
+    {
+      "article_number": "446789",
+      "heading": "S PRIME 200 SET YEL/GREEN",
+      "document_quantity": null,
+      "role": "SET_HEADER_NO_PRINTED_QUANTITY",
+      "source_page": 2,
+      "continues_on_page": 3
+    }
+  ],
+  "notes": [
+    "Ground truth visually transcribed from rendered pages; not from OCR execution.",
+    "Do not invent quantities for set headers 179061 or 446789.",
+    "Do not treat Qty per Batch as additional article quantities."
+  ]
+}

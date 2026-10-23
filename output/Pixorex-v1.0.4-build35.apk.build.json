@@ -1,0 +1,15 @@
+{
+  "apk": "/home/suchithgoud/Downloads/Label_Reader/output/Pixorex-v1.0.4-build35.apk",
+  "package": "com.amzur.equiptrack",
+  "version": "1.0.4",
+  "build_number": 35,
+  "size_bytes": 90851884,
+  "sha256": "e493a4b7a8751e62088eae89383846adc4737cbc9baa7d8d8337ba39ea685605",
+  "archive_integrity_verified": true,
+  "signature_verified": true,
+  "signing_certificate_matches_build_34": true,
+  "signing": "Existing debug keystore for demo/review release builds",
+  "flutter_tests_passed": 61,
+  "included_workflow": "Current Flutter DN capture and manual physical receiving count",
+  "can_scanner_wireframes_implemented": false
+}

@@ -1,0 +1,124 @@
+{
+  "functional_checks": [
+    "Landing shows actual four-page first DN",
+    "Document quantity 62, untouched physical total zero",
+    "Physical count disabled before document finalisation",
+    "DN finalised before scanning",
+    "Searching has disabled count acceptance",
+    "Candidate verification does not enable addition",
+    "Verified exact current-DN article enables Add this can",
+    "Confirmed preview frames do not increment count",
+    "Double tap adds exactly one can",
+    "Accepted can requires Scan next can",
+    "Repeated frames after acceptance cannot rearm count",
+    "Undo reverses one accepted event",
+    "Two deliberate cans of the same article count twice",
+    "Article on another DN rejected for current DN",
+    "blur blocks acceptance",
+    "glare blocks acceptance",
+    "hidden blocks acceptance",
+    "conflict blocks acceptance",
+    "verifying blocks acceptance",
+    "searching blocks acceptance",
+    "Distractor / unequal string rejected: 0000207630",
+    "Distractor / unequal string rejected: 8716242404767",
+    "Distractor / unequal string rejected: UN1263",
+    "Distractor / unequal string rejected: 12/10/2026",
+    "Distractor / unequal string rejected: 0445386",
+    "Unexpected attachment article has zero count delta",
+    "Unexpected event retained and submission blocked",
+    "Disposition resolves exception without deleting history",
+    "Repeated article requires occurrence selection",
+    "Repeated article increments selected page-four occurrence once",
+    "Switching DN retains separate totals",
+    "Short count requires variance reason",
+    "Other variance requires details",
+    "Finished short row is verified with reason",
+    "Reopen retains count and removes verification",
+    "Source correction preserves count and pauses scanning",
+    "Correction requires reviewed page before finalisation",
+    "Printed Piece mismatch requires explicit source-summary review",
+    "Re-finalisation resumes without resetting previous count",
+    "Leading zeros retained on matched label-test article",
+    "Six and eight digit article strings remain distinct",
+    "Full row evidence allows submit only after finishing every row",
+    "Summary separates scanned and manual units",
+    "Local submission locks row edits and scanning",
+    "Submitted count list has no editable controls",
+    "Restored state retains submitted counts and leading zeros",
+    "Saved interaction state remains below 16 KiB"
+  ],
+  "layouts": [
+    {
+      "viewport": 320,
+      "state": "scan",
+      "width": 273,
+      "scrollWidth": 273,
+      "overflow": []
+    },
+    {
+      "viewport": 320,
+      "state": "summary",
+      "width": 258,
+      "scrollWidth": 258,
+      "overflow": []
+    },
+    {
+      "viewport": 320,
+      "state": "document",
+      "width": 258,
+      "scrollWidth": 258,
+      "overflow": []
+    },
+    {
+      "viewport": 320,
+      "state": "count",
+      "width": 273,
+      "scrollWidth": 273,
+      "overflow": []
+    },
+    {
+      "viewport": 320,
+      "state": "landing",
+      "width": 288,
+      "scrollWidth": 288,
+      "overflow": []
+    },
+    {
+      "viewport": 736,
+      "state": "scan",
+      "width": 704,
+      "scrollWidth": 704,
+      "overflow": []
+    },
+    {
+      "viewport": 736,
+      "state": "summary",
+      "width": 689,
+      "scrollWidth": 689,
+      "overflow": []
+    },
+    {
+      "viewport": 736,
+      "state": "document",
+      "width": 689,
+      "scrollWidth": 689,
+      "overflow": []
+    },
+    {
+      "viewport": 736,
+      "state": "count",
+      "width": 689,
+      "scrollWidth": 689,
+      "overflow": []
+    },
+    {
+      "viewport": 736,
+      "state": "landing",
+      "width": 704,
+      "scrollWidth": 704,
+      "overflow": []
+    }
+  ],
+  "runtime_errors": []
+}
