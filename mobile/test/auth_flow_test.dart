@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -6,6 +7,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:pixorex_mobile/app.dart';
 import 'package:pixorex_mobile/core/api_client.dart';
+import 'package:pixorex_mobile/core/api_exception.dart';
 import 'package:pixorex_mobile/core/auth_tokens.dart';
 import 'package:pixorex_mobile/core/device_id.dart';
 import 'package:pixorex_mobile/core/oidc_client.dart';
@@ -81,6 +83,7 @@ class Rig {
       }),
       deviceId: DeviceIdStore(mem),
       accessToken: session.accessToken,
+      freshAccessToken: session.freshAccessToken,
       baseUrl: 'http://api.test/api/v1',
     );
     session.api = api;
@@ -325,7 +328,7 @@ void main() {
       await t.tap(find.text('Send code'));
       await t.pumpAndSettle();
       expect(rig.oidc.lastHint, '+12165550148');
-      expect(find.text('You are signed in.'), findsOneWidget);
+      expect(find.text('Welcome, Jorge'), findsOneWidget);
     });
 
     testWidgets('Email tab validates and signs in with the email', (t) async {
@@ -364,7 +367,7 @@ void main() {
       await t.pumpAndSettle();
       expect(rig.oidc.signIns, 1);
       expect(find.text('This invite was already used'), findsNothing);
-      expect(find.text('You are signed in.'), findsOneWidget);
+      expect(find.text('Welcome, Jorge'), findsOneWidget);
     });
 
     testWidgets('a cold start from an invite link still opens the invite', (t) async {
@@ -376,6 +379,207 @@ void main() {
       await t.pumpAndSettle();
       expect(rig.oidc.signIns, 0);
       expect(find.text('This invite was already used'), findsOneWidget);
+    });
+  });
+
+  group('units and access', () {
+    Map<String, dynamic> unitsMe({
+      required String active,
+      String? last,
+      List<Map<String, dynamic>>? units,
+    }) =>
+        {
+          ...meJson(),
+          'active_bu_id': active,
+          'last_bu_id': last,
+          'units': units ??
+              [
+                {'bu_id': 'b4', 'name': 'PPG Plant 04 — Coatings', 'role': 'field_technician', 'is_primary': true},
+                {'bu_id': 'b5', 'name': 'PPG Plant 05 — Resins', 'role': 'bu_admin', 'is_primary': false},
+              ],
+        };
+
+    const twoTechUnits = [
+      {'bu_id': 'b4', 'name': 'PPG Plant 04 — Coatings', 'role': 'field_technician', 'is_primary': true},
+      {
+        'bu_id': 'b7',
+        'name': 'PPG Plant 07 — Industrial',
+        'role': 'field_technician',
+        'is_primary': false,
+        'assigned_by_name': 'S. Alvi',
+      },
+    ];
+
+    String? putUnit(http.BaseRequest r) =>
+        r.method == 'PUT' ? (jsonDecode((r as http.Request).body) as Map)['bu_id'] as String : null;
+
+    test('a technician who is also a BU Admin is moved off the admin-only unit', () async {
+      final rig = Rig((r) async {
+        final to = putUnit(r);
+        return json(to != null ? unitsMe(active: to, last: to) : unitsMe(active: 'b5', last: 'b5'));
+      });
+      expect(await rig.session.signIn(loginHint: 'a@b.co'), isTrue);
+      expect(rig.calls, contains('PUT /api/v1/me/active-unit'));
+      expect(rig.session.me?.activeUnit?.buId, 'b4');
+      expect(rig.session.me?.technicianUnits.map((u) => u.buId), ['b4']);
+    });
+
+    test('an active technician unit is left alone', () async {
+      final rig = Rig((_) async => json(unitsMe(active: 'b4')));
+      await rig.session.signIn(loginHint: 'a@b.co');
+      expect(rig.calls, isNot(contains('PUT /api/v1/me/active-unit')));
+    });
+
+    test('the last technician unit used wins over the primary one', () async {
+      final rig = Rig((r) async {
+        final to = putUnit(r);
+        return json(unitsMe(active: to ?? 'b5', last: 'b7', units: [
+          ...twoTechUnits,
+          {'bu_id': 'b5', 'name': 'PPG Plant 05 — Resins', 'role': 'bu_admin', 'is_primary': false},
+        ]));
+      });
+      await rig.session.signIn(loginHint: 'a@b.co');
+      expect(rig.session.me?.activeUnit?.buId, 'b7');
+    });
+
+    test('switchUnit sends the unit and takes the new /me', () async {
+      final sent = <String>[];
+      final rig = Rig((r) async {
+        final to = putUnit(r);
+        if (to != null) sent.add(to);
+        return json(unitsMe(active: to ?? 'b4', units: twoTechUnits));
+      });
+      await rig.session.signIn(loginHint: 'a@b.co');
+      await rig.session.switchUnit('b7');
+      expect(sent, ['b7']);
+      expect(rig.session.me?.activeUnit?.name, 'PPG Plant 07 — Industrial');
+    });
+
+    test('switching to a unit you were removed from reloads /me and reports it', () async {
+      var removed = false;
+      final rig = Rig((r) async {
+        if (r.method == 'PUT') {
+          removed = true;
+          return problem(403, 'forbidden');
+        }
+        return json(unitsMe(active: 'b4', units: removed ? twoTechUnits.take(1).toList() : twoTechUnits));
+      });
+      await rig.session.signIn(loginHint: 'a@b.co');
+      await expectLater(rig.session.switchUnit('b7'), throwsA(isA<ApiException>()));
+      expect(rig.session.me?.technicianUnits.map((u) => u.buId), ['b4']);
+      expect(rig.session.status, SessionStatus.signedIn);
+    });
+
+    test('a 401 gets one new token and the call is retried', () async {
+      final rig = Rig((r) async =>
+          r.headers['Authorization'] == 'Bearer access-1' ? problem(401, 'unauthorized') : json(meJson()));
+      expect(await rig.session.signIn(loginHint: 'a@b.co'), isTrue);
+      expect(rig.oidc.refreshes, 1);
+      expect(rig.session.status, SessionStatus.signedIn);
+    });
+
+    test('a 401 that a new token does not fix signs out with a message', () async {
+      var revoked = false;
+      final rig = Rig((r) async => revoked ? problem(401, 'unauthorized') : json(meJson()));
+      await rig.session.signIn(loginHint: 'a@b.co');
+      revoked = true;
+      await rig.session.refresh();
+      expect(rig.session.status, SessionStatus.signedOut);
+      expect(rig.session.error, SessionController.sessionEndedMessage);
+      expect(await TokenStore(rig.mem).load(), isNull);
+    });
+
+    test('removed from every unit (403 account-removed) signs out with a message', () async {
+      var removed = false;
+      final rig = Rig((r) async => removed ? problem(403, 'account-removed') : json(meJson()));
+      await rig.session.signIn(loginHint: 'a@b.co');
+      removed = true;
+      await rig.session.refresh();
+      expect(rig.session.status, SessionStatus.signedOut);
+      expect(rig.session.error, SessionController.accessRemovedMessage);
+    });
+
+    test('losing every technician role signs out on the next refresh', () async {
+      var role = 'field_technician';
+      final rig = Rig((r) async => json(r.url.path.endsWith('/me/sign-out') ? {} : meJson(role: role)));
+      await rig.session.signIn(loginHint: 'a@b.co');
+      role = 'bu_admin';
+      await rig.session.refresh();
+      expect(rig.session.status, SessionStatus.signedOut);
+      expect(rig.session.error, SessionController.noTechnicianUnitMessage);
+    });
+
+    test('offline refresh keeps the session', () async {
+      var offline = false;
+      final rig = Rig((r) async {
+        if (offline) throw const SocketException('down');
+        return json(meJson());
+      });
+      await rig.session.signIn(loginHint: 'a@b.co');
+      offline = true;
+      await rig.session.refresh();
+      expect(rig.session.status, SessionStatus.signedIn);
+    });
+
+    testWidgets('Profile: choose a unit, confirm, Home says where scans now go', (t) async {
+      final rig = Rig((r) async {
+        final to = putUnit(r);
+        return json(unitsMe(active: to ?? 'b4', units: twoTechUnits));
+      });
+      await rig.session.signIn(loginHint: 'a@b.co');
+      await pumpApp(t, rig);
+      expect(find.text('Field Technician · PPG Plant 04 — Coatings'), findsOneWidget);
+
+      await t.tap(find.text('Profile').last);
+      await t.pumpAndSettle();
+      expect(find.text('Also assigned: PPG Plant 07 — Industrial'), findsOneWidget);
+      await t.tap(find.text('Switch business unit'));
+      await t.pumpAndSettle();
+      expect(find.text('Signed in now'), findsOneWidget);
+      expect(find.text('Added by S. Alvi'), findsOneWidget);
+
+      await t.tap(find.text('PPG Plant 07 — Industrial').last);
+      await t.pumpAndSettle();
+      await t.tap(find.text('Switch to PPG Plant 07'));
+      await t.pumpAndSettle();
+      expect(find.text('Switch to PPG Plant 07 — Industrial?'), findsOneWidget);
+      expect(rig.calls.where((c) => c.startsWith('PUT')), isEmpty);
+
+      await t.tap(find.text('Switch'));
+      await t.pumpAndSettle();
+      expect(rig.calls, contains('PUT /api/v1/me/active-unit'));
+      expect(find.text('Field Technician · PPG Plant 07 — Industrial'), findsOneWidget);
+      expect(find.textContaining('Now scanning for'), findsOneWidget);
+    });
+
+    testWidgets('one technician unit: no switch offered', (t) async {
+      final rig = Rig((_) async => json(meJson()));
+      await rig.session.signIn(loginHint: 'a@b.co');
+      await pumpApp(t, rig);
+      await t.tap(find.text('Profile').last);
+      await t.pumpAndSettle();
+      expect(find.text('Switch business unit'), findsNothing);
+    });
+
+    testWidgets('Sign out asks first; Cancel keeps you signed in', (t) async {
+      final rig = Rig((r) async => json(r.url.path.endsWith('/me/sign-out') ? {} : meJson()));
+      await rig.session.signIn(loginHint: 'a@b.co');
+      await pumpApp(t, rig);
+      await t.tap(find.text('Profile').last);
+      await t.pumpAndSettle();
+      await t.tap(find.text('Sign out'));
+      await t.pumpAndSettle();
+      expect(find.text('Sign out of PPG Plant 04 — Coatings?'), findsOneWidget);
+      await t.tap(find.text('Cancel'));
+      await t.pumpAndSettle();
+      expect(rig.session.status, SessionStatus.signedIn);
+
+      await t.tap(find.text('Sign out'));
+      await t.pumpAndSettle();
+      await t.tap(find.text('Sign out').last);
+      await t.pumpAndSettle();
+      expect(rig.calls, contains('POST /api/v1/me/sign-out'));
+      expect(find.text('Send code'), findsOneWidget);
     });
   });
 }

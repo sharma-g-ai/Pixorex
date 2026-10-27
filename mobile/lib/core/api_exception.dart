@@ -22,6 +22,12 @@ class ApiException implements Exception {
   bool get isNetwork => status == 0;
   bool get isUnauthorized => status == 401;
 
+  /// Removed from every unit (the API answers every signed-in call with this).
+  bool get isAccountRemoved => status == 403 && code == 'account-removed';
+
+  /// 403 for this call only, e.g. a unit the person was just removed from.
+  bool get isForbidden => status == 403 && !isAccountRemoved;
+
   /// A sentence that is safe to show the user.
   String get message => detail?.isNotEmpty == true ? detail! : title;
 

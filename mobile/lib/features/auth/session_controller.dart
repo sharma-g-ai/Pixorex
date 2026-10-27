@@ -8,7 +8,7 @@ import 'me.dart';
 
 enum SessionStatus { restoring, signedOut, signingIn, signedIn }
 
-/// Owns the signed-in state: tokens, silent refresh, `GET /me`, sign-out.
+/// Owns the signed-in state: tokens, silent refresh, `GET /me`, the active unit, sign-out.
 /// A0 code (CONSTITUTION 5): token handling needs architect sign-off.
 class SessionController extends ChangeNotifier {
   SessionController({
@@ -23,8 +23,22 @@ class SessionController extends ChangeNotifier {
   final TokenStore _tokens;
   final DateTime Function() _now;
 
+  static const notTechnicianMessage =
+      'This app is for field technicians. Administrators sign in on the web dashboard.';
+  static const noTechnicianUnitMessage =
+      "You're no longer a field technician in any unit. Contact your administrator if this is a mistake.";
+  static const sessionEndedMessage = 'Your session ended. Sign in again.';
+  static const accessRemovedMessage =
+      'Your access to Pixorex was removed. Contact your administrator if this is a mistake.';
+
+  late ApiClient _api;
+
   /// Set after construction because [ApiClient] needs [accessToken] first.
-  late ApiClient api;
+  ApiClient get api => _api;
+  set api(ApiClient client) {
+    _api = client;
+    client.onAccessLost = _onAccessLost;
+  }
 
   SessionStatus _status = SessionStatus.restoring;
   Me? _me;
@@ -69,6 +83,10 @@ class SessionController extends ChangeNotifier {
     }
     try {
       await _loadMe();
+      if (!_me!.isTechnician) {
+        await signOut(message: noTechnicianUnitMessage);
+        return;
+      }
       _set(SessionStatus.signedIn);
     } on ApiException catch (e) {
       // Offline at launch keeps the session; the app can still show the cached state later.
@@ -77,7 +95,7 @@ class SessionController extends ChangeNotifier {
         _error = e.message;
         notifyListeners();
       } else {
-        await _drop();
+        await _drop(keepError: true);
       }
     }
   }
@@ -92,7 +110,7 @@ class SessionController extends ChangeNotifier {
       await _tokens.save(_current!);
       await _loadMe();
       if (!_me!.isTechnician) {
-        await signOut(message: 'This app is for field technicians. Administrators sign in on the web dashboard.');
+        await signOut(message: notTechnicianMessage);
         return false;
       }
       _set(SessionStatus.signedIn);
@@ -102,12 +120,40 @@ class SessionController extends ChangeNotifier {
       await _drop(keepError: true);
       return false;
     } on ApiException catch (e) {
-      _error = e.message;
+      _error ??= e.message;
       await _drop(keepError: true);
       return false;
     } finally {
       // Still here, so the result arrived (or failed): nothing to resume.
       await _tokens.clearSignInPending();
+    }
+  }
+
+  /// Unit switch (contract 1.2): no new sign-in. Throws [ApiException]; on a 403 (removed
+  /// from that unit meanwhile) `/me` is reloaded first so the list is current.
+  Future<void> switchUnit(String buId) async {
+    try {
+      _me = Me.fromJson(await api.put('/me/active-unit', body: {'bu_id': buId}));
+      notifyListeners();
+    } on ApiException catch (e) {
+      if (e.isForbidden) await refresh();
+      rethrow;
+    }
+  }
+
+  /// Reloads `/me` (the app calls this when it comes back to the foreground), so a unit
+  /// removal or a lost technician role shows up without a relaunch.
+  Future<void> refresh() async {
+    if (_status != SessionStatus.signedIn) return;
+    try {
+      await _loadMe();
+      if (!_me!.isTechnician) {
+        await signOut(message: noTechnicianUnitMessage);
+        return;
+      }
+      notifyListeners();
+    } on ApiException {
+      // Offline keeps the session; a lost session was handled by [_onAccessLost].
     }
   }
 
@@ -134,6 +180,9 @@ class SessionController extends ChangeNotifier {
     return (await _refresh())?.accessToken;
   }
 
+  /// A newly issued token, for the API client's one retry after a 401.
+  Future<String?> freshAccessToken() async => (await _refresh())?.accessToken;
+
   Future<AuthTokens?> _refresh() {
     // One refresh at a time: parallel calls share the same result.
     return _refreshing ??= () async {
@@ -155,17 +204,31 @@ class SessionController extends ChangeNotifier {
     }();
   }
 
+  /// `/me`, then makes sure the active unit is one where this person is a technician.
   Future<void> _loadMe() async {
-    final json = await api.get('/me');
-    _me = Me.fromJson(json);
+    _me = Me.fromJson(await api.get('/me'));
+    final me = _me!;
+    final target = me.activeUnit == null ? me.preferredTechnicianUnit : null;
+    if (target != null) {
+      _me = Me.fromJson(await api.put('/me/active-unit', body: {'bu_id': target.buId}));
+    }
   }
 
+  /// The API says this person can no longer work here: local sign-out with the reason.
+  /// No API or Keycloak call: the session is already gone on the server.
+  void _onAccessLost(ApiException e) {
+    _error = e.isAccountRemoved ? accessRemovedMessage : sessionEndedMessage;
+    _drop(keepError: true);
+  }
+
+  /// Signed out at once (no moment where the screens think a token is still there),
+  /// then the stored tokens are cleared.
   Future<void> _drop({bool keepError = false}) async {
-    await _tokens.clear();
     _current = null;
     _me = null;
     if (!keepError) _error = null;
     _set(SessionStatus.signedOut);
+    await _tokens.clear();
   }
 
   void _set(SessionStatus s) {

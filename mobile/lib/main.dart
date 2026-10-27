@@ -22,6 +22,7 @@ void main() {
     http: http.Client(),
     deviceId: DeviceIdStore(store),
     accessToken: session.accessToken,
+    freshAccessToken: session.freshAccessToken,
   );
   session.api = api;
 
