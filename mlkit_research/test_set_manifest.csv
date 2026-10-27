@@ -1,0 +1,51 @@
+image_file,dn_number,page,condition,source
+DN1_5319358250_p1_normal.jpg,5319358250,1,normal,real photo
+DN1_5319358250_p1_shadow.jpg,5319358250,1,shadow,simulated from DN1_5319358250_p1_normal.jpg
+DN1_5319358250_p1_glare.jpg,5319358250,1,glare,simulated from DN1_5319358250_p1_normal.jpg
+DN1_5319358250_p1_crumpled.jpg,5319358250,1,crumpled,simulated from DN1_5319358250_p1_normal.jpg
+DN1_5319358250_p1_low_light.jpg,5319358250,1,low_light,simulated from DN1_5319358250_p1_normal.jpg
+DN1_5319358250_p2_normal.jpg,5319358250,2,normal,real photo
+DN1_5319358250_p2_shadow.jpg,5319358250,2,shadow,simulated from DN1_5319358250_p2_normal.jpg
+DN1_5319358250_p2_glare.jpg,5319358250,2,glare,simulated from DN1_5319358250_p2_normal.jpg
+DN1_5319358250_p2_crumpled.jpg,5319358250,2,crumpled,simulated from DN1_5319358250_p2_normal.jpg
+DN1_5319358250_p2_low_light.jpg,5319358250,2,low_light,simulated from DN1_5319358250_p2_normal.jpg
+DN1_5319358250_p3_normal.jpg,5319358250,3,normal,real photo
+DN1_5319358250_p3_shadow.jpg,5319358250,3,shadow,simulated from DN1_5319358250_p3_normal.jpg
+DN1_5319358250_p3_glare.jpg,5319358250,3,glare,simulated from DN1_5319358250_p3_normal.jpg
+DN1_5319358250_p3_crumpled.jpg,5319358250,3,crumpled,simulated from DN1_5319358250_p3_normal.jpg
+DN1_5319358250_p3_low_light.jpg,5319358250,3,low_light,simulated from DN1_5319358250_p3_normal.jpg
+DN1_5319358250_p4_normal.jpg,5319358250,4,normal,real photo
+DN1_5319358250_p4_shadow.jpg,5319358250,4,shadow,simulated from DN1_5319358250_p4_normal.jpg
+DN1_5319358250_p4_glare.jpg,5319358250,4,glare,simulated from DN1_5319358250_p4_normal.jpg
+DN1_5319358250_p4_crumpled.jpg,5319358250,4,crumpled,simulated from DN1_5319358250_p4_normal.jpg
+DN1_5319358250_p4_low_light.jpg,5319358250,4,low_light,simulated from DN1_5319358250_p4_normal.jpg
+DN1_5319358250_p5_normal.jpg,5319358250,5,normal,real photo
+DN1_5319358250_p5_shadow.jpg,5319358250,5,shadow,simulated from DN1_5319358250_p5_normal.jpg
+DN1_5319358250_p5_glare.jpg,5319358250,5,glare,simulated from DN1_5319358250_p5_normal.jpg
+DN1_5319358250_p5_crumpled.jpg,5319358250,5,crumpled,simulated from DN1_5319358250_p5_normal.jpg
+DN1_5319358250_p5_low_light.jpg,5319358250,5,low_light,simulated from DN1_5319358250_p5_normal.jpg
+DN1_5319358250_p6_normal.jpg,5319358250,6,normal,real photo
+DN1_5319358250_p6_shadow.jpg,5319358250,6,shadow,simulated from DN1_5319358250_p6_normal.jpg
+DN1_5319358250_p6_glare.jpg,5319358250,6,glare,simulated from DN1_5319358250_p6_normal.jpg
+DN1_5319358250_p6_crumpled.jpg,5319358250,6,crumpled,simulated from DN1_5319358250_p6_normal.jpg
+DN1_5319358250_p6_low_light.jpg,5319358250,6,low_light,simulated from DN1_5319358250_p6_normal.jpg
+DN2_5319364114_p1_normal.jpg,5319364114,1,normal,real photo
+DN2_5319364114_p1_shadow.jpg,5319364114,1,shadow,simulated from DN2_5319364114_p1_normal.jpg
+DN2_5319364114_p1_glare.jpg,5319364114,1,glare,simulated from DN2_5319364114_p1_normal.jpg
+DN2_5319364114_p1_crumpled.jpg,5319364114,1,crumpled,simulated from DN2_5319364114_p1_normal.jpg
+DN2_5319364114_p1_low_light.jpg,5319364114,1,low_light,simulated from DN2_5319364114_p1_normal.jpg
+DN2_5319364114_p2_normal.jpg,5319364114,2,normal,real photo
+DN2_5319364114_p2_shadow.jpg,5319364114,2,shadow,simulated from DN2_5319364114_p2_normal.jpg
+DN2_5319364114_p2_glare.jpg,5319364114,2,glare,simulated from DN2_5319364114_p2_normal.jpg
+DN2_5319364114_p2_crumpled.jpg,5319364114,2,crumpled,simulated from DN2_5319364114_p2_normal.jpg
+DN2_5319364114_p2_low_light.jpg,5319364114,2,low_light,simulated from DN2_5319364114_p2_normal.jpg
+DN2_5319364114_p3_normal.jpg,5319364114,3,normal,real photo
+DN2_5319364114_p3_shadow.jpg,5319364114,3,shadow,simulated from DN2_5319364114_p3_normal.jpg
+DN2_5319364114_p3_glare.jpg,5319364114,3,glare,simulated from DN2_5319364114_p3_normal.jpg
+DN2_5319364114_p3_crumpled.jpg,5319364114,3,crumpled,simulated from DN2_5319364114_p3_normal.jpg
+DN2_5319364114_p3_low_light.jpg,5319364114,3,low_light,simulated from DN2_5319364114_p3_normal.jpg
+DN2_5319364114_p4_normal.jpg,5319364114,4,normal,real photo
+DN2_5319364114_p4_shadow.jpg,5319364114,4,shadow,simulated from DN2_5319364114_p4_normal.jpg
+DN2_5319364114_p4_glare.jpg,5319364114,4,glare,simulated from DN2_5319364114_p4_normal.jpg
+DN2_5319364114_p4_crumpled.jpg,5319364114,4,crumpled,simulated from DN2_5319364114_p4_normal.jpg
+DN2_5319364114_p4_low_light.jpg,5319364114,4,low_light,simulated from DN2_5319364114_p4_normal.jpg

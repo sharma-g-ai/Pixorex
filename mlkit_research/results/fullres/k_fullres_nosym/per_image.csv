@@ -1,0 +1,11 @@
+image,condition,fields_found,fields_expected,field_recall_pct,articles_found,qty_found,dn_found,page_usable,median_round_trip_ms,median_decode_ms,median_ocr_ms,ocr_lines
+DN1_5319358250_p1_fullres.jpg,fullres,9,10,90.0,0/0,0/0,True,True,1170,269,888,79
+DN1_5319358250_p2_fullres.jpg,fullres,29,30,96.7,4/4,2/2,True,True,1053,327,679,73
+DN1_5319358250_p3_fullres.jpg,fullres,36,36,100.0,4/4,3/3,True,True,1064,331,764,78
+DN1_5319358250_p4_fullres.jpg,fullres,33,33,100.0,4/4,3/3,True,True,993,249,717,73
+DN1_5319358250_p5_fullres.jpg,fullres,30,30,100.0,3/3,3/3,True,True,957,273,674,71
+DN1_5319358250_p6_fullres.jpg,fullres,30,30,100.0,3/3,3/3,True,True,968,258,704,72
+DN2_5319364114_p1_fullres.jpg,fullres,9,10,90.0,0/0,0/0,True,True,1252,327,910,79
+DN2_5319364114_p2_fullres.jpg,fullres,27,27,100.0,4/4,2/2,True,True,1005,258,689,70
+DN2_5319364114_p3_fullres.jpg,fullres,40,42,95.2,4/4,4/4,True,True,1014,273,739,89
+DN2_5319364114_p4_fullres.jpg,fullres,11,12,91.7,1/1,1/1,False,False,870,233,582,44

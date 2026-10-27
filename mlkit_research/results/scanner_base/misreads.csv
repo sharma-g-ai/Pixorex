@@ -1,0 +1,8 @@
+image,condition,field,expected,closest_ocr_text
+DN1_5319358250_p1_scan-base.jpg,scan-base,vessel_id,LO09632492,LOG9632492-RDO
+DN1_5319358250_p4_scan-base.jpg,scan-base,batch_date,15.09.2025,"15.09,2025"
+DN1_5319358250_p5_scan-base.jpg,scan-base,batch_date,11.04.2026,"11.04,2026"
+DN2_5319364114_p1_scan-base.jpg,scan-base,vessel_id,LO09778131,LO097781
+DN2_5319364114_p3_scan-base.jpg,scan-base,page_marker,3 / 4,40 L 40
+DN2_5319364114_p3_scan-base.jpg,scan-base,total_qty,8 PC,68 PC
+DN2_5319364114_p3_scan-base.jpg,scan-base,batch_date,11.07.2025,"11,07.2025"

@@ -1,0 +1,187 @@
+image,condition,field,expected,closest_ocr_text
+DN1_5319358250_p1_crumpled.jpg,crumpled,page_marker,1 / 6,
+DN1_5319358250_p1_crumpled.jpg,crumpled,dispatch_date,29.07.2026,:30.07.2026
+DN1_5319358250_p1_crumpled.jpg,crumpled,vessel_id,LO09632492,LOGS632492-RDO
+DN1_5319358250_p1_glare.jpg,glare,dispatch_date,29.07.2026,:30.07.2026
+DN1_5319358250_p1_glare.jpg,glare,vessel_id,LO09632492,LOG9632492-RDO
+DN1_5319358250_p1_low_light.jpg,low_light,page_marker,1 / 6,
+DN1_5319358250_p1_low_light.jpg,low_light,delivery_date,30.07.2026,13007
+DN1_5319358250_p1_low_light.jpg,low_light,order_no,5305918338,15305918338
+DN1_5319358250_p1_low_light.jpg,low_light,dispatch_date,29.07.2026,12907202Z8
+DN1_5319358250_p1_low_light.jpg,low_light,vessel_id,LO09632492,
+DN1_5319358250_p1_low_light.jpg,low_light,your_ref,RGRADCK 3344143,RORADCHK 3344143
+DN1_5319358250_p1_low_light.jpg,low_light,total_volume,900 L,0 K
+DN1_5319358250_p1_low_light.jpg,low_light,net_weight,"1,095.798 KG",1095 798
+DN1_5319358250_p1_low_light.jpg,low_light,gross_weight,"1,179.385 KG",798 KG
+DN1_5319358250_p1_normal.jpg,normal,dispatch_date,29.07.2026,:30.07.2026
+DN1_5319358250_p1_normal.jpg,normal,vessel_id,LO09632492,LOG9632492-RDO
+DN1_5319358250_p1_shadow.jpg,shadow,page_marker,1 / 6,: 1 I6
+DN1_5319358250_p1_shadow.jpg,shadow,dispatch_date,29.07.2026,:30.07.2026
+DN1_5319358250_p1_shadow.jpg,shadow,vessel_id,LO09632492,LOGS632492-RDO
+DN1_5319358250_p1_shadow.jpg,shadow,gross_weight,"1,179.385 KG",1.179.385 KG
+DN1_5319358250_p2_crumpled.jpg,crumpled,page_marker,2 / 6,: 2 I6
+DN1_5319358250_p2_crumpled.jpg,crumpled,material_number,517705ID2176,5177051D2176
+DN1_5319358250_p2_crumpled.jpg,crumpled,total_volume,70.4 L,"70,4 L"
+DN1_5319358250_p2_crumpled.jpg,crumpled,material_number,000000ID1240,0000001D1240
+DN1_5319358250_p2_glare.jpg,glare,material_number,517705ID2176,5177051D2176
+DN1_5319358250_p2_glare.jpg,glare,material_number,000000ID1240,0000001D1240
+DN1_5319358250_p2_low_light.jpg,low_light,material_number,517705ID2176,5177051D2176
+DN1_5319358250_p2_low_light.jpg,low_light,gross_weight,98.032 KG,032 KG
+DN1_5319358250_p2_low_light.jpg,low_light,batch_number,0000332310,000033231D
+DN1_5319358250_p2_low_light.jpg,low_light,batch_number,0000343569,0000343559
+DN1_5319358250_p2_low_light.jpg,low_light,batch_qty,3 PC,4 PC
+DN1_5319358250_p2_low_light.jpg,low_light,material_number,000000ID1240,00000010D1240
+DN1_5319358250_p2_low_light.jpg,low_light,total_volume,9.6 L,
+DN1_5319358250_p2_low_light.jpg,low_light,gross_weight,11.472 KG,11472 KG
+DN1_5319358250_p2_low_light.jpg,low_light,batch_number,0000335835,DO00335835
+DN1_5319358250_p2_normal.jpg,normal,material_number,517705ID2176,5177051D2176
+DN1_5319358250_p2_normal.jpg,normal,material_number,000000ID1240,0000001D1240
+DN1_5319358250_p2_shadow.jpg,shadow,page_marker,2 / 6,: 2 /L6
+DN1_5319358250_p2_shadow.jpg,shadow,material_number,517705ID2176,5177051D2176
+DN1_5319358250_p2_shadow.jpg,shadow,total_volume,70.4 L,"70,4 L"
+DN1_5319358250_p2_shadow.jpg,shadow,material_number,000000ID1240,0000001D1240
+DN1_5319358250_p3_crumpled.jpg,crumpled,material_number,951505ID2160,9515051ID2160
+DN1_5319358250_p3_crumpled.jpg,crumpled,material_number,000000ID1400,0000001D1400
+DN1_5319358250_p3_crumpled.jpg,crumpled,material_number,400900ID2160,4009001D2160
+DN1_5319358250_p3_glare.jpg,glare,material_number,951505ID2160,9515051D2160
+DN1_5319358250_p3_glare.jpg,glare,material_number,000000ID1400,0000001D1400
+DN1_5319358250_p3_glare.jpg,glare,material_number,400900ID2160,400900|D2160
+DN1_5319358250_p3_low_light.jpg,low_light,material_number,951505ID2160,9515051D2160
+DN1_5319358250_p3_low_light.jpg,low_light,ean,8713585018842,97135850D18842
+DN1_5319358250_p3_low_light.jpg,low_light,gross_weight,374.1 KG,3741 KG
+DN1_5319358250_p3_low_light.jpg,low_light,batch_number,0000365827,BATCH0000385827
+DN1_5319358250_p3_low_light.jpg,low_light,batch_date,08.05.2026,08.05.2028
+DN1_5319358250_p3_low_light.jpg,low_light,material_number,000000ID1400,0000001D400
+DN1_5319358250_p3_low_light.jpg,low_light,ean,8713585018835,87138850TB835
+DN1_5319358250_p3_low_light.jpg,low_light,gross_weight,61.8 KG,613 KG
+DN1_5319358250_p3_low_light.jpg,low_light,batch_number,0000309482,O000300482
+DN1_5319358250_p3_low_light.jpg,low_light,batch_date,14.01.2026,14.012020
+DN1_5319358250_p3_low_light.jpg,low_light,batch_number,0000377282,BATCH0030377282
+DN1_5319358250_p3_low_light.jpg,low_light,batch_date,15.05.2026,30.07.2026
+DN1_5319358250_p3_low_light.jpg,low_light,batch_qty,2 PC,5 PC
+DN1_5319358250_p3_low_light.jpg,low_light,material_number,K4009002200,K4O09002200
+DN1_5319358250_p3_low_light.jpg,low_light,article_alt_prod_no,446789,448789
+DN1_5319358250_p3_low_light.jpg,low_light,ean,8716242007258,874624200O7258
+DN1_5319358250_p3_low_light.jpg,low_light,material_number,400900ID2160,YELGREEN400900:D2180
+DN1_5319358250_p3_low_light.jpg,low_light,article_alt_prod_no,475212,475211
+DN1_5319358250_p3_low_light.jpg,low_light,ean,8713585018859,97135850D18842
+DN1_5319358250_p3_low_light.jpg,low_light,total_volume,80 L,800 DELIVERY
+DN1_5319358250_p3_low_light.jpg,low_light,gross_weight,124.7 KG,1247KG
+DN1_5319358250_p3_low_light.jpg,low_light,batch_number,0000373118,D000973118
+DN1_5319358250_p3_low_light.jpg,low_light,batch_date,11.05.2026,11.0512020
+DN1_5319358250_p3_normal.jpg,normal,page_marker,3 / 6,5 PC 16
+DN1_5319358250_p3_normal.jpg,normal,material_number,951505ID2160,9515051D2160
+DN1_5319358250_p3_normal.jpg,normal,material_number,000000ID1400,0000001D1400
+DN1_5319358250_p3_normal.jpg,normal,material_number,400900ID2160,4009001D2160
+DN1_5319358250_p3_shadow.jpg,shadow,material_number,951505ID2160,9515051D2160
+DN1_5319358250_p3_shadow.jpg,shadow,material_number,000000ID1400,0000001D1400
+DN1_5319358250_p3_shadow.jpg,shadow,material_number,400900ID2160,4009001D2160
+DN1_5319358250_p4_crumpled.jpg,crumpled,material_number,100000ID2155,1000001D2155
+DN1_5319358250_p4_crumpled.jpg,crumpled,material_number,000000CN1450,000000CN
+DN1_5319358250_p4_glare.jpg,glare,material_number,000000ID1400,0000001D1400
+DN1_5319358250_p4_glare.jpg,glare,material_number,100000ID2155,10000OID2155
+DN1_5319358250_p4_glare.jpg,glare,material_number,000000CN1450,000000CN
+DN1_5319358250_p4_low_light.jpg,low_light,material_number,000000ID1400,0000001D1400
+DN1_5319358250_p4_low_light.jpg,low_light,batch_date,15.05.2026,15.05.2028
+DN1_5319358250_p4_low_light.jpg,low_light,material_number,100000ID2155,10000OID2155
+DN1_5319358250_p4_low_light.jpg,low_light,gross_weight,23.616 KG,23.818 KG
+DN1_5319358250_p4_low_light.jpg,low_light,batch_date,23.05.2026,23.05.2028
+DN1_5319358250_p4_low_light.jpg,low_light,material_number,000000CN1450,D00000CN1460
+DN1_5319358250_p4_low_light.jpg,low_light,article_alt_prod_no,468181,458181
+DN1_5319358250_p4_low_light.jpg,low_light,gross_weight,5.128 KG,5128 KG
+DN1_5319358250_p4_low_light.jpg,low_light,batch_number,0000268930,O000268930
+DN1_5319358250_p4_low_light.jpg,low_light,batch_date,15.09.2025,15.092025
+DN1_5319358250_p4_normal.jpg,normal,material_number,000000ID1400,0000001D1400
+DN1_5319358250_p4_normal.jpg,normal,material_number,100000ID2155,1000001D2155
+DN1_5319358250_p4_shadow.jpg,shadow,page_marker,4 / 6,: 4 |6
+DN1_5319358250_p4_shadow.jpg,shadow,material_number,100000ID2155,1000001D2155
+DN1_5319358250_p4_shadow.jpg,shadow,batch_date,15.09.2025,"15.09,2025"
+DN1_5319358250_p5_crumpled.jpg,crumpled,page_marker,5 / 6,20 L 60
+DN1_5319358250_p5_glare.jpg,glare,page_marker,5 / 6,5 I6 60
+DN1_5319358250_p5_low_light.jpg,low_light,page_marker,5 / 6,
+DN1_5319358250_p5_low_light.jpg,low_light,ean,8716242996088,8716242998088
+DN1_5319358250_p5_low_light.jpg,low_light,batch_date,21.05.2026,01.06.2026
+DN1_5319358250_p5_low_light.jpg,low_light,ean,8716242996002,8716242906002
+DN1_5319358250_p5_low_light.jpg,low_light,gross_weight,55.605 KG,605 KG
+DN1_5319358250_p5_low_light.jpg,low_light,batch_number,0000362901,DO00362801
+DN1_5319358250_p5_low_light.jpg,low_light,batch_date,11.04.2026,11.04.2028
+DN1_5319358250_p5_low_light.jpg,low_light,material_number,200800ID2200,2008001D2200
+DN1_5319358250_p5_low_light.jpg,low_light,article_alt_prod_no,445365,445385
+DN1_5319358250_p5_low_light.jpg,low_light,ean,8716242996934,8716242998934
+DN1_5319358250_p5_low_light.jpg,low_light,batch_number,0000386990,0000388990
+DN1_5319358250_p5_normal.jpg,normal,page_marker,5 / 6,5 I6 60
+DN1_5319358250_p6_crumpled.jpg,crumpled,dn_number,5319358250,5319358250O
+DN1_5319358250_p6_crumpled.jpg,crumpled,material_number,517705ID1500,5177051D1500
+DN1_5319358250_p6_crumpled.jpg,crumpled,material_number,900000ID1500,9000001D1500
+DN1_5319358250_p6_glare.jpg,glare,material_number,517705ID1500,5177051D1500
+DN1_5319358250_p6_glare.jpg,glare,gross_weight,85.568 KG,85.588 KG
+DN1_5319358250_p6_glare.jpg,glare,material_number,900000ID1500,9000001D1500
+DN1_5319358250_p6_low_light.jpg,low_light,delivery_date,30.07.2026,30.05.2026
+DN1_5319358250_p6_low_light.jpg,low_light,material_number,517705ID1500,5177051D1500
+DN1_5319358250_p6_low_light.jpg,low_light,gross_weight,87.392 KG,87.382 KG
+DN1_5319358250_p6_low_light.jpg,low_light,batch_date,28.03.2026,28.03.2028
+DN1_5319358250_p6_low_light.jpg,low_light,material_number,419905ID1500,41990510D1500
+DN1_5319358250_p6_low_light.jpg,low_light,ean,8716242996804,8716242896804
+DN1_5319358250_p6_low_light.jpg,low_light,gross_weight,85.568 KG,25568 KG
+DN1_5319358250_p6_low_light.jpg,low_light,material_number,900000ID1500,900000101500
+DN1_5319358250_p6_low_light.jpg,low_light,ean,8716242996286,8716242996288
+DN1_5319358250_p6_low_light.jpg,low_light,gross_weight,46.32 KG,4632 KG
+DN1_5319358250_p6_low_light.jpg,low_light,batch_number,0000382798,0000382708
+DN1_5319358250_p6_low_light.jpg,low_light,batch_date,28.05.2026,28.05.2028
+DN1_5319358250_p6_normal.jpg,normal,material_number,517705ID1500,5177051D1500
+DN1_5319358250_p6_normal.jpg,normal,gross_weight,85.568 KG,85.588 KG
+DN1_5319358250_p6_normal.jpg,normal,material_number,900000ID1500,9000001D1500
+DN1_5319358250_p6_shadow.jpg,shadow,material_number,517705ID1500,5177051D1500
+DN1_5319358250_p6_shadow.jpg,shadow,batch_date,30.05.2026,30.07.2026
+DN1_5319358250_p6_shadow.jpg,shadow,material_number,900000ID1500,9000001D1500
+DN2_5319364114_p1_low_light.jpg,low_light,order_no,5319074922,15319074922
+DN2_5319364114_p1_low_light.jpg,low_light,dispatch_date,29.09.2026,429.09.2026
+DN2_5319364114_p1_low_light.jpg,low_light,vessel_id,LO09778131,LO09278131-NANSHA
+DN2_5319364114_p1_low_light.jpg,low_light,your_ref,4556445872,4558445872
+DN2_5319364114_p1_low_light.jpg,low_light,total_volume,560 L,
+DN2_5319364114_p1_normal.jpg,normal,vessel_id,LO09778131,LOO9778131-NANSHA
+DN2_5319364114_p2_crumpled.jpg,crumpled,material_number,000000ID1360,0000001D1360
+DN2_5319364114_p2_crumpled.jpg,crumpled,batch_date,29.05.2026,"29,05.2026"
+DN2_5319364114_p2_glare.jpg,glare,material_number,000000ID1360,O000001D1360
+DN2_5319364114_p2_low_light.jpg,low_light,dn_number,5319364114,53119364114
+DN2_5319364114_p2_low_light.jpg,low_light,material_number,517705ID2164,5177051D2184
+DN2_5319364114_p2_low_light.jpg,low_light,batch_date,26.02.2026,"26,02.2026"
+DN2_5319364114_p2_low_light.jpg,low_light,material_number,000000ID1360,0000001D1360
+DN2_5319364114_p2_low_light.jpg,low_light,material_number,K4009002200,KA009002200
+DN2_5319364114_p2_normal.jpg,normal,ean,8716242908067,8716242908067I
+DN2_5319364114_p2_normal.jpg,normal,material_number,000000ID1360,O000001D1360
+DN2_5319364114_p2_shadow.jpg,shadow,material_number,000000ID1360,O000001D1360
+DN2_5319364114_p3_crumpled.jpg,crumpled,page_marker,3 / 4,:3 |4 40
+DN2_5319364114_p3_crumpled.jpg,crumpled,material_number,400900ID2160,40090OID2160
+DN2_5319364114_p3_crumpled.jpg,crumpled,material_number,000000ID1400,0000001D1400
+DN2_5319364114_p3_crumpled.jpg,crumpled,material_number,618805ID1500,6188051D1500
+DN2_5319364114_p3_glare.jpg,glare,page_marker,3 / 4,40 L 40
+DN2_5319364114_p3_glare.jpg,glare,material_number,400900ID2160,400900|D2160
+DN2_5319364114_p3_glare.jpg,glare,material_number,000000ID1400,0000001D1400
+DN2_5319364114_p3_glare.jpg,glare,material_number,417105ID2200,417105D2200
+DN2_5319364114_p3_glare.jpg,glare,material_number,618805ID1500,6188051D1500
+DN2_5319364114_p3_low_light.jpg,low_light,page_marker,3 / 4,:3 14 40L
+DN2_5319364114_p3_low_light.jpg,low_light,material_number,000000ID1400,0000001D1400
+DN2_5319364114_p3_low_light.jpg,low_light,material_number,417105ID2200,4171051D2200
+DN2_5319364114_p3_low_light.jpg,low_light,batch_number,0000406662,0000408862
+DN2_5319364114_p3_low_light.jpg,low_light,batch_date,06.07.2026,08.07.2026
+DN2_5319364114_p3_low_light.jpg,low_light,material_number,618805ID1500,6188051D1500
+DN2_5319364114_p3_low_light.jpg,low_light,total_qty,8 PC,68 PC
+DN2_5319364114_p3_low_light.jpg,low_light,gross_weight,42.256 KG,42258 KG
+DN2_5319364114_p3_low_light.jpg,low_light,batch_number,0000236939,000236939
+DN2_5319364114_p3_low_light.jpg,low_light,batch_qty,3 PC,7 PC
+DN2_5319364114_p3_normal.jpg,normal,page_marker,3 / 4,40 L 40
+DN2_5319364114_p3_normal.jpg,normal,material_number,400900ID2160,400900|D2160
+DN2_5319364114_p3_normal.jpg,normal,material_number,000000ID1400,0000001D1400
+DN2_5319364114_p3_normal.jpg,normal,material_number,417105ID2200,417105D2200
+DN2_5319364114_p3_normal.jpg,normal,material_number,618805ID1500,6188051D1500
+DN2_5319364114_p3_shadow.jpg,shadow,page_marker,3 / 4,40 L 40
+DN2_5319364114_p3_shadow.jpg,shadow,material_number,400900ID2160,4009001D2160
+DN2_5319364114_p3_shadow.jpg,shadow,material_number,000000ID1400,0000001D1400
+DN2_5319364114_p3_shadow.jpg,shadow,material_number,417105ID2200,417105D2200
+DN2_5319364114_p3_shadow.jpg,shadow,material_number,618805ID1500,6188051D1500
+DN2_5319364114_p4_low_light.jpg,low_light,dn_number,5319364114,53193641
+DN2_5319364114_p4_low_light.jpg,low_light,material_number,119905ID1500,1199051D1500
+DN2_5319364114_p4_normal.jpg,normal,dn_number,5319364114,53193641
+DN2_5319364114_p4_normal.jpg,normal,material_number,119905ID1500,1199051D1500
+DN2_5319364114_p4_shadow.jpg,shadow,material_number,119905ID1500,1199051D1500

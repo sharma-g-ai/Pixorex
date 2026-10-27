@@ -17,6 +17,7 @@ import java.io.FileOutputStream
 class MainActivity : FlutterActivity() {
     private var canOcr: PpgCanOcrPlugin? = null
     private var pendingDocumentScan: MethodChannel.Result? = null
+    private var pendingAllPages = false
     private val documentScannerRequestCode = 0x5050
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
@@ -34,10 +35,21 @@ class MainActivity : FlutterActivity() {
             flutterEngine.dartExecutor.binaryMessenger,
             "com.amzur.equiptrack/document_scanner",
         ).setMethodCallHandler { call, result ->
-            if (call.method == "scanDocument") {
-                startDocumentScan(result)
-            } else {
-                result.notImplemented()
+            when (call.method) {
+                "scanDocument" -> startDocumentScan(result)
+                // Multi-page variant used by the scanner research benchmark;
+                // returns every page instead of only the first.
+                "scanDocumentPages" -> startDocumentScan(
+                    result,
+                    pageLimit = call.argument<Int>("pageLimit") ?: 1,
+                    scannerMode = when (call.argument<String>("mode")) {
+                        "base" -> GmsDocumentScannerOptions.SCANNER_MODE_BASE
+                        "base_with_filter" -> GmsDocumentScannerOptions.SCANNER_MODE_BASE_WITH_FILTER
+                        else -> GmsDocumentScannerOptions.SCANNER_MODE_FULL
+                    },
+                    allPages = true,
+                )
+                else -> result.notImplemented()
             }
         }
     }
@@ -50,17 +62,23 @@ class MainActivity : FlutterActivity() {
         super.cleanUpFlutterEngine(flutterEngine)
     }
 
-    private fun startDocumentScan(result: MethodChannel.Result) {
+    private fun startDocumentScan(
+        result: MethodChannel.Result,
+        pageLimit: Int = 1,
+        scannerMode: Int = GmsDocumentScannerOptions.SCANNER_MODE_FULL,
+        allPages: Boolean = false,
+    ) {
         if (pendingDocumentScan != null) {
             result.error("busy", "A document scan is already in progress", null)
             return
         }
         pendingDocumentScan = result
+        pendingAllPages = allPages
         val options = GmsDocumentScannerOptions.Builder()
             .setGalleryImportAllowed(false)
-            .setPageLimit(1)
+            .setPageLimit(pageLimit)
             .setResultFormats(GmsDocumentScannerOptions.RESULT_FORMAT_JPEG)
-            .setScannerMode(GmsDocumentScannerOptions.SCANNER_MODE_FULL)
+            .setScannerMode(scannerMode)
             .build()
         GmsDocumentScanning.getClient(options)
             .getStartScanIntent(this)
@@ -102,13 +120,19 @@ class MainActivity : FlutterActivity() {
         try {
             val scan = GmsDocumentScanningResult.fromActivityResultIntent(data)
                 ?: throw IllegalStateException("Document scanner returned no result")
-            val page = scan.pages?.firstOrNull()
-                ?: throw IllegalStateException("Document scanner returned no page image")
-            val file = File(cacheDir, "ppg_document_scan_${System.currentTimeMillis()}.jpg")
-            contentResolver.openInputStream(page.imageUri)?.use { input ->
-                FileOutputStream(file).use { output -> input.copyTo(output) }
-            } ?: throw IllegalStateException("Could not read scanned page image")
-            pending.success(file.absolutePath)
+            val pages = scan.pages
+            if (pages.isNullOrEmpty()) {
+                throw IllegalStateException("Document scanner returned no page image")
+            }
+            val stamp = System.currentTimeMillis()
+            val paths = (if (pendingAllPages) pages else pages.take(1)).mapIndexed { index, page ->
+                val file = File(cacheDir, "ppg_document_scan_${stamp}_$index.jpg")
+                contentResolver.openInputStream(page.imageUri)?.use { input ->
+                    FileOutputStream(file).use { output -> input.copyTo(output) }
+                } ?: throw IllegalStateException("Could not read scanned page image")
+                file.absolutePath
+            }
+            pending.success(if (pendingAllPages) paths else paths.first())
         } catch (error: Exception) {
             pending.error("scan_result_error", error.message, null)
         }

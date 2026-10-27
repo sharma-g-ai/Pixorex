@@ -1,0 +1,12 @@
+image,condition,field,expected,closest_ocr_text
+DN1_5319358250_p1_scan-base_with_filter.jpg,scan-base_with_filter,dn_number,5319358250,531935825O
+DN1_5319358250_p1_scan-base_with_filter.jpg,scan-base_with_filter,vessel_id,LO09632492,LOU9632492-RDO
+DN1_5319358250_p3_scan-base_with_filter.jpg,scan-base_with_filter,batch_date,14.01.2026,"14.01,2026"
+DN1_5319358250_p4_scan-base_with_filter.jpg,scan-base_with_filter,batch_date,15.09.2025,"15.09,2025"
+DN1_5319358250_p6_scan-base_with_filter.jpg,scan-base_with_filter,dn_number,5319358250,531935825D
+DN1_5319358250_p6_scan-base_with_filter.jpg,scan-base_with_filter,gross_weight,85.568 KG,85.588 KG
+DN1_5319358250_p6_scan-base_with_filter.jpg,scan-base_with_filter,batch_date,28.05.2026,"28.05,2026"
+DN2_5319364114_p1_scan-base_with_filter.jpg,scan-base_with_filter,vessel_id,LO09778131,LOO9778131-NANSHA
+DN2_5319364114_p2_scan-base_with_filter.jpg,scan-base_with_filter,batch_date,29.05.2026,"29,05.2026"
+DN2_5319364114_p3_scan-base_with_filter.jpg,scan-base_with_filter,material_number,400900ID2160,40090OID2160
+DN2_5319364114_p3_scan-base_with_filter.jpg,scan-base_with_filter,material_number,417105ID2200,4171051ID2200

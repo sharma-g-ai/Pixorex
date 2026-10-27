@@ -1,0 +1,5 @@
+image,condition,field,expected,closest_ocr_text
+DN1_5319358250_p1_upright_2400.jpg,upright_2400,vessel_id,LO09632492,LOU9632492-RDO
+DN1_5319358250_p4_upright_2400.jpg,upright_2400,batch_date,15.09.2025,"15.09,2025"
+DN2_5319364114_p3_upright_2400.jpg,upright_2400,total_qty,8 PC,68 PC
+DN2_5319364114_p4_upright_2400.jpg,upright_2400,dn_number,5319364114,53193641

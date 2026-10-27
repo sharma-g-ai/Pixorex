@@ -2,6 +2,7 @@ package com.amzur.equiptrack.ppg
 
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.os.SystemClock
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
@@ -30,12 +31,16 @@ class PpgOcrPlugin : MethodChannel.MethodCallHandler {
                     result.error("missing", "Image not found: $path", null)
                     return
                 }
+                val decodeStarted = SystemClock.elapsedRealtime()
                 val sourceBitmap = BitmapFactory.decodeFile(path)
                 if (sourceBitmap == null) {
                     result.error("decode", "Could not decode image", null)
                     return
                 }
                 val crop = call.argument<Map<String, Any?>>("crop")
+                // Symbol geometry is found through reflection per word; callers
+                // that do not use it can skip that cost.
+                val includeSymbols = call.argument<Boolean>("includeSymbols") ?: true
                 val bitmap = if (crop == null) {
                     sourceBitmap
                 } else {
@@ -61,9 +66,14 @@ class PpgOcrPlugin : MethodChannel.MethodCallHandler {
                         )
                     } else field
                 }
+                // Decode and crop/scale are timed apart from recognition so the
+                // research benchmark can tell where scan latency is spent.
+                val decodeMs = SystemClock.elapsedRealtime() - decodeStarted
                 val image = InputImage.fromBitmap(bitmap, 0)
+                val ocrStarted = SystemClock.elapsedRealtime()
                 recognizer.process(image)
                     .addOnSuccessListener { visionText ->
+                        val ocrMs = SystemClock.elapsedRealtime() - ocrStarted
                         val elements = mutableListOf<Map<String, Any?>>()
                         val lines = mutableListOf<Map<String, Any?>>()
                         val symbols = mutableListOf<Map<String, Any?>>()
@@ -86,7 +96,7 @@ class PpgOcrPlugin : MethodChannel.MethodCallHandler {
                                     lineWords.add(word)
 
                                     // Symbol-level geometry when the API exposes it.
-                                    try {
+                                    if (includeSymbols) try {
                                         val symbolsMethod = element.javaClass.methods
                                             .firstOrNull { it.name == "getSymbols" && it.parameterCount == 0 }
                                         val symbolList = symbolsMethod?.invoke(element) as? List<*>
@@ -143,6 +153,9 @@ class PpgOcrPlugin : MethodChannel.MethodCallHandler {
                                 "lines" to lines,
                                 "symbols" to symbols,
                                 "coordinateSpace" to "rectified_image_pixels",
+                                "decodeMs" to decodeMs,
+                                "ocrMs" to ocrMs,
+                                "packMs" to SystemClock.elapsedRealtime() - ocrStarted - ocrMs,
                             ),
                         )
                     }

@@ -1,0 +1,8 @@
+image,condition,field,expected,closest_ocr_text
+DN1_5319358250_p1_fullres_upright.jpg,fullres_upright,order_no,5305918338,18338
+DN1_5319358250_p1_fullres_upright.jpg,fullres_upright,vessel_id,LO09632492,LOUS632492-RDO
+DN1_5319358250_p4_fullres_upright.jpg,fullres_upright,batch_date,15.09.2025,"15.09,2025"
+DN1_5319358250_p6_fullres_upright.jpg,fullres_upright,dn_number,5319358250,531935825O
+DN2_5319364114_p3_fullres_upright.jpg,fullres_upright,material_number,000000ID1400,0000001ID1400
+DN2_5319364114_p3_fullres_upright.jpg,fullres_upright,batch_date,11.07.2025,"11,07.2025"
+DN2_5319364114_p4_fullres_upright.jpg,fullres_upright,dn_number,5319364114,53119364114

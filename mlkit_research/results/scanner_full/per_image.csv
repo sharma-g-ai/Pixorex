@@ -1,0 +1,11 @@
+image,condition,fields_found,fields_expected,field_recall_pct,articles_found,qty_found,dn_found,page_usable,median_round_trip_ms,median_decode_ms,median_ocr_ms,ocr_lines
+DN1_5319358250_p1_scan-full.jpg,scan-full,9,10,90.0,0/0,0/0,True,True,902,70,756,63
+DN1_5319358250_p2_scan-full.jpg,scan-full,29,30,96.7,4/4,2/2,True,True,825,60,717,72
+DN1_5319358250_p3_scan-full.jpg,scan-full,35,36,97.2,4/4,3/3,True,True,836,54,737,78
+DN1_5319358250_p4_scan-full.jpg,scan-full,30,33,90.9,4/4,3/3,False,False,1018,72,889,77
+DN1_5319358250_p5_scan-full.jpg,scan-full,30,30,100.0,3/3,3/3,True,True,860,49,791,73
+DN1_5319358250_p6_scan-full.jpg,scan-full,30,30,100.0,3/3,3/3,True,True,841,77,726,72
+DN2_5319364114_p1_scan-full.jpg,scan-full,10,10,100.0,0/0,0/0,True,True,943,66,848,58
+DN2_5319364114_p2_scan-full.jpg,scan-full,27,27,100.0,4/4,2/2,True,True,840,93,725,68
+DN2_5319364114_p3_scan-full.jpg,scan-full,41,42,97.6,4/4,4/4,True,True,915,76,814,88
+DN2_5319364114_p4_scan-full.jpg,scan-full,11,12,91.7,1/1,1/1,True,True,695,49,603,42

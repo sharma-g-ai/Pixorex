@@ -1,0 +1,11 @@
+image,condition,fields_found,fields_expected,field_recall_pct,articles_found,qty_found,dn_found,page_usable,median_round_trip_ms,median_decode_ms,median_ocr_ms,ocr_lines
+DN1_5319358250_p1_scan-base_with_filter.jpg,scan-base_with_filter,8,10,80.0,0/0,0/0,False,False,881,82,769,62
+DN1_5319358250_p2_scan-base_with_filter.jpg,scan-base_with_filter,30,30,100.0,4/4,2/2,True,True,839,54,732,71
+DN1_5319358250_p3_scan-base_with_filter.jpg,scan-base_with_filter,35,36,97.2,4/4,3/3,True,True,828,62,707,79
+DN1_5319358250_p4_scan-base_with_filter.jpg,scan-base_with_filter,32,33,97.0,4/4,3/3,True,True,863,54,756,74
+DN1_5319358250_p5_scan-base_with_filter.jpg,scan-base_with_filter,30,30,100.0,3/3,3/3,True,True,812,73,695,73
+DN1_5319358250_p6_scan-base_with_filter.jpg,scan-base_with_filter,27,30,90.0,3/3,3/3,False,False,795,74,701,74
+DN2_5319364114_p1_scan-base_with_filter.jpg,scan-base_with_filter,9,10,90.0,0/0,0/0,True,True,944,83,826,58
+DN2_5319364114_p2_scan-base_with_filter.jpg,scan-base_with_filter,26,27,96.3,4/4,2/2,True,True,866,76,765,66
+DN2_5319364114_p3_scan-base_with_filter.jpg,scan-base_with_filter,40,42,95.2,4/4,4/4,True,True,1205,91,1046,90
+DN2_5319364114_p4_scan-base_with_filter.jpg,scan-base_with_filter,12,12,100.0,1/1,1/1,True,True,803,63,712,41

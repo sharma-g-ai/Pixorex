@@ -1,0 +1,7 @@
+image,condition,field,expected,closest_ocr_text
+DN1_5319358250_p1_fullres.jpg,fullres,vessel_id,LO09632492,LOU9632492-RDO
+DN1_5319358250_p2_fullres.jpg,fullres,total_volume,70.4 L,"70,4 L"
+DN2_5319364114_p1_fullres.jpg,fullres,vessel_id,LO09778131,LOO9778131-NANSHA
+DN2_5319364114_p3_fullres.jpg,fullres,batch_date,06.07.2026,"06.07,2026"
+DN2_5319364114_p3_fullres.jpg,fullres,batch_date,11.07.2025,"11,07.2025"
+DN2_5319364114_p4_fullres.jpg,fullres,dn_number,5319364114,53119364114

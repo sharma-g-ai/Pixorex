@@ -1,0 +1,11 @@
+image,condition,fields_found,fields_expected,field_recall_pct,articles_found,qty_found,dn_found,page_usable,median_round_trip_ms,median_decode_ms,median_ocr_ms,ocr_lines
+DN1_5319358250_p1_fullres_upright.jpg,fullres_upright,8,10,80.0,0/0,0/0,True,True,948,127,809,71
+DN1_5319358250_p2_fullres_upright.jpg,fullres_upright,30,30,100.0,4/4,2/2,True,True,805,131,662,72
+DN1_5319358250_p3_fullres_upright.jpg,fullres_upright,36,36,100.0,4/4,3/3,True,True,944,139,760,76
+DN1_5319358250_p4_fullres_upright.jpg,fullres_upright,32,33,97.0,4/4,3/3,True,True,847,149,706,72
+DN1_5319358250_p5_fullres_upright.jpg,fullres_upright,30,30,100.0,3/3,3/3,True,True,785,107,669,72
+DN1_5319358250_p6_fullres_upright.jpg,fullres_upright,29,30,96.7,3/3,3/3,False,False,840,133,685,74
+DN2_5319364114_p1_fullres_upright.jpg,fullres_upright,10,10,100.0,0/0,0/0,True,True,1047,156,822,77
+DN2_5319364114_p2_fullres_upright.jpg,fullres_upright,27,27,100.0,4/4,2/2,True,True,849,134,706,69
+DN2_5319364114_p3_fullres_upright.jpg,fullres_upright,40,42,95.2,4/4,4/4,True,True,883,127,752,89
+DN2_5319364114_p4_fullres_upright.jpg,fullres_upright,11,12,91.7,1/1,1/1,False,False,729,168,551,43
