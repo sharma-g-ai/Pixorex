@@ -47,10 +47,14 @@ class _PixorexAppState extends State<PixorexApp> {
   void initState() {
     super.initState();
     _sub = widget.linkSource.links.listen(_onLink);
-    widget.linkSource.initialLink().then((u) {
-      if (u != null) _onLink(u);
+    final session = context.read<SessionController>();
+    final restored = session.restore();
+    widget.linkSource.initialLink().then((u) async {
+      await restored;
+      // After Android restarts the app mid-sign-in it replays the invite link that launched
+      // it; that invite is already used, so the resumed sign-in's home screen stays.
+      if (u != null && !session.resumedSignIn) _onLink(u);
     });
-    context.read<SessionController>().restore();
   }
 
   @override

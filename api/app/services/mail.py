@@ -70,6 +70,10 @@ async def send_email(settings: MailSettings, *, to: str, subject: str, text: str
     message["Subject"] = subject
     message["From"] = f"{settings.smtp_from_name} <{_from_address(settings, to)}>"
     message["To"] = to
+    # SendGrid click tracking rewrites links through its own host: the invite token (kept in the
+    # fragment so no server logs it, D-11) would pass through it, and the phone could not hand the
+    # link to the app. Other servers ignore this header.
+    message["X-SMTPAPI"] = '{"filters":{"clicktrack":{"settings":{"enable":0}}}}'
     message.set_content(text)
     await anyio.to_thread.run_sync(_send, settings, message)
 

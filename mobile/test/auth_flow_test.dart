@@ -48,6 +48,15 @@ class NoLinks implements LinkSource {
   Stream<Uri> get links => const Stream.empty();
 }
 
+class LaunchLink implements LinkSource {
+  LaunchLink(this.uri);
+  final Uri uri;
+  @override
+  Future<Uri?> initialLink() async => uri;
+  @override
+  Stream<Uri> get links => const Stream.empty();
+}
+
 Map<String, dynamic> meJson({String role = 'field_technician'}) => {
       'user_id': 'u1',
       'full_name': 'Jorge Martinez',
@@ -164,6 +173,34 @@ void main() {
       expect(rig.oidc.ended, isTrue);
       expect(rig.session.status, SessionStatus.signedOut);
       expect(await TokenStore(rig.mem).load(), isNull);
+    });
+
+    test('a sign-in the OS cut off resumes on the next launch', () async {
+      final rig = Rig((_) async => json(meJson()));
+      await TokenStore(rig.mem).markSignInPending('+12165550148', DateTime.now().subtract(const Duration(minutes: 1)));
+      await rig.session.restore();
+      expect(rig.oidc.signIns, 1);
+      expect(rig.oidc.lastHint, '+12165550148');
+      expect(rig.session.status, SessionStatus.signedIn);
+      expect(rig.mem.values.containsKey('sign_in_pending'), isFalse);
+    });
+
+    test('an old interrupted sign-in is not resumed', () async {
+      final rig = Rig((_) async => json(meJson()));
+      await TokenStore(rig.mem).markSignInPending('a@b.co', DateTime.now().subtract(const Duration(hours: 1)));
+      await rig.session.restore();
+      expect(rig.oidc.signIns, 0);
+      expect(rig.session.status, SessionStatus.signedOut);
+      expect(rig.mem.values.containsKey('sign_in_pending'), isFalse);
+    });
+
+    test('a finished or cancelled sign-in leaves nothing to resume', () async {
+      final rig = Rig((_) async => json(meJson()));
+      await rig.session.signIn(loginHint: 'a@b.co');
+      expect(rig.mem.values.containsKey('sign_in_pending'), isFalse);
+      rig.oidc.failWith = OidcException(OidcFailure.cancelled);
+      await rig.session.signIn(loginHint: 'a@b.co');
+      expect(rig.mem.values.containsKey('sign_in_pending'), isFalse);
     });
   });
 
@@ -315,6 +352,30 @@ void main() {
       ));
       await t.pumpAndSettle();
       expect(find.text('This invite link has expired'), findsOneWidget);
+    });
+
+    testWidgets('a restart mid-sign-in replays the used invite link; finishing sign-in shows home', (t) async {
+      final rig = Rig((r) async => r.url.path.endsWith('/invites/preview') ? problem(409, 'invite-used') : json(meJson()));
+      await TokenStore(rig.mem).markSignInPending('+12165550148', DateTime.now());
+      await t.pumpWidget(ChangeNotifierProvider<SessionController>.value(
+        value: rig.session,
+        child: PixorexApp(invites: rig.invites, linkSource: LaunchLink(Uri.parse('http://localhost:5173/activate#token=used'))),
+      ));
+      await t.pumpAndSettle();
+      expect(rig.oidc.signIns, 1);
+      expect(find.text('This invite was already used'), findsNothing);
+      expect(find.text('You are signed in.'), findsOneWidget);
+    });
+
+    testWidgets('a cold start from an invite link still opens the invite', (t) async {
+      final rig = Rig((_) async => problem(409, 'invite-used'));
+      await t.pumpWidget(ChangeNotifierProvider<SessionController>.value(
+        value: rig.session,
+        child: PixorexApp(invites: rig.invites, linkSource: LaunchLink(Uri.parse('http://localhost:5173/activate#token=t'))),
+      ));
+      await t.pumpAndSettle();
+      expect(rig.oidc.signIns, 0);
+      expect(find.text('This invite was already used'), findsOneWidget);
     });
   });
 }

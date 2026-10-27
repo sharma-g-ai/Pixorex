@@ -3,6 +3,7 @@
 from email.message import EmailMessage
 from types import SimpleNamespace
 
+import anyio
 import pytest
 from pydantic import AnyHttpUrl, SecretStr
 
@@ -117,3 +118,16 @@ def test_real_mail_uses_configured_smtp(monkeypatch: pytest.MonkeyPatch) -> None
         "starttls": True,
         "login": ("apikey", "secret"),
     }
+
+
+def test_invite_email_turns_off_click_tracking(monkeypatch: pytest.MonkeyPatch) -> None:
+    sent: list[EmailMessage] = []
+    monkeypatch.setattr(mail, "_send", lambda settings, message: sent.append(message))
+    settings = SimpleNamespace(
+        invite_base_url=AnyHttpUrl("http://localhost:5173"),
+        smtp_from="real@example.com",
+        smtp_from_name="Pixorex",
+    )
+    assert anyio.run(lambda: mail.send_invite(settings, to="person@example.com", token="t0k", role="field_technician"))
+    assert sent[0]["X-SMTPAPI"] == '{"filters":{"clicktrack":{"settings":{"enable":0}}}}'
+    assert "http://localhost:5173/activate#token=t0k" in sent[0].get_content()

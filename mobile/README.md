@@ -21,7 +21,7 @@ Flutter app for field technicians (Android 10+, iOS 16+). Screens follow the can
 
 Without `--dart-define` the app uses `10.0.2.2` (the host as seen from the Android emulator).
 
-**Invite link (provisional):** the link format is not decided (handover §2). The app opens `pixorex://activate#token=…`:
+**Invite link (provisional):** the link format is not decided (handover §2). Debug builds also open the local email's `http://localhost:5173/activate#token=…` link (add `adb reverse tcp:5173 tcp:5173`). Android shows an "Open with" chooser the first time: pick **More → Pixorex**, tick **Don't ask again**. In Gmail, turn off "Open web links in Gmail". The app also opens `pixorex://activate#token=…`:
 ```bash
 adb shell "am start -a android.intent.action.VIEW -d 'pixorex://activate#token=<token>' com.pixorex.mobile"
 ```
@@ -37,6 +37,8 @@ flutter test
 
 - Tokens live only in the Keychain / Keystore (`flutter_secure_storage`). Token handling is A0: architect sign-off needed (CONSTITUTION §5).
 - `MainActivity` must not have `android:taskAffinity=""` (the Flutter template default): it sends Keycloak's redirect to a separate task and sign-in never completes.
+- `MainActivity` is `singleTask`: an invite link opened from another app must reuse the running app, or Keycloak's redirect lands in the other copy and sign-in never completes.
+- Some phones (seen on Realme) kill the app while the sign-in browser is open. The app notes the pending sign-in (no tokens) and, if it restarts within 10 minutes, resumes it; Keycloak's session cookie finishes it without a new code.
 - Plain `http` is allowed in debug builds only (`android/app/src/debug/AndroidManifest.xml`).
 - App icon: `dart run flutter_launcher_icons` regenerates it from `assets/pixorex_icon.png`.
 - IBM Plex Sans (SIL Open Font License) is bundled under `assets/fonts`.

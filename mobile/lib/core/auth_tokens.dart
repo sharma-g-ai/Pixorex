@@ -53,4 +53,28 @@ class TokenStore {
 
   Future<void> save(AuthTokens t) => _store.write(_key, jsonEncode(t.toJson()));
   Future<void> clear() => _store.delete(_key);
+
+  static const _pendingKey = 'sign_in_pending';
+
+  /// Notes that a browser sign-in started. Android may kill the app while the browser is open
+  /// (seen on Realme); the result is then lost, and the next launch uses this to resume.
+  Future<void> markSignInPending(String? loginHint, DateTime at) => _store.write(
+        _pendingKey,
+        jsonEncode({'login_hint': loginHint, 'at': at.toUtc().toIso8601String()}),
+      );
+
+  /// Reads and removes the note, so a sign-in is resumed at most once.
+  Future<({String? loginHint, DateTime at})?> takeSignInPending() async {
+    final raw = await _store.read(_pendingKey);
+    if (raw == null) return null;
+    await _store.delete(_pendingKey);
+    try {
+      final j = jsonDecode(raw) as Map<String, dynamic>;
+      return (loginHint: j['login_hint'] as String?, at: DateTime.parse(j['at'] as String));
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> clearSignInPending() => _store.delete(_pendingKey);
 }

@@ -44,10 +44,26 @@ class SessionController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// A sign-in the OS interrupted is resumed only this soon after; Keycloak's session
+  /// cookie (30 min idle) then finishes it without a new code.
+  static const resumeWindow = Duration(minutes: 10);
+
+  bool _resumedSignIn = false;
+
+  /// True when this launch's [restore] resumed an interrupted sign-in.
+  bool get resumedSignIn => _resumedSignIn;
+
   /// On launch: reuse stored tokens, refresh if needed, then confirm with `/me`.
+  /// With no tokens, resumes a sign-in the OS cut off while the browser was open.
   Future<void> restore() async {
     _current = await _tokens.load();
     if (_current == null) {
+      final pending = await _tokens.takeSignInPending();
+      if (pending != null && _now().difference(pending.at) < resumeWindow) {
+        _resumedSignIn = true;
+        await signIn(loginHint: pending.loginHint);
+        return;
+      }
       _set(SessionStatus.signedOut);
       return;
     }
@@ -70,6 +86,7 @@ class SessionController extends ChangeNotifier {
   Future<bool> signIn({String? loginHint}) async {
     _error = null;
     _set(SessionStatus.signingIn);
+    await _tokens.markSignInPending(loginHint, _now());
     try {
       _current = await _oidc.signIn(loginHint: loginHint);
       await _tokens.save(_current!);
@@ -88,6 +105,9 @@ class SessionController extends ChangeNotifier {
       _error = e.message;
       await _drop(keepError: true);
       return false;
+    } finally {
+      // Still here, so the result arrived (or failed): nothing to resume.
+      await _tokens.clearSignInPending();
     }
   }
 
