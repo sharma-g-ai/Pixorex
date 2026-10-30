@@ -1,0 +1,216 @@
+openapi: 3.1.0
+info:
+  title: SeaStock MVP API - Receiving (delivery notes)
+  version: 0.1.0
+  contact:
+    name: SeaStock backend team (Amzur)
+  summary: Confirmed delivery notes and their tally, for the portal.
+  description: |
+    BRD v1.3 section 5 and FR-01 to FR-05. The tablet captures and confirms a delivery note
+    offline and uploads it as one event (tablet-sync.yaml, DeliveryNoteEvent). These endpoints
+    read what was confirmed.
+
+    Data model: Domain 4 delivery_note and delivery_note_line (insert-only; a correction is a stock
+    adjustment, FR-13). No DN image or PDF is stored (D-07).
+servers:
+- url: /api/v1
+security:
+- portalBearer: []
+tags:
+- name: Receiving
+paths:
+  /delivery-notes:
+    get:
+      tags: [Receiving]
+      operationId: listDeliveryNotes
+      summary: Delivery notes received (portal)
+      description: |
+        Screen: Activity > Delivery notes. Newest first (confirmed_at). Notes whose IMO read from
+        the paper does not match the vessel are listed for review with imo_check=mismatch (Overview).
+        Accept: text/csv returns the same rows as CSV, unpaged.
+      x-roles: [ppg_admin, customer_admin]
+      x-brd: [FR-01, FR-04, FR-05, FR-24]
+      x-ticket: PIX-58
+      x-sprint: SeaStock Sprint 3
+      parameters:
+      - $ref: ./common.yaml#/components/parameters/CustomerFilter
+      - $ref: ./common.yaml#/components/parameters/VesselFilter
+      - $ref: ./common.yaml#/components/parameters/From
+      - $ref: ./common.yaml#/components/parameters/To
+      - name: tally
+        in: query
+        required: false
+        schema:
+          type: string
+          enum: [matched, differences]
+      - name: imo_check
+        in: query
+        required: false
+        schema:
+          $ref: '#/components/schemas/ImoCheck'
+      - name: q
+        in: query
+        required: false
+        description: Search DN number or customer reference.
+        schema:
+          type: string
+      - $ref: ./common.yaml#/components/parameters/Cursor
+      - $ref: ./common.yaml#/components/parameters/Limit
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, page]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/DeliveryNoteSummary'
+                  page:
+                    $ref: ./common.yaml#/components/schemas/PageInfo
+            text/csv:
+              schema:
+                type: string
+        '400':
+          $ref: ./common.yaml#/components/responses/BadRequest
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '403':
+          $ref: ./common.yaml#/components/responses/Forbidden
+        '404':
+          $ref: ./common.yaml#/components/responses/NotFound
+  /delivery-notes/{deliveryNoteId}:
+    get:
+      tags: [Receiving]
+      operationId: getDeliveryNote
+      summary: One delivery note with its tally lines (portal)
+      description: Screen - the delivery note pop-up (header as read, tally line by line).
+      x-roles: [ppg_admin, customer_admin]
+      x-brd: [FR-01, FR-04, FR-05]
+      x-ticket: PIX-58
+      x-sprint: SeaStock Sprint 3
+      parameters:
+      - name: deliveryNoteId
+        in: path
+        required: true
+        schema:
+          $ref: ./common.yaml#/components/schemas/Uuid
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeliveryNote'
+              examples:
+                withDifferences:
+                  value:
+                    id: 8d2e0a1b-2c3d-4e5f-8a9b-0c1d2e3f4a5b
+                    dn_number: '5324641215'
+                    dn_date: '2026-10-28'
+                    vessel: {id: 1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d, imo_number: '9074729', name: MV Alpha One, customer: {id: 3c4d5e6f-7a8b-4c9d-8e0f-1a2b3c4d5e6f, customer_code: C-1001, name: Alpha Shipping}}
+                    imo_on_note: '9074729'
+                    vessel_name_on_note: MV ALPHA ONE
+                    imo_check: match
+                    customer_reference: PO 4500912273
+                    device: {id: 9e8f7a6b-5c4d-4e3f-8a2b-1c0d9e8f7a6b, platform: android, model: Samsung Galaxy Tab Active5}
+                    captured_at: '2026-10-28T10:02:00Z'
+                    confirmed_at: '2026-10-28T10:40:00Z'
+                    received_at: '2026-10-28T19:05:11Z'
+                    lines_count: 2
+                    cans_received: 11
+                    differences: 1
+                    lines:
+                    - {line_no: 1, article_number: '179061', article: {id: 5b1c3d2e-4f6a-4b8c-9d0e-1f2a3b4c5d6e, article_number: '179061', product_name: SIGMACOVER 350, shade: Grey 5177, product_type: 2K, component_type: base, pack_size: 20 L, unit_volume_liters: 20, status: active}, note_qty_cans: 8, received_qty_cans: 8, result: matched, reason: null, batch_number: B789201}
+                    - {line_no: 2, article_number: '184102', article: {id: 6c2d4e3f-5a7b-4c9d-8e1f-2a3b4c5d6e7f, article_number: '184102', product_name: SIGMADUR 550, shade: White 7000, product_type: 2K, component_type: base, pack_size: 20 L, unit_volume_liters: 20, status: active}, note_qty_cans: 4, received_qty_cans: 3, result: short, reason: One can dented and leaking; not taken into the locker., batch_number: null}
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '404':
+          $ref: ./common.yaml#/components/responses/NotFound
+components:
+  schemas:
+    ImoCheck:
+      type: string
+      description: IMO read from the note compared with the vessel's IMO. Checked, never used to choose the vessel.
+      enum: [match, mismatch, not_read]
+    LineResult:
+      type: string
+      enum: [matched, short, over, not_received, not_on_note]
+    DeliveryNoteSummary:
+      type: object
+      required: [id, dn_number, vessel, imo_check, confirmed_at, received_at, lines_count, cans_received, differences]
+      properties:
+        id:
+          $ref: ./common.yaml#/components/schemas/Uuid
+        dn_number:
+          type: string
+        dn_date:
+          oneOf:
+          - $ref: ./common.yaml#/components/schemas/Date
+          - type: 'null'
+        vessel:
+          $ref: ./common.yaml#/components/schemas/VesselRef
+        customer_reference:
+          type: [string, 'null']
+        imo_check:
+          $ref: '#/components/schemas/ImoCheck'
+        device:
+          $ref: ./common.yaml#/components/schemas/DeviceRef
+        captured_at:
+          $ref: ./common.yaml#/components/schemas/Timestamp
+        confirmed_at:
+          $ref: ./common.yaml#/components/schemas/Timestamp
+          description: Tablet clock when the crew confirmed the receipt.
+        received_at:
+          $ref: ./common.yaml#/components/schemas/Timestamp
+          description: Server clock when it arrived (sync).
+        lines_count:
+          type: integer
+        cans_received:
+          type: integer
+        differences:
+          type: integer
+          description: Lines whose result is not matched (0 = all matched).
+    DeliveryNote:
+      allOf:
+      - $ref: '#/components/schemas/DeliveryNoteSummary'
+      - type: object
+        required: [lines]
+        properties:
+          imo_on_note:
+            type: [string, 'null']
+          vessel_name_on_note:
+            type: [string, 'null']
+            description: Display only.
+          lines:
+            type: array
+            items:
+              $ref: '#/components/schemas/DeliveryNoteLine'
+    DeliveryNoteLine:
+      type: object
+      required: [line_no, article_number, article, note_qty_cans, received_qty_cans, result]
+      properties:
+        line_no:
+          type: integer
+        article_number:
+          type: string
+          description: As scanned or entered.
+        article:
+          description: The master-list article, or null when the number is not in the master list (then held as an unrecognised scan).
+          oneOf:
+          - $ref: ./common.yaml#/components/schemas/ArticleRef
+          - type: 'null'
+        note_qty_cans:
+          type: [integer, 'null']
+          description: Null = not on the note.
+        received_qty_cans:
+          type: integer
+        result:
+          $ref: '#/components/schemas/LineResult'
+        reason:
+          type: [string, 'null']
+        batch_number:
+          type: [string, 'null']

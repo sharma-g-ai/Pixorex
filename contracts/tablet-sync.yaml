@@ -1,0 +1,489 @@
+openapi: 3.1.0
+info:
+  title: SeaStock MVP API - Tablet sync (receiving and stock movements upload)
+  version: 0.1.0
+  contact:
+    name: SeaStock backend team (Amzur)
+  summary: How a tablet uploads what the crew recorded offline - delivery notes, consumption, baseline and adjustments.
+  description: |
+    BRD v1.3 FR-10 and FR-11: the tablet works offline and uploads queued events when it has
+    connectivity, as an event stream so nothing is overwritten or lost.
+
+    Data model: Domain 2 (sync_session, quarantined_event), Domain 4 (delivery_note,
+    delivery_note_line), Domain 5 (inventory_transaction, vessel_stock, unrecognised_scan).
+
+    One upload = one sync session:
+    1. POST /tablet/sync-sessions (client_sync_id makes a retried start safe)
+    2. POST /tablet/sync-sessions/{sessionId}/events, as many times as needed
+    3. POST /tablet/sync-sessions/{sessionId}/complete
+
+    Every event carries the tablet's own ID (client_event_id) and the record's own ID
+    (client_dn_id, client_txn_id or client_scan_id). Sending an event again is safe: it counts as
+    duplicate and changes nothing.
+
+    The server decides each event's outcome:
+    - applied: posted. A delivery note posts one receipt per line received; an item posts one
+      transaction. An item or line whose article number is not in the master list is held as an
+      unrecognised scan (not in stock until a PPG Admin matches it); that is still applied.
+    - duplicate: already received earlier.
+    - quarantined: well-formed but cannot be applied (e.g. duplicate_dn_number, reason_required,
+      invalid_quantity). Held in quarantined_event for an admin; the session still succeeds.
+    - rejected: not readable as an event at all (wrong shape). A session with any rejected event
+      cannot succeed.
+
+    Only a succeeded session moves vessel.last_synced_at (shown in the portal as "last sync").
+    The vessel is always the tablet's active assignment; nothing in an event chooses the vessel.
+servers:
+- url: /api/v1
+security:
+- tabletBearer: []
+tags:
+- name: Sync
+paths:
+  /tablet/sync-sessions:
+    post:
+      tags: [Sync]
+      operationId: startSyncSession
+      summary: Start an upload
+      description: |
+        Creates a sync_session for the tablet's active assignment. client_sync_id is unique per
+        tablet: the same ID again returns the existing session (200) and inserts nothing.
+        Starting a new session fails any open session of the same tablet.
+        A tablet marked for retirement may start one final session.
+      x-roles: [tablet]
+      x-brd: [FR-10, FR-11]
+      x-ticket: PIX-58
+      x-sprint: SeaStock Sprint 3
+      x-decision-pending: 'SD-5: sync may become its own story; these endpoints are the transport for receiving and transactions.'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [client_sync_id, client_clock_at, app_version]
+              properties:
+                client_sync_id:
+                  $ref: ./common.yaml#/components/schemas/Uuid
+                client_clock_at:
+                  $ref: ./common.yaml#/components/schemas/Timestamp
+                  description: The tablet's clock when the session starts (to spot clock drift).
+                app_version:
+                  type: string
+                  examples: [1.0.3]
+            examples:
+              start:
+                value:
+                  client_sync_id: 6a1d2c8e-0f4b-4f7e-9a3d-2b7c9e1f0a55
+                  client_clock_at: '2026-10-30T09:15:00Z'
+                  app_version: 1.0.3
+      responses:
+        '201':
+          description: Started
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SyncSession'
+        '200':
+          description: Same client_sync_id as an earlier start; that session is returned.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SyncSession'
+        '400':
+          $ref: ./common.yaml#/components/responses/BadRequest
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '409':
+          description: 'The tablet has no active assignment, or its vessel is inactive. Problem types: /problems/no-active-assignment, /problems/vessel-inactive.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./common.yaml#/components/schemas/Problem
+  /tablet/sync-sessions/{sessionId}/events:
+    post:
+      tags: [Sync]
+      operationId: uploadSyncEvents
+      summary: Upload a batch of events (up to 200)
+      description: |
+        Each event is handled on its own; one bad event never blocks the others. The answer lists
+        one result per event, in the order sent. Send in recorded order (oldest first).
+      x-roles: [tablet]
+      x-brd: [FR-01, FR-02, FR-03, FR-04, FR-05, FR-07, FR-08, FR-11, FR-12, FR-13]
+      x-ticket: PIX-58
+      x-sprint: SeaStock Sprint 3
+      x-decision-pending: 'SD-7: 200 events per call proposed; SD-4: whether stock events before the baseline are blocked or only warned.'
+      parameters:
+      - $ref: '#/components/parameters/SessionId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [events]
+              properties:
+                events:
+                  type: array
+                  minItems: 1
+                  maxItems: 200
+                  items:
+                    $ref: '#/components/schemas/SyncEvent'
+            examples:
+              receiptAndConsumption:
+                summary: A confirmed delivery note and one consumption scan
+                value:
+                  events:
+                  - event_type: delivery_note
+                    client_event_id: 0c7e1a32-3c55-4f4e-8d0b-6f2f8a1b9e01
+                    client_dn_id: 9b2f4d1e-7a6c-4e3b-8f1a-2c5d6e7f8a90
+                    dn_number: '5324641215'
+                    dn_date: '2026-10-28'
+                    imo_on_note: '9074729'
+                    vessel_name_on_note: MV ALPHA ONE
+                    customer_reference: PO 4500912273
+                    extracted_json: {dn_number: '5324641215', lines: 3}
+                    captured_at: '2026-10-28T10:02:00Z'
+                    confirmed_at: '2026-10-28T10:40:00Z'
+                    lines:
+                    - line_no: 1
+                      article_number: '179061'
+                      note_qty_cans: 8
+                      received_qty_cans: 8
+                      batch_number: B789201
+                    - line_no: 2
+                      article_number: '184102'
+                      note_qty_cans: 4
+                      received_qty_cans: 3
+                      reason: One can dented and leaking; not taken into the locker.
+                    - line_no: 3
+                      article_number: '181201'
+                      note_qty_cans: null
+                      received_qty_cans: 2
+                      reason: Delivered with this order but not listed on the note.
+                  - event_type: item
+                    client_event_id: 1d8f2b43-4d66-4a5f-9e1c-7a3b9c2d0f12
+                    client_txn_id: 2e9a3c54-5e77-4b60-8f2d-8b4c0d3e1a23
+                    kind: consumption
+                    source: label_scan
+                    article_number: '179061'
+                    quantity_cans: 2
+                    recorded_at: '2026-10-29T07:55:00Z'
+      responses:
+        '200':
+          description: One result per event, in the order sent.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [results]
+                properties:
+                  results:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/EventResult'
+              examples:
+                mixed:
+                  value:
+                    results:
+                    - client_event_id: 0c7e1a32-3c55-4f4e-8d0b-6f2f8a1b9e01
+                      outcome: applied
+                      posted:
+                        transactions: 3
+                        unrecognised_scans: 0
+                    - client_event_id: 1d8f2b43-4d66-4a5f-9e1c-7a3b9c2d0f12
+                      outcome: applied
+                      posted:
+                        transactions: 1
+                        unrecognised_scans: 0
+        '400':
+          description: 'The request is not an events list at all (empty, more than 200, not JSON). Problem types: /problems/validation. Single bad events are answered per event, not with 400.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./common.yaml#/components/schemas/Problem
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '404':
+          $ref: ./common.yaml#/components/responses/NotFound
+        '409':
+          description: 'The session is already finished. Problem types: /problems/session-finished.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./common.yaml#/components/schemas/Problem
+  /tablet/sync-sessions/{sessionId}/complete:
+    post:
+      tags: [Sync]
+      operationId: completeSyncSession
+      summary: Finish an upload
+      description: |
+        The tablet says how many events it sent. The session succeeds only when the server
+        received that many, none was rejected, and applied + duplicate + quarantined = received.
+        A succeeded session sets vessel.last_synced_at (and device.first_synced_at the first time),
+        and retires a tablet that was marked for retirement. Completing a finished session again
+        returns it unchanged.
+      x-roles: [tablet]
+      x-brd: [FR-11, FR-20]
+      x-ticket: PIX-58
+      x-sprint: SeaStock Sprint 3
+      parameters:
+      - $ref: '#/components/parameters/SessionId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [events_sent]
+              properties:
+                events_sent:
+                  type: integer
+                  minimum: 0
+      responses:
+        '200':
+          description: Finished (succeeded or failed; see status and counts).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SyncSession'
+              examples:
+                succeeded:
+                  value:
+                    id: 5f0e4c2a-8b1d-4e6f-9a7c-3d2b1e0f9a88
+                    status: succeeded
+                    started_at: '2026-10-30T09:15:02Z'
+                    completed_at: '2026-10-30T09:15:20Z'
+                    events_received: 2
+                    events_applied: 2
+                    events_duplicate: 0
+                    events_quarantined: 0
+                    events_rejected: 0
+                    vessel_last_synced_at: '2026-10-30T09:15:20Z'
+        '400':
+          $ref: ./common.yaml#/components/responses/BadRequest
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '404':
+          $ref: ./common.yaml#/components/responses/NotFound
+components:
+  parameters:
+    SessionId:
+      name: sessionId
+      in: path
+      required: true
+      description: A sync session of the calling tablet (another tablet's session is 404).
+      schema:
+        $ref: ./common.yaml#/components/schemas/Uuid
+  schemas:
+    SyncSession:
+      type: object
+      required: [id, status, started_at, events_received, events_applied, events_duplicate, events_quarantined, events_rejected]
+      properties:
+        id:
+          $ref: ./common.yaml#/components/schemas/Uuid
+        status:
+          type: string
+          enum: [in_progress, succeeded, failed]
+        started_at:
+          $ref: ./common.yaml#/components/schemas/Timestamp
+        completed_at:
+          oneOf:
+          - $ref: ./common.yaml#/components/schemas/Timestamp
+          - type: 'null'
+        events_received:
+          type: integer
+        events_applied:
+          type: integer
+        events_duplicate:
+          type: integer
+        events_quarantined:
+          type: integer
+        events_rejected:
+          type: integer
+        vessel_last_synced_at:
+          description: The vessel's last succeeded sync after this call.
+          oneOf:
+          - $ref: ./common.yaml#/components/schemas/Timestamp
+          - type: 'null'
+        receiving_mode:
+          type: string
+          description: The vessel's receiving mode (scan or manual), sent to the tablet at sync.
+          enum: [scan, manual]
+    SyncEvent:
+      description: One record the crew confirmed on the tablet.
+      oneOf:
+      - $ref: '#/components/schemas/DeliveryNoteEvent'
+      - $ref: '#/components/schemas/ItemEvent'
+      - $ref: '#/components/schemas/AdjustmentEvent'
+      discriminator:
+        propertyName: event_type
+        mapping:
+          delivery_note: '#/components/schemas/DeliveryNoteEvent'
+          item: '#/components/schemas/ItemEvent'
+          adjustment: '#/components/schemas/AdjustmentEvent'
+    DeliveryNoteEvent:
+      type: object
+      description: |
+        Receiving (BRD section 5, steps 3a-3f; FR-01 to FR-05): a confirmed delivery note with its
+        tally lines. Confirming posts one receipt per line with received_qty_cans above 0.
+        dn_number is unique per vessel after trimming and upper-casing; a second note with the
+        same number is quarantined as duplicate_dn_number. imo_on_note is checked against the
+        vessel (match, mismatch, not_read) but never chooses the vessel. No image is sent (D-07).
+      required: [event_type, client_event_id, client_dn_id, dn_number, captured_at, confirmed_at, lines]
+      properties:
+        event_type:
+          type: string
+          const: delivery_note
+        client_event_id:
+          $ref: ./common.yaml#/components/schemas/Uuid
+        client_dn_id:
+          $ref: ./common.yaml#/components/schemas/Uuid
+        dn_number:
+          type: string
+          minLength: 1
+          examples: ['5324641215']
+        dn_date:
+          oneOf:
+          - $ref: ./common.yaml#/components/schemas/Date
+          - type: 'null'
+        imo_on_note:
+          type: [string, 'null']
+          description: Digits read from the note; null when not read.
+        vessel_name_on_note:
+          type: [string, 'null']
+          description: Display only; never matched.
+        customer_reference:
+          type: [string, 'null']
+        extracted_json:
+          type: object
+          description: What the tablet read before crew edits.
+        captured_at:
+          $ref: ./common.yaml#/components/schemas/Timestamp
+          description: Tablet clock when the note was scanned.
+        confirmed_at:
+          $ref: ./common.yaml#/components/schemas/Timestamp
+          description: Tablet clock when the receipt was confirmed; not earlier than captured_at.
+        lines:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/DeliveryNoteLineInput'
+    DeliveryNoteLineInput:
+      type: object
+      description: |
+        One tally line: a line on the note, or an item scanned that was not on it. The server sets
+        the article by exact article_number lookup and works out the result (matched, short, over,
+        not_received, not_on_note). reason is required whenever received differs from the note.
+      required: [line_no, article_number, received_qty_cans]
+      properties:
+        line_no:
+          type: integer
+          minimum: 1
+          description: Unique within the note.
+        article_number:
+          type: string
+          minLength: 1
+          description: As scanned or entered. Not format-checked here; an unknown number is held as an unrecognised scan.
+        note_qty_cans:
+          type: [integer, 'null']
+          minimum: 1
+          description: Quantity on the note; null = not on the note.
+        received_qty_cans:
+          type: integer
+          minimum: 0
+          description: 0 = flagged not received. A line not on the note must have been received (> 0).
+        reason:
+          type: [string, 'null']
+        batch_number:
+          type: [string, 'null']
+    ItemEvent:
+      type: object
+      description: |
+        One consumption (FR-07, cans taken out, each counted as fully used) or one baseline line
+        (FR-08, opening stock). quantity_cans is always positive here; consumption is stored
+        negative. Baseline lines confirmed together share client_batch_id. A baseline line after
+        the vessel's baseline has closed is quarantined (baseline_closed).
+      required: [event_type, client_event_id, client_txn_id, kind, source, article_number, quantity_cans, recorded_at]
+      properties:
+        event_type:
+          type: string
+          const: item
+        client_event_id:
+          $ref: ./common.yaml#/components/schemas/Uuid
+        client_txn_id:
+          $ref: ./common.yaml#/components/schemas/Uuid
+          description: Also used as the unrecognised scan's client_scan_id if the article is unknown.
+        kind:
+          type: string
+          enum: [consumption, baseline]
+        source:
+          type: string
+          enum: [label_scan, manual_entry]
+        article_number:
+          type: string
+          minLength: 1
+        quantity_cans:
+          type: integer
+          minimum: 1
+        recorded_at:
+          $ref: ./common.yaml#/components/schemas/Timestamp
+        client_batch_id:
+          oneOf:
+          - $ref: ./common.yaml#/components/schemas/Uuid
+          - type: 'null'
+          description: Required for a baseline line (groups one baseline count).
+        batch_number:
+          type: [string, 'null']
+        raw_label_json:
+          type: object
+          description: The other label fields as read (kept on an unrecognised scan).
+    AdjustmentEvent:
+      type: object
+      description: A stock correction made on the tablet outside a receipt (FR-13). Either sign; reason required. An article number not in the master list is quarantined (unknown_article), not held as an unrecognised scan.
+      required: [event_type, client_event_id, client_txn_id, article_number, quantity_cans, reason, recorded_at]
+      properties:
+        event_type:
+          type: string
+          const: adjustment
+        client_event_id:
+          $ref: ./common.yaml#/components/schemas/Uuid
+        client_txn_id:
+          $ref: ./common.yaml#/components/schemas/Uuid
+        article_number:
+          $ref: ./common.yaml#/components/schemas/ArticleNumber
+        quantity_cans:
+          type: integer
+          not:
+            const: 0
+          description: Positive adds cans, negative removes them.
+        reason:
+          type: string
+          minLength: 1
+        recorded_at:
+          $ref: ./common.yaml#/components/schemas/Timestamp
+    EventResult:
+      type: object
+      required: [client_event_id, outcome]
+      properties:
+        client_event_id:
+          $ref: ./common.yaml#/components/schemas/Uuid
+        outcome:
+          type: string
+          enum: [applied, duplicate, quarantined, rejected]
+        posted:
+          type: object
+          description: For applied events.
+          properties:
+            transactions:
+              type: integer
+              description: Ledger rows posted.
+            unrecognised_scans:
+              type: integer
+              description: Items held because their article number is not in the master list.
+        error_code:
+          type: string
+          description: For quarantined and rejected events. Examples from the data model; the full list is set with the backend implementation.
+          examples: [duplicate_dn_number, baseline_closed, reason_required, unknown_article, invalid_quantity]
+        error_detail:
+          type: string

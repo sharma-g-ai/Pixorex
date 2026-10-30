@@ -1,0 +1,696 @@
+openapi: 3.1.0
+info:
+  title: SeaStock MVP API - Transactions (stock ledger, consumption, review)
+  version: 0.1.0
+  contact:
+    name: SeaStock backend team (Amzur)
+  summary: Stock movements - history, consumption roll-ups, portal adjustments, and the items held for review.
+  description: |
+    BRD v1.3 FR-07 (consumption), FR-08 (baseline), FR-12 (audit trail: user, time, device,
+    source), FR-13 (stock adjustment), FR-20 and FR-24 (consumption, roll-up, CSV), section 13
+    (negative stock surfaced, unrecognised articles flagged rather than rejected).
+
+    Data model: Domain 5 inventory_transaction (insert-only; liters snapshot at posting),
+    unrecognised_scan; Domain 2 quarantined_event.
+
+    Tablet rows come from sync (tablet-sync.yaml) and name the tablet, never a person. Portal rows
+    name the PPG Admin or Customer Admin who recorded them. A mistake is corrected by a new
+    adjustment, never by editing a row.
+servers:
+- url: /api/v1
+tags:
+- name: Transactions
+- name: Consumption
+- name: Review
+- name: Tablet
+paths:
+  /transactions:
+    get:
+      tags: [Transactions]
+      operationId: listTransactions
+      summary: Stock movement history (portal)
+      description: |
+        Screens: Activity > Transactions; Overview > Recent activity (limit=8). Newest first
+        (recorded_at). Accept: text/csv returns the same rows as CSV, unpaged.
+      x-roles: [ppg_admin, customer_admin]
+      x-brd: [FR-12, FR-13, FR-20, FR-24]
+      x-ticket: PIX-58
+      x-sprint: SeaStock Sprint 3
+      security:
+      - portalBearer: []
+      parameters:
+      - $ref: ./common.yaml#/components/parameters/CustomerFilter
+      - $ref: ./common.yaml#/components/parameters/VesselFilter
+      - $ref: ./common.yaml#/components/parameters/From
+      - $ref: ./common.yaml#/components/parameters/To
+      - name: txn_type
+        in: query
+        required: false
+        schema:
+          $ref: ./common.yaml#/components/schemas/TxnType
+      - name: source
+        in: query
+        required: false
+        schema:
+          $ref: ./common.yaml#/components/schemas/TxnSource
+      - name: origin
+        in: query
+        required: false
+        schema:
+          $ref: ./common.yaml#/components/schemas/Origin
+      - $ref: ./common.yaml#/components/parameters/Cursor
+      - $ref: ./common.yaml#/components/parameters/Limit
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, page]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Transaction'
+                  page:
+                    $ref: ./common.yaml#/components/schemas/PageInfo
+            text/csv:
+              schema:
+                type: string
+        '400':
+          $ref: ./common.yaml#/components/responses/BadRequest
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '403':
+          $ref: ./common.yaml#/components/responses/Forbidden
+        '404':
+          $ref: ./common.yaml#/components/responses/NotFound
+  /transactions/{transactionId}:
+    get:
+      tags: [Transactions]
+      operationId: getTransaction
+      summary: One stock movement (portal)
+      x-roles: [ppg_admin, customer_admin]
+      x-brd: [FR-12]
+      x-ticket: PIX-58
+      x-sprint: SeaStock Sprint 3
+      security:
+      - portalBearer: []
+      parameters:
+      - $ref: '#/components/parameters/TransactionId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Transaction'
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '404':
+          $ref: ./common.yaml#/components/responses/NotFound
+  /vessels/{vesselId}/adjustments:
+    post:
+      tags: [Transactions]
+      operationId: createPortalAdjustment
+      summary: Correct a vessel's stock from the portal
+      description: |
+        Posts one adjustment (origin portal, source manual_adjustment, recorded_by the caller) and
+        writes an audit row. Either sign; reason required. Allowed on a retired article (stock of
+        it may still be on board). Negative results are allowed and shown for review.
+      x-roles: [ppg_admin, customer_admin]
+      x-brd: [FR-13]
+      x-ticket: PIX-58
+      x-sprint: SeaStock Sprint 3
+      x-decision-pending: 'SD-2: the data model lets a PPG Admin or the vessel''s Customer Admin adjust from the portal; who may do so is not stated in the BRD.'
+      security:
+      - portalBearer: []
+      parameters:
+      - $ref: ./common.yaml#/components/parameters/VesselId
+      - $ref: ./common.yaml#/components/parameters/IdempotencyKey
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [article_id, quantity_cans, reason]
+              properties:
+                article_id:
+                  $ref: ./common.yaml#/components/schemas/Uuid
+                quantity_cans:
+                  type: integer
+                  not:
+                    const: 0
+                  description: Positive adds cans, negative removes them.
+                reason:
+                  type: string
+                  minLength: 1
+                  maxLength: 500
+                recorded_at:
+                  description: When the movement happened; defaults to now. Not in the future.
+                  $ref: ./common.yaml#/components/schemas/Timestamp
+            examples:
+              damaged:
+                value:
+                  article_id: 5b1c3d2e-4f6a-4b8c-9d0e-1f2a3b4c5d6e
+                  quantity_cans: -1
+                  reason: Can found damaged during a locker check; disposed of.
+      responses:
+        '201':
+          description: Posted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Transaction'
+        '400':
+          description: 'Missing reason, zero quantity, or a future recorded_at. Problem types: /problems/validation, /problems/reason-required.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./common.yaml#/components/schemas/Problem
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '403':
+          $ref: ./common.yaml#/components/responses/Forbidden
+        '404':
+          description: Vessel or article not found, or vessel not in scope.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./common.yaml#/components/schemas/Problem
+        '409':
+          description: 'Vessel inactive, or same Idempotency-Key with a different body. Problem types: /problems/vessel-inactive, /problems/idempotency-conflict.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./common.yaml#/components/schemas/Problem
+  /consumption:
+    get:
+      tags: [Consumption]
+      operationId: getConsumptionRollup
+      summary: Consumption in a period, rolled up (portal)
+      description: |
+        Screen: Consumption (by product, by vessel, by customer; Export summary). Sums consumption
+        transactions in the period as positive cans and liters. group_by=customer is ppg_admin only.
+        For Export detail use GET /transactions?txn_type=consumption with Accept: text/csv.
+      x-roles: [ppg_admin, customer_admin]
+      x-brd: [FR-07, FR-20, FR-24]
+      x-ticket: PIX-58
+      x-sprint: SeaStock Sprint 3
+      security:
+      - portalBearer: []
+      parameters:
+      - name: group_by
+        in: query
+        required: true
+        schema:
+          type: string
+          enum: [article, vessel, customer]
+      - name: from
+        in: query
+        required: true
+        schema:
+          $ref: ./common.yaml#/components/schemas/Date
+      - name: to
+        in: query
+        required: true
+        schema:
+          $ref: ./common.yaml#/components/schemas/Date
+      - $ref: ./common.yaml#/components/parameters/CustomerFilter
+      - $ref: ./common.yaml#/components/parameters/VesselFilter
+      - $ref: ./common.yaml#/components/parameters/ComponentTypeFilter
+      responses:
+        '200':
+          description: Rows ordered by liters, largest first, with totals.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConsumptionRollup'
+            text/csv:
+              schema:
+                type: string
+        '400':
+          $ref: ./common.yaml#/components/responses/BadRequest
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '403':
+          $ref: ./common.yaml#/components/responses/Forbidden
+        '404':
+          $ref: ./common.yaml#/components/responses/NotFound
+  /unrecognised-scans:
+    get:
+      tags: [Review]
+      operationId: listUnrecognisedScans
+      summary: Scanned items whose article number is not in the master list (portal)
+      description: Screen - Overview > Unrecognised scans. Not counted in stock until matched.
+      x-roles: [ppg_admin, customer_admin]
+      x-brd: [FR-02]
+      x-ticket: PIX-58
+      x-sprint: SeaStock Sprint 3
+      security:
+      - portalBearer: []
+      parameters:
+      - name: status
+        in: query
+        required: false
+        schema:
+          type: string
+          enum: [open, matched]
+          default: open
+      - $ref: ./common.yaml#/components/parameters/CustomerFilter
+      - $ref: ./common.yaml#/components/parameters/VesselFilter
+      - $ref: ./common.yaml#/components/parameters/Cursor
+      - $ref: ./common.yaml#/components/parameters/Limit
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, page]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/UnrecognisedScan'
+                  page:
+                    $ref: ./common.yaml#/components/schemas/PageInfo
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '403':
+          $ref: ./common.yaml#/components/responses/Forbidden
+        '404':
+          $ref: ./common.yaml#/components/responses/NotFound
+  /unrecognised-scans/{scanId}/match:
+    post:
+      tags: [Review]
+      operationId: matchUnrecognisedScan
+      summary: Match a held scan to an article and post it
+      description: |
+        match_unrecognised_scan(): posts the held item as one transaction (origin portal, source
+        review_match, recorded_by the caller, dated at the original scan), marks the scan matched
+        and writes an audit row. Only onto an active article. A matched scan is final.
+        Product and shade are not used to suggest an article (fallback deferred, FR-02).
+      x-roles: [ppg_admin]
+      x-brd: [FR-02]
+      x-ticket: PIX-58
+      x-sprint: SeaStock Sprint 3
+      security:
+      - portalBearer: []
+      parameters:
+      - name: scanId
+        in: path
+        required: true
+        schema:
+          $ref: ./common.yaml#/components/schemas/Uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [article_id]
+              properties:
+                article_id:
+                  $ref: ./common.yaml#/components/schemas/Uuid
+      responses:
+        '200':
+          description: Matched; the posted transaction is returned.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Transaction'
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '403':
+          $ref: ./common.yaml#/components/responses/Forbidden
+        '404':
+          $ref: ./common.yaml#/components/responses/NotFound
+        '409':
+          description: 'Already matched, or the article is retired. Problem types: /problems/already-matched, /problems/article-not-active.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./common.yaml#/components/schemas/Problem
+  /quarantined-events:
+    get:
+      tags: [Review]
+      operationId: listQuarantinedEvents
+      summary: Uploaded events the server could not apply (portal)
+      description: |
+        Screen: Overview > held sync events (screen not named in the data model). Each shows the
+        event exactly as sent and why it was held (e.g. duplicate_dn_number, reason_required).
+      x-roles: [ppg_admin, customer_admin]
+      x-brd: [FR-11]
+      x-ticket: PIX-58
+      x-sprint: SeaStock Sprint 3
+      security:
+      - portalBearer: []
+      parameters:
+      - name: status
+        in: query
+        required: false
+        schema:
+          type: string
+          enum: [open, resolved, dismissed]
+          default: open
+      - $ref: ./common.yaml#/components/parameters/CustomerFilter
+      - $ref: ./common.yaml#/components/parameters/VesselFilter
+      - $ref: ./common.yaml#/components/parameters/Cursor
+      - $ref: ./common.yaml#/components/parameters/Limit
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, page]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/QuarantinedEvent'
+                  page:
+                    $ref: ./common.yaml#/components/schemas/PageInfo
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '403':
+          $ref: ./common.yaml#/components/responses/Forbidden
+        '404':
+          $ref: ./common.yaml#/components/responses/NotFound
+  /quarantined-events/{eventId}/close:
+    post:
+      tags: [Review]
+      operationId: closeQuarantinedEvent
+      summary: Close a held event as resolved or dismissed, with a note
+      description: |
+        Closing posts nothing to stock: the fix itself is done another way (e.g. a stock
+        adjustment). Sets status, resolved_by, resolved_at and resolution_note together and writes
+        an audit row. A closed event is final.
+      x-roles: [ppg_admin]
+      x-brd: [FR-11]
+      x-ticket: PIX-58
+      x-sprint: SeaStock Sprint 3
+      x-decision-pending: 'SD-3: the data model says "held for an admin"; whether a Customer Admin may also close their vessels'' events is not stated.'
+      security:
+      - portalBearer: []
+      parameters:
+      - name: eventId
+        in: path
+        required: true
+        schema:
+          $ref: ./common.yaml#/components/schemas/Uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [outcome, resolution_note]
+              properties:
+                outcome:
+                  type: string
+                  enum: [resolved, dismissed]
+                resolution_note:
+                  type: string
+                  minLength: 1
+                  maxLength: 1000
+      responses:
+        '200':
+          description: Closed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuarantinedEvent'
+        '400':
+          $ref: ./common.yaml#/components/responses/BadRequest
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '403':
+          $ref: ./common.yaml#/components/responses/Forbidden
+        '404':
+          $ref: ./common.yaml#/components/responses/NotFound
+        '409':
+          description: 'Already closed. Problem types: /problems/already-closed.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./common.yaml#/components/schemas/Problem
+  /tablet/transactions:
+    get:
+      tags: [Tablet]
+      operationId: listTabletTransactions
+      summary: The tablet's own vessel transactions
+      description: Screen - tablet transactions. Only the tablet's active vessel. Newest first.
+      x-roles: [tablet]
+      x-brd: [FR-09, FR-12]
+      x-ticket: PIX-58
+      x-sprint: SeaStock Sprint 3
+      security:
+      - tabletBearer: []
+      parameters:
+      - $ref: ./common.yaml#/components/parameters/From
+      - $ref: ./common.yaml#/components/parameters/To
+      - name: txn_type
+        in: query
+        required: false
+        schema:
+          $ref: ./common.yaml#/components/schemas/TxnType
+      - $ref: ./common.yaml#/components/parameters/Cursor
+      - $ref: ./common.yaml#/components/parameters/Limit
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, page]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Transaction'
+                  page:
+                    $ref: ./common.yaml#/components/schemas/PageInfo
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '409':
+          description: 'The tablet has no active assignment. Problem types: /problems/no-active-assignment.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./common.yaml#/components/schemas/Problem
+components:
+  parameters:
+    TransactionId:
+      name: transactionId
+      in: path
+      required: true
+      schema:
+        $ref: ./common.yaml#/components/schemas/Uuid
+  schemas:
+    Transaction:
+      type: object
+      description: One inventory_transaction. Insert-only.
+      required: [id, txn_type, source, origin, vessel, article, quantity_cans, unit_volume_liters, volume_liters, recorded_at, received_at]
+      properties:
+        id:
+          $ref: ./common.yaml#/components/schemas/Uuid
+        txn_type:
+          $ref: ./common.yaml#/components/schemas/TxnType
+        source:
+          $ref: ./common.yaml#/components/schemas/TxnSource
+        origin:
+          $ref: ./common.yaml#/components/schemas/Origin
+        vessel:
+          $ref: ./common.yaml#/components/schemas/VesselRef
+        article:
+          $ref: ./common.yaml#/components/schemas/ArticleRef
+        quantity_cans:
+          type: integer
+          description: Signed - receipts and baseline positive, consumption negative, adjustment either.
+        unit_volume_liters:
+          type: number
+          description: Snapshot at posting; later master-list edits never change it.
+        volume_liters:
+          type: number
+          description: quantity_cans x unit_volume_liters (signed).
+        recorded_at:
+          $ref: ./common.yaml#/components/schemas/Timestamp
+          description: When the movement happened (tablet clock for device rows).
+        received_at:
+          $ref: ./common.yaml#/components/schemas/Timestamp
+          description: Server clock (for device rows, when it synced).
+        device:
+          description: Device rows - the tablet that recorded it. Null for portal rows.
+          oneOf:
+          - $ref: ./common.yaml#/components/schemas/DeviceRef
+          - type: 'null'
+        recorded_by:
+          description: Portal rows - the PPG Admin or Customer Admin. Null for device rows (they name no person).
+          oneOf:
+          - $ref: ./common.yaml#/components/schemas/UserRef
+          - type: 'null'
+        delivery_note:
+          description: Receipts - the delivery note it came from.
+          oneOf:
+          - type: object
+            required: [id, dn_number]
+            properties:
+              id:
+                $ref: ./common.yaml#/components/schemas/Uuid
+              dn_number:
+                type: string
+          - type: 'null'
+        reason:
+          type: [string, 'null']
+          description: Required for adjustments.
+        batch_number:
+          type: [string, 'null']
+        client_batch_id:
+          description: Groups rows confirmed together (e.g. one baseline count).
+          oneOf:
+          - $ref: ./common.yaml#/components/schemas/Uuid
+          - type: 'null'
+        unrecognised_scan_id:
+          description: Set when source is review_match.
+          oneOf:
+          - $ref: ./common.yaml#/components/schemas/Uuid
+          - type: 'null'
+    ConsumptionRollup:
+      type: object
+      required: [group_by, from, to, totals, rows]
+      properties:
+        group_by:
+          type: string
+          enum: [article, vessel, customer]
+        from:
+          $ref: ./common.yaml#/components/schemas/Date
+        to:
+          $ref: ./common.yaml#/components/schemas/Date
+        totals:
+          type: object
+          required: [scans, cans, liters]
+          properties:
+            scans:
+              type: integer
+            cans:
+              type: integer
+            liters:
+              type: number
+        rows:
+          type: array
+          items:
+            type: object
+            required: [scans, cans, liters]
+            properties:
+              article:
+                $ref: ./common.yaml#/components/schemas/ArticleRef
+              vessel:
+                $ref: ./common.yaml#/components/schemas/VesselRef
+              customer:
+                $ref: ./common.yaml#/components/schemas/CustomerRef
+              scans:
+                type: integer
+                description: Consumption transactions counted (one scan can cover several cans).
+              cans:
+                type: integer
+              liters:
+                type: number
+    UnrecognisedScan:
+      type: object
+      required: [id, scan_kind, vessel, raw_article_number, quantity_cans, recorded_at, received_at, status]
+      properties:
+        id:
+          $ref: ./common.yaml#/components/schemas/Uuid
+        scan_kind:
+          type: string
+          enum: [receipt, consumption, baseline]
+        vessel:
+          $ref: ./common.yaml#/components/schemas/VesselRef
+        device:
+          $ref: ./common.yaml#/components/schemas/DeviceRef
+        raw_article_number:
+          type: string
+          description: The article number as read.
+          examples: ['17906l']
+        raw_label_json:
+          type: object
+          description: The other label fields as read (product, shade, batch).
+        quantity_cans:
+          type: integer
+          minimum: 1
+        delivery_note:
+          description: Receipts - the note and line it came from.
+          oneOf:
+          - type: object
+            required: [id, dn_number, line_no]
+            properties:
+              id:
+                $ref: ./common.yaml#/components/schemas/Uuid
+              dn_number:
+                type: string
+              line_no:
+                type: integer
+          - type: 'null'
+        recorded_at:
+          $ref: ./common.yaml#/components/schemas/Timestamp
+        received_at:
+          $ref: ./common.yaml#/components/schemas/Timestamp
+        status:
+          type: string
+          enum: [open, matched]
+        matched_article:
+          oneOf:
+          - $ref: ./common.yaml#/components/schemas/ArticleRef
+          - type: 'null'
+        matched_by:
+          oneOf:
+          - $ref: ./common.yaml#/components/schemas/UserRef
+          - type: 'null'
+        matched_at:
+          oneOf:
+          - $ref: ./common.yaml#/components/schemas/Timestamp
+          - type: 'null'
+    QuarantinedEvent:
+      type: object
+      required: [id, event_type, vessel, device, payload, error_code, status, received_at]
+      properties:
+        id:
+          $ref: ./common.yaml#/components/schemas/Uuid
+        event_type:
+          type: string
+          enum: [delivery_note, item, adjustment, unknown]
+        vessel:
+          $ref: ./common.yaml#/components/schemas/VesselRef
+        device:
+          $ref: ./common.yaml#/components/schemas/DeviceRef
+        payload:
+          type: object
+          description: The event exactly as the tablet sent it.
+        error_code:
+          type: string
+          description: Why it was held. Examples from the data model; the full list is set with the backend implementation.
+          examples: [duplicate_dn_number, baseline_closed, reason_required, unknown_article, invalid_quantity]
+        error_detail:
+          type: [string, 'null']
+        received_at:
+          $ref: ./common.yaml#/components/schemas/Timestamp
+        status:
+          type: string
+          enum: [open, resolved, dismissed]
+        resolved_by:
+          oneOf:
+          - $ref: ./common.yaml#/components/schemas/UserRef
+          - type: 'null'
+        resolved_at:
+          oneOf:
+          - $ref: ./common.yaml#/components/schemas/Timestamp
+          - type: 'null'
+        resolution_note:
+          type: [string, 'null']

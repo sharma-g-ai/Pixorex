@@ -1,0 +1,272 @@
+openapi: 3.1.0
+info:
+  title: SeaStock MVP API - Inventory (Sea Stock)
+  version: 0.1.0
+  contact:
+    name: SeaStock backend team (Amzur)
+  summary: Current Sea Stock per vessel and article, roll-ups for the portal, and the tablet's own stock.
+  description: |
+    BRD v1.3 FR-09 (stock on the tablet, offline), FR-20 (portal: stock by product, shade and
+    component type, in liters and cans, with the vessel's last sync), FR-24 (roll-up at vessel,
+    customer and PPG level, filtering, CSV export).
+
+    Data model: Domain 5 vessel_stock (running total per vessel and article, kept by the ledger
+    trigger; negative allowed and surfaced for review), joined to article and vessel.
+
+    Stock is as of each vessel's last succeeded sync. Liters = cans x the article's unit volume.
+    There is no region: roll-ups are vessel, customer and PPG level only (BRD v1.3).
+servers:
+- url: /api/v1
+tags:
+- name: Inventory
+- name: Tablet
+paths:
+  /stock:
+    get:
+      tags: [Inventory]
+      operationId: getStockRollup
+      summary: Sea Stock rolled up (portal)
+      description: |
+        Screens: Overview (totals, negative stock), Sea Stock (by product, by vessel, by customer;
+        Export summary and Export detail).
+        group_by:
+        - article: one row per article across the vessels in scope (Sea Stock by product)
+        - vessel: one row per vessel (by vessel)
+        - customer: one row per customer (by customer; ppg_admin only, 403 for customer_admin)
+        - vessel_article: one row per vessel and article (Export detail)
+        A customer_admin always gets their own customer only.
+        Accept: text/csv returns the same rows as CSV, unpaged (FR-24).
+      x-roles: [ppg_admin, customer_admin]
+      x-brd: [FR-20, FR-24]
+      x-ticket: PIX-58
+      x-sprint: SeaStock Sprint 3
+      x-decision-pending: 'SD-6: CSV through Accept: text/csv here, unless reporting gets its own export story.'
+      security:
+      - portalBearer: []
+      parameters:
+      - name: group_by
+        in: query
+        required: true
+        schema:
+          type: string
+          enum: [article, vessel, customer, vessel_article]
+      - $ref: ./common.yaml#/components/parameters/CustomerFilter
+      - $ref: ./common.yaml#/components/parameters/VesselFilter
+      - $ref: ./common.yaml#/components/parameters/ComponentTypeFilter
+      - name: q
+        in: query
+        required: false
+        description: Search article number, product name or shade.
+        schema:
+          type: string
+      - name: negative_only
+        in: query
+        required: false
+        description: Only rows with fewer than 0 cans (negative-stock review). Use with group_by=vessel_article.
+        schema:
+          type: boolean
+          default: false
+      - $ref: ./common.yaml#/components/parameters/Cursor
+      - $ref: ./common.yaml#/components/parameters/Limit
+      responses:
+        '200':
+          description: Rows and totals for everything matching (totals ignore paging).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StockRollup'
+              examples:
+                byArticle:
+                  value:
+                    group_by: article
+                    totals: {vessels: 12, cans: 260, liters: 3550}
+                    rows:
+                    - article: {id: 5b1c3d2e-4f6a-4b8c-9d0e-1f2a3b4c5d6e, article_number: '179061', product_name: SIGMACOVER 350, shade: Grey 5177, product_type: 2K, component_type: base, pack_size: 20 L, unit_volume_liters: 20, status: active}
+                      vessels: 5
+                      cans: 35
+                      liters: 700
+                    page: {next_cursor: null}
+            text/csv:
+              schema:
+                type: string
+              example: "article_number,product_name,shade,component_type,pack_size,vessels,cans,liters\n179061,SIGMACOVER 350,Grey 5177,base,20 L,5,35,700\n"
+        '400':
+          $ref: ./common.yaml#/components/responses/BadRequest
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '403':
+          $ref: ./common.yaml#/components/responses/Forbidden
+        '404':
+          $ref: ./common.yaml#/components/responses/NotFound
+  /vessels/{vesselId}/stock:
+    get:
+      tags: [Inventory]
+      operationId: getVesselStock
+      summary: One vessel's details and stock (portal)
+      description: |
+        Screen: Sea Stock with one vessel picked (vessel details card and its stock by product).
+        Includes the active tablet, baseline date and last succeeded sync.
+      x-roles: [ppg_admin, customer_admin]
+      x-brd: [FR-09, FR-20]
+      x-ticket: PIX-58
+      x-sprint: SeaStock Sprint 3
+      security:
+      - portalBearer: []
+      parameters:
+      - $ref: ./common.yaml#/components/parameters/VesselId
+      - $ref: ./common.yaml#/components/parameters/ComponentTypeFilter
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VesselStock'
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '404':
+          $ref: ./common.yaml#/components/responses/NotFound
+  /tablet/stock:
+    get:
+      tags: [Tablet]
+      operationId: getTabletStock
+      summary: The tablet's own vessel stock
+      description: |
+        Screen: tablet inventory (FR-09). The server's view as of the last succeeded sync; the
+        tablet adds its own not-yet-uploaded events on top and keeps the result for offline use.
+      x-roles: [tablet]
+      x-brd: [FR-09]
+      x-ticket: PIX-58
+      x-sprint: SeaStock Sprint 3
+      security:
+      - tabletBearer: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VesselStock'
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '409':
+          description: 'The tablet has no active assignment. Problem types: /problems/no-active-assignment.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./common.yaml#/components/schemas/Problem
+components:
+  schemas:
+    Totals:
+      type: object
+      required: [vessels, cans, liters]
+      properties:
+        vessels:
+          type: integer
+        cans:
+          type: integer
+        liters:
+          type: number
+    StockRollup:
+      type: object
+      required: [group_by, totals, rows, page]
+      properties:
+        group_by:
+          type: string
+          enum: [article, vessel, customer, vessel_article]
+        totals:
+          $ref: '#/components/schemas/Totals'
+        rows:
+          type: array
+          items:
+            $ref: '#/components/schemas/StockRollupRow'
+        page:
+          $ref: ./common.yaml#/components/schemas/PageInfo
+    StockRollupRow:
+      type: object
+      description: 'Fields present depend on group_by: article rows carry article; vessel rows carry vessel; customer rows carry customer; vessel_article rows carry both vessel and article.'
+      required: [cans, liters]
+      properties:
+        article:
+          $ref: ./common.yaml#/components/schemas/ArticleRef
+        vessel:
+          $ref: ./common.yaml#/components/schemas/VesselRef
+        customer:
+          $ref: ./common.yaml#/components/schemas/CustomerRef
+        vessels:
+          type: integer
+          description: Vessels counted in this row (article and customer rows).
+        products:
+          type: integer
+          description: Distinct articles with non-zero stock (vessel and customer rows).
+        cans:
+          type: integer
+          description: May be negative (needs review).
+        liters:
+          type: number
+        last_synced_at:
+          description: Vessel rows - the vessel's last succeeded sync; customer rows - the oldest of its vessels'.
+          oneOf:
+          - $ref: ./common.yaml#/components/schemas/Timestamp
+          - type: 'null'
+        last_txn_at:
+          description: vessel_article rows - last ledger change.
+          oneOf:
+          - $ref: ./common.yaml#/components/schemas/Timestamp
+          - type: 'null'
+    VesselStock:
+      type: object
+      required: [vessel, receiving_mode, baseline_captured_at, last_synced_at, active_device, lines, totals]
+      properties:
+        vessel:
+          $ref: ./common.yaml#/components/schemas/VesselRef
+        receiving_mode:
+          type: string
+          enum: [scan, manual]
+        baseline_captured_at:
+          description: Null until the first baseline posts; the vessel shows no stock before that.
+          oneOf:
+          - $ref: ./common.yaml#/components/schemas/Timestamp
+          - type: 'null'
+        last_synced_at:
+          oneOf:
+          - $ref: ./common.yaml#/components/schemas/Timestamp
+          - type: 'null'
+        active_device:
+          description: The vessel's active tablet, or null when none is paired.
+          oneOf:
+          - $ref: '#/components/schemas/ActiveDevice'
+          - type: 'null'
+        lines:
+          type: array
+          description: Articles with non-zero stock, ordered by product, component type, shade.
+          items:
+            type: object
+            required: [article, cans, liters, last_txn_at]
+            properties:
+              article:
+                $ref: ./common.yaml#/components/schemas/ArticleRef
+              cans:
+                type: integer
+              liters:
+                type: number
+              last_txn_at:
+                $ref: ./common.yaml#/components/schemas/Timestamp
+        totals:
+          type: object
+          required: [cans, liters]
+          properties:
+            cans:
+              type: integer
+            liters:
+              type: number
+    ActiveDevice:
+      allOf:
+      - $ref: ./common.yaml#/components/schemas/DeviceRef
+      - type: object
+        required: [app_version, assigned_at]
+        properties:
+          app_version:
+            type: string
+          assigned_at:
+            $ref: ./common.yaml#/components/schemas/Timestamp

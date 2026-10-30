@@ -1,0 +1,343 @@
+openapi: 3.1.0
+info:
+  title: SeaStock MVP API - Shared basics
+  version: 0.1.0
+  contact:
+    name: SeaStock backend team (Amzur)
+  summary: Auth, errors, paging, idempotency, IDs and shared types used by every SeaStock contract file.
+  description: |
+    Every SeaStock contract file references this file. Change it only with agreement of all contract
+    owners (Backend Lead, Flutter developers, portal developers).
+
+    Sources: BRD v1.3 (21 Oct 2026), SeaStock Data Models (18 tables, 30 Oct 2026), Jira PIX-58.
+
+    Rules for every endpoint:
+    - Base path /api/v1. IDs are UUIDs. Times are UTC (RFC 3339); dates are YYYY-MM-DD.
+    - Two kinds of caller:
+      - Portal users (app_user): ppg_admin (every customer) or customer_admin (exactly one customer).
+        Their customer scope comes from the token's user, never from the request.
+      - Tablets (the enrolled device): role seastock_tablet. The vessel is the tablet's active
+        vessel_device_assignment, never a value sent by the tablet or read from paper.
+    - Out-of-scope rows are invisible: a portal user asking for another customer's vessel gets 404.
+    - Errors use RFC 9457 Problem Details (application/problem+json). The type URI is the stable
+      error code, e.g. /problems/article-not-active.
+    - Retried creates carry Idempotency-Key (portal) or a client-made ID in the body (tablet:
+      client_sync_id, client_event_id, client_dn_id, client_txn_id, client_scan_id). The same ID
+      again returns the first result and changes nothing.
+    - The stock ledger is insert-only: a mistake is corrected by a new adjustment, never by an edit.
+    - Every operation lists x-roles, x-brd (BRD v1.3 requirement IDs), x-ticket and x-sprint. Open
+      points are marked x-decision-pending (SD-1 to SD-10 in README.md) and are not guessed.
+servers:
+- url: /api/v1
+tags:
+- name: Operations
+paths:
+  /health:
+    get:
+      tags: [Operations]
+      operationId: getHealth
+      summary: Liveness probe (process is up); no auth, no data
+      x-roles: [public]
+      x-brd: [none]
+      x-ticket: PIX-58
+      x-sprint: SeaStock Sprint 3
+      security: []
+      responses:
+        '200':
+          description: Up
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status:
+                    type: string
+                    enum: [ok]
+components:
+  securitySchemes:
+    portalBearer:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        Access token of a portal user (PPG Admin or Customer Admin) from the identity provider
+        (Pixorex auth). Carries the user (sub = app_user.external_subject).
+    tabletBearer:
+      type: http
+      scheme: bearer
+      description: |
+        Credential issued to an enrolled tablet (device.credential_hash stores its hash). Only an
+        active device on an active assignment passes. Token format and whether requests are also
+        signed with the device key are set by the authentication story SS-FND-US02 (SD-1).
+  parameters:
+    VesselId:
+      name: vesselId
+      in: path
+      required: true
+      description: Vessel ID. Must be in the caller's customer scope (else 404).
+      schema:
+        $ref: '#/components/schemas/Uuid'
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: Client-made UUID that makes a retried portal create safe.
+      schema:
+        $ref: '#/components/schemas/Uuid'
+    Cursor:
+      name: cursor
+      in: query
+      required: false
+      description: Opaque cursor from the previous page's next_cursor.
+      schema:
+        type: string
+    Limit:
+      name: limit
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 25
+    CustomerFilter:
+      name: customer_id
+      in: query
+      required: false
+      description: Only this customer. A customer_admin may pass only their own customer (else 403).
+      schema:
+        $ref: '#/components/schemas/Uuid'
+    VesselFilter:
+      name: vessel_id
+      in: query
+      required: false
+      description: Only this vessel (must be in scope, else 404).
+      schema:
+        $ref: '#/components/schemas/Uuid'
+    From:
+      name: from
+      in: query
+      required: false
+      description: First day included (UTC date of recorded_at).
+      schema:
+        $ref: '#/components/schemas/Date'
+    To:
+      name: to
+      in: query
+      required: false
+      description: Last day included (UTC date of recorded_at). Must not be before from (400).
+      schema:
+        $ref: '#/components/schemas/Date'
+    ComponentTypeFilter:
+      name: component_type
+      in: query
+      required: false
+      schema:
+        $ref: '#/components/schemas/ComponentType'
+  schemas:
+    Uuid:
+      type: string
+      format: uuid
+      examples: [3f1c9a52-7d2e-4b8a-9c11-0a6e5b2f4d10]
+    Timestamp:
+      type: string
+      format: date-time
+      description: UTC, RFC 3339.
+      examples: ['2026-10-30T04:30:00Z']
+    Date:
+      type: string
+      format: date
+      examples: ['2026-10-30']
+    PageInfo:
+      type: object
+      required: [next_cursor]
+      properties:
+        next_cursor:
+          type: [string, 'null']
+          description: Null when there are no more pages.
+    Role:
+      type: string
+      description: app_user.role (Domain 1). Tablets are not app_users; they call with tabletBearer.
+      enum: [ppg_admin, customer_admin]
+    ArticleNumber:
+      type: string
+      description: PPG article number, exactly 6 digits in the master list (format to confirm against the PPG Excel, SD-8).
+      pattern: ^[0-9]{6}$
+      examples: ['179061']
+    ImoNumber:
+      type: string
+      description: The vessel ID. 7 digits with a valid IMO check digit.
+      pattern: ^[0-9]{7}$
+      examples: ['9074729']
+    ComponentType:
+      type: string
+      description: 1K product = 1K component; 2K product = base or hardener (D-10).
+      enum: [1K, base, hardener]
+    TxnType:
+      type: string
+      description: |
+        receipt (quantity > 0, from a delivery note line), baseline (> 0, opening stock),
+        consumption (< 0), adjustment (either sign, reason required).
+      enum: [receipt, baseline, consumption, adjustment]
+    TxnSource:
+      type: string
+      description: |
+        dn_scan or review_match for a receipt; label_scan, manual_entry or review_match for a
+        baseline or consumption; manual_adjustment for an adjustment.
+      enum: [dn_scan, label_scan, manual_entry, manual_adjustment, review_match]
+    Origin:
+      type: string
+      description: device = uploaded by a tablet (names no person); portal = recorded by a PPG Admin or Customer Admin.
+      enum: [device, portal]
+    CustomerRef:
+      type: object
+      required: [id, customer_code, name]
+      properties:
+        id:
+          $ref: '#/components/schemas/Uuid'
+        customer_code:
+          type: string
+          description: The customer ID in PPG systems.
+          examples: [C-1001]
+        name:
+          type: string
+          examples: [Alpha Shipping]
+    VesselRef:
+      type: object
+      required: [id, imo_number, name, customer]
+      properties:
+        id:
+          $ref: '#/components/schemas/Uuid'
+        imo_number:
+          $ref: '#/components/schemas/ImoNumber'
+        name:
+          type: string
+          examples: [MV Alpha One]
+        customer:
+          $ref: '#/components/schemas/CustomerRef'
+    ArticleRef:
+      type: object
+      required: [id, article_number, product_name, shade, product_type, component_type, pack_size, unit_volume_liters, status]
+      properties:
+        id:
+          $ref: '#/components/schemas/Uuid'
+        article_number:
+          $ref: '#/components/schemas/ArticleNumber'
+        product_name:
+          type: string
+          examples: [SIGMACOVER 350]
+        shade:
+          type: [string, 'null']
+          description: Null for hardeners and thinners.
+          examples: [Grey 5177]
+        product_type:
+          type: string
+          enum: [1K, 2K]
+        component_type:
+          $ref: '#/components/schemas/ComponentType'
+        pack_size:
+          type: string
+          description: As printed.
+          examples: [20 L]
+        unit_volume_liters:
+          type: number
+          exclusiveMinimum: 0
+          examples: [20]
+        status:
+          type: string
+          description: A retired article still matches scans.
+          enum: [active, retired]
+    DeviceRef:
+      type: object
+      required: [id, platform, model]
+      properties:
+        id:
+          $ref: '#/components/schemas/Uuid'
+        platform:
+          type: string
+          enum: [android, ios]
+        model:
+          type: string
+          examples: [Samsung Galaxy Tab Active5]
+    UserRef:
+      type: object
+      required: [id, full_name, role]
+      properties:
+        id:
+          $ref: '#/components/schemas/Uuid'
+        full_name:
+          type: string
+          examples: [Dana Whitfield]
+        role:
+          $ref: '#/components/schemas/Role'
+    Problem:
+      type: object
+      description: RFC 9457 Problem Details.
+      required: [type, title, status]
+      properties:
+        type:
+          type: string
+          format: uri-reference
+          description: Stable error code as a URI, e.g. /problems/reason-required.
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        instance:
+          type: string
+        correlation_id:
+          type: string
+          description: Same ID as in the audit log and server logs.
+        errors:
+          type: array
+          description: Field-level validation errors (400 only).
+          items:
+            type: object
+            required: [field, message]
+            properties:
+              field:
+                type: string
+              message:
+                type: string
+      examples:
+      - type: /problems/validation
+        title: Some fields are not valid
+        status: 400
+        correlation_id: 7b0c2e4a9f
+        errors:
+        - field: quantity_cans
+          message: Must not be 0.
+  responses:
+    BadRequest:
+      description: 'Invalid input. Problem types: /problems/validation.'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    Unauthorized:
+      description: Missing, expired or revoked token; for a tablet also a retired or revoked device (/problems/device-not-active).
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    Forbidden:
+      description: The caller's role may not do this, or a customer_admin asked for another customer.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    NotFound:
+      description: Not found, or not in the caller's scope (never reveals other customers' data).
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    Conflict:
+      description: Wrong state for this action, or idempotency conflict (/problems/idempotency-conflict).
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
