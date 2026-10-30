@@ -14,7 +14,7 @@ import { publishLabelSchema, useStore } from '../../data/store'
 import { useViewer } from '../../app/viewer'
 import { formatDateTime } from '../../lib/format'
 
-/** FR-27: the fields read from a can label and their rules, changed without a code change. */
+/** FR-26: the fields read from a can label and their rules, changed without a code change. */
 export function LabelSchemaPage() {
   useStore()
   const { user } = useViewer()
@@ -37,7 +37,7 @@ export function LabelSchemaPage() {
             >
               Discard
             </Button>
-            <Button disabled={!changed} onClick={() => publishLabelSchema(fields, user.id)}>
+            <Button disabled={!changed} onClick={() => publishLabelSchema(fields, user)}>
               Publish version {labelSchema.version + 1}
             </Button>
           </>
@@ -78,7 +78,7 @@ export function LabelSchemaPage() {
                 {
                   header: 'Used for',
                   width: 2,
-                  cell: (f) => <span className="text-body-sm">{f.role}</span>,
+                  cell: (f) => <span className="text-body-sm">{f.purpose}</span>,
                 },
                 {
                   header: 'Rule',

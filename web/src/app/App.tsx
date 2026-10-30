@@ -8,15 +8,14 @@ import { OverviewPage } from '../features/overview/OverviewPage'
 import { SeaStockPage } from '../features/seaStock/SeaStockPage'
 import { SignInPage } from '../features/signIn/SignInPage'
 import { Layout } from './Layout'
-import { homePath } from './navigation'
-import { DEMO_USER, useViewer, SessionProvider } from './viewer'
+import { HOME_PATH } from './navigation'
+import { DEMO_USER, SessionProvider } from './viewer'
 
 // A role demo or a standalone HTML file cannot change its address, so it keeps routes in memory.
 const Router = DEMO_USER || import.meta.env.VITE_STANDALONE ? MemoryRouter : BrowserRouter
 
 function Home() {
-  const { user } = useViewer()
-  return <Navigate to={homePath(user)} replace />
+  return <Navigate to={HOME_PATH} replace />
 }
 
 export function App() {

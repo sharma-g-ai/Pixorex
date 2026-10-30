@@ -5,11 +5,15 @@
  * All times are UTC.
  */
 import type {
+  Assignment,
+  AuditEntry,
   Customer,
   DeliveryNote,
+  Device,
+  EnrolmentCode,
   Item,
   LabelField,
-  Region,
+  QuarantinedEvent,
   Transaction,
   UnrecognisedScan,
   User,
@@ -19,107 +23,131 @@ import type {
 /** "Now" for the static screens. */
 export const NOW = '2026-10-21T16:00'
 
-export const regions: Region[] = [
-  { code: 'APAC', name: 'Asia Pacific' },
-  { code: 'EMEA', name: 'Europe, Middle East and Africa' },
-  { code: 'USCA', name: 'United States and Canada' },
-]
-
 export const customers: Customer[] = [
-  { id: 'c1', customerId: 'C-104512', name: 'Nordhavn Bulk Carriers', region: 'EMEA', status: 'active', addedOn: '2026-09-22' },
-  { id: 'c2', customerId: 'C-104530', name: 'Meridian Container Lines', region: 'EMEA', status: 'active', addedOn: '2026-09-22' },
-  { id: 'c3', customerId: 'C-208114', name: 'Pacific Crest Tankers', region: 'APAC', status: 'active', addedOn: '2026-09-24' },
-  { id: 'c4', customerId: 'C-208190', name: 'Straits Offshore Services', region: 'APAC', status: 'active', addedOn: '2026-10-15' },
-  { id: 'c5', customerId: 'C-310077', name: 'Atlantic Gulf Marine', region: 'USCA', status: 'active', addedOn: '2026-09-26' },
+  { id: 'c1', customerCode: 'C-104512', name: 'Nordhavn Bulk Carriers', status: 'active', addedOn: '2026-09-22' },
+  { id: 'c2', customerCode: 'C-104530', name: 'Meridian Container Lines', status: 'active', addedOn: '2026-09-22' },
+  { id: 'c3', customerCode: 'C-208114', name: 'Pacific Crest Tankers', status: 'active', addedOn: '2026-09-24' },
+  { id: 'c4', customerCode: 'C-208190', name: 'Straits Offshore Services', status: 'active', addedOn: '2026-10-15' },
+  { id: 'c5', customerCode: 'C-310077', name: 'Atlantic Gulf Marine', status: 'active', addedOn: '2026-09-26' },
 ]
 
 /** IMO number with its check digit (weights 7..2 over the first six digits). */
-function imo(six: string): string {
+export function imoWithCheckDigit(six: string): string {
   const sum = [...six].reduce((acc, d, i) => acc + Number(d) * (7 - i), 0)
-  return `IMO ${six}${sum % 10}`
+  return `${six}${sum % 10}`
+}
+
+function vessel(id: string, six: string, name: string, customer: string, baselineOn: string | null, lastSync: string | null, extra: Partial<Vessel> = {}): Vessel {
+  return { id, imo: imoWithCheckDigit(six), name, customer, receivingMode: 'scan', baselineOn, lastSync, status: 'active', passwordChangedAt: '2026-10-01T06:00', lastSignInAt: lastSync, ...extra }
 }
 
 export const vessels: Vessel[] = [
-  { id: 'v01', vesselId: 'V-50110', imo: imo('981234'), name: 'Nordhavn Aurora', customer: 'c1', device: { id: 'TAB-0101', platform: 'Android', appVersion: '1.0.3' }, baselineOn: '2026-10-01', lastSync: '2026-10-21T08:12', status: 'active' },
-  { id: 'v02', vesselId: 'V-50111', imo: imo('981235'), name: 'Nordhavn Borealis', customer: 'c1', device: { id: 'TAB-0102', platform: 'Android', appVersion: '1.0.3' }, baselineOn: '2026-10-01', lastSync: '2026-10-20T22:40', status: 'active' },
-  { id: 'v03', vesselId: 'V-50112', imo: imo('979041'), name: 'Nordhavn Fjord', customer: 'c1', device: { id: 'TAB-0103', platform: 'iOS', appVersion: '1.0.3' }, baselineOn: '2026-10-02', lastSync: '2026-10-19T06:15', status: 'active' },
-  { id: 'v04', vesselId: 'V-50113', imo: imo('979042'), name: 'Nordhavn Skagen', customer: 'c1', device: { id: 'TAB-0104', platform: 'Android', appVersion: '1.0.2' }, baselineOn: '2026-10-02', lastSync: '2026-10-14T11:30', status: 'active' },
-  { id: 'v05', vesselId: 'V-50210', imo: imo('984660'), name: 'Meridian Valencia', customer: 'c2', device: { id: 'TAB-0201', platform: 'iOS', appVersion: '1.0.3' }, baselineOn: '2026-10-01', lastSync: '2026-10-21T05:50', status: 'active' },
-  { id: 'v06', vesselId: 'V-50211', imo: imo('984661'), name: 'Meridian Genoa', customer: 'c2', device: { id: 'TAB-0202', platform: 'iOS', appVersion: '1.0.3' }, baselineOn: '2026-10-03', lastSync: '2026-10-18T13:05', status: 'active' },
-  { id: 'v07', vesselId: 'V-60310', imo: imo('977120'), name: 'Pacific Crest Osprey', customer: 'c3', device: { id: 'TAB-0301', platform: 'Android', appVersion: '1.0.3' }, baselineOn: '2026-10-01', lastSync: '2026-10-20T03:20', status: 'active' },
-  { id: 'v08', vesselId: 'V-60311', imo: imo('977121'), name: 'Pacific Crest Kestrel', customer: 'c3', device: { id: 'TAB-0302', platform: 'Android', appVersion: '1.0.3' }, baselineOn: '2026-10-02', lastSync: '2026-10-17T09:45', status: 'active' },
-  { id: 'v09', vesselId: 'V-60312', imo: imo('980335'), name: 'Pacific Crest Harrier', customer: 'c3', device: { id: 'TAB-0303', platform: 'iOS', appVersion: '1.0.3' }, baselineOn: '2026-10-04', lastSync: '2026-10-21T01:10', status: 'active' },
-  { id: 'v10', vesselId: 'V-70410', imo: imo('975523'), name: 'Gulf Pioneer', customer: 'c5', device: { id: 'TAB-0501', platform: 'Android', appVersion: '1.0.3' }, baselineOn: '2026-10-01', lastSync: '2026-10-21T10:25', status: 'active' },
-  { id: 'v11', vesselId: 'V-70411', imo: imo('975524'), name: 'Gulf Sentinel', customer: 'c5', device: { id: 'TAB-0502', platform: 'Android', appVersion: '1.0.1' }, baselineOn: '2026-10-03', lastSync: '2026-10-12T16:00', status: 'active' },
-  { id: 'v12', vesselId: 'V-60420', imo: imo('986771'), name: 'Straits Endeavour', customer: 'c4', device: { id: 'TAB-0401', platform: 'Android', appVersion: '1.0.3' }, baselineOn: null, lastSync: null, status: 'active' },
+  vessel('v01', '981234', 'Nordhavn Aurora', 'c1', '2026-10-01', '2026-10-21T08:12'),
+  vessel('v02', '981235', 'Nordhavn Borealis', 'c1', '2026-10-01', '2026-10-20T22:40'),
+  vessel('v03', '979041', 'Nordhavn Fjord', 'c1', '2026-10-02', '2026-10-19T06:15'),
+  vessel('v04', '979042', 'Nordhavn Skagen', 'c1', '2026-10-02', '2026-10-14T11:30', { passwordChangedAt: '2026-10-12T09:00' }),
+  vessel('v05', '984660', 'Meridian Valencia', 'c2', '2026-10-01', '2026-10-21T05:50'),
+  vessel('v06', '984661', 'Meridian Genoa', 'c2', '2026-10-03', '2026-10-18T13:05', { receivingMode: 'manual' }),
+  vessel('v07', '977120', 'Pacific Crest Osprey', 'c3', '2026-10-01', '2026-10-20T03:20'),
+  vessel('v08', '977121', 'Pacific Crest Kestrel', 'c3', '2026-10-02', '2026-10-17T09:45'),
+  vessel('v09', '980335', 'Pacific Crest Harrier', 'c3', '2026-10-04', '2026-10-21T01:10'),
+  vessel('v10', '975523', 'Gulf Pioneer', 'c5', '2026-10-01', '2026-10-21T10:25'),
+  vessel('v11', '975524', 'Gulf Sentinel', 'c5', '2026-10-03', '2026-10-12T16:00'),
+  vessel('v12', '986771', 'Straits Endeavour', 'c4', null, null, { passwordChangedAt: null, lastSignInAt: null }),
+]
+
+function device(id: string, platform: Device['platform'], model: string, appVersion: string, enrolledAt: string, firstSyncedAt: string | null, extra: Partial<Device> = {}): Device {
+  return { id, platform, model, modelSupported: true, osVersion: platform === 'Android' ? '14' : '17.6', appVersion, status: 'active', enrolledAt, firstSyncedAt, retireRequestedAt: null, retiredAt: null, revokedAt: null, revokeReason: null, ...extra }
+}
+
+export const devices: Device[] = [
+  device('TAB-0101', 'Android', 'Samsung Galaxy Tab Active5', '1.0.3', '2026-09-30T07:00', '2026-10-01T09:00'),
+  device('TAB-0102', 'Android', 'Samsung Galaxy Tab Active5', '1.0.3', '2026-09-30T07:20', '2026-10-01T10:00'),
+  device('TAB-0103', 'iOS', 'iPad (10th generation)', '1.0.3', '2026-10-01T06:00', '2026-10-02T09:00'),
+  device('TAB-0104', 'Android', 'Samsung Galaxy Tab Active5', '1.0.2', '2026-10-01T06:30', '2026-10-02T09:30'),
+  device('TAB-0201', 'iOS', 'iPad (10th generation)', '1.0.3', '2026-09-30T08:00', '2026-10-01T11:00'),
+  device('TAB-0202', 'iOS', 'iPad (10th generation)', '1.0.3', '2026-10-02T08:00', '2026-10-03T12:00'),
+  device('TAB-0301', 'Android', 'Samsung Galaxy Tab Active5', '1.0.3', '2026-09-30T02:00', '2026-10-01T03:00'),
+  device('TAB-0302', 'Android', 'Lenovo Tab M10 (3rd gen)', '1.0.3', '2026-10-01T02:00', '2026-10-02T04:00', { modelSupported: false }),
+  device('TAB-0303', 'iOS', 'iPad (10th generation)', '1.0.3', '2026-10-03T02:00', '2026-10-04T05:00'),
+  device('TAB-0501', 'Android', 'Samsung Galaxy Tab Active5', '1.0.3', '2026-09-30T12:00', '2026-10-01T15:00'),
+  device('TAB-0502', 'Android', 'Samsung Galaxy Tab Active5', '1.0.1', '2026-10-02T12:00', '2026-10-03T16:00'),
+  device('TAB-0099', 'Android', 'Samsung Galaxy Tab Active3', '1.0.1', '2026-09-25T07:00', '2026-09-26T08:00', { status: 'retired', retireRequestedAt: '2026-09-29T09:00', retiredAt: '2026-09-30T06:00' }),
+]
+
+export const assignments: Assignment[] = [
+  ...[['v01', 'TAB-0101'], ['v02', 'TAB-0102'], ['v03', 'TAB-0103'], ['v04', 'TAB-0104'], ['v05', 'TAB-0201'], ['v06', 'TAB-0202'],
+    ['v07', 'TAB-0301'], ['v08', 'TAB-0302'], ['v09', 'TAB-0303'], ['v10', 'TAB-0501'], ['v11', 'TAB-0502']].map(([v, d]) => ({
+    id: `as-${v}`,
+    vessel: v as string,
+    device: d as string,
+    assignedAt: devices.find((x) => x.id === d)?.enrolledAt ?? NOW,
+    unassignedAt: null,
+    unassignReason: null,
+  })),
+  { id: 'as-old', vessel: 'v01', device: 'TAB-0099', assignedAt: '2026-09-25T07:00', unassignedAt: '2026-09-30T07:00', unassignReason: 'Replaced by TAB-0101' },
+]
+
+export const enrolmentCodes: EnrolmentCode[] = [
+  { id: 'ec1', vessel: 'v12', code: 'K7QM-4XPD', issuedBy: 'u02', issuedAt: '2026-10-20T09:00', expiresAt: '2026-10-23T09:00', allowsReplacement: false, status: 'issued' },
 ]
 
 export const items: Item[] = [
-  { articleNo: '179061', product: 'SIGMACOVER 350', shade: 'Grey 5177', componentType: 'Base', packSize: '20 L', unitVolume: 20, status: 'active' },
-  { articleNo: '179063', product: 'SIGMACOVER 350', shade: 'Red brown 6179', componentType: 'Base', packSize: '20 L', unitVolume: 20, status: 'active' },
-  { articleNo: '179062', product: 'SIGMACOVER 350', shade: '', componentType: 'Hardener', packSize: '5 L', unitVolume: 5, status: 'active' },
-  { articleNo: '184102', product: 'SIGMADUR 550', shade: 'White 7000', componentType: 'Base', packSize: '20 L', unitVolume: 20, status: 'active' },
-  { articleNo: '184105', product: 'SIGMADUR 550', shade: 'Signal red 3000', componentType: 'Base', packSize: '5 L', unitVolume: 5, status: 'active' },
-  { articleNo: '184103', product: 'SIGMADUR 550', shade: '', componentType: 'Hardener', packSize: '2.5 L', unitVolume: 2.5, status: 'active' },
-  { articleNo: '181201', product: 'SIGMAPRIME 200', shade: 'Yellow green', componentType: 'Base', packSize: '20 L', unitVolume: 20, status: 'active' },
-  { articleNo: '181202', product: 'SIGMAPRIME 200', shade: '', componentType: 'Hardener', packSize: '5 L', unitVolume: 5, status: 'active' },
-  { articleNo: '187401', product: 'SIGMAGUARD CSF 585', shade: 'Off-white', componentType: 'Base', packSize: '20 L', unitVolume: 20, status: 'active' },
-  { articleNo: '187402', product: 'SIGMAGUARD CSF 585', shade: '', componentType: 'Hardener', packSize: '5 L', unitVolume: 5, status: 'active' },
-  { articleNo: '100292', product: 'PPG THINNER 91-92', shade: '', componentType: '1K', packSize: '20 L', unitVolume: 20, status: 'active' },
-  { articleNo: '100293', product: 'PPG THINNER 21-06', shade: '', componentType: '1K', packSize: '20 L', unitVolume: 20, status: 'active' },
-  { articleNo: '175510', product: 'SIGMACOVER 280', shade: 'Grey 5177', componentType: 'Base', packSize: '20 L', unitVolume: 20, status: 'retired' },
-  { articleNo: '175511', product: 'SIGMACOVER 280', shade: '', componentType: 'Hardener', packSize: '5 L', unitVolume: 5, status: 'retired' },
+  { articleNo: '179061', product: 'SIGMACOVER 350', shade: 'Grey 5177', productType: '2K', componentType: 'Base', packSize: '20 L', unitVolume: 20, status: 'active' },
+  { articleNo: '179063', product: 'SIGMACOVER 350', shade: 'Red brown 6179', productType: '2K', componentType: 'Base', packSize: '20 L', unitVolume: 20, status: 'active' },
+  { articleNo: '179062', product: 'SIGMACOVER 350', shade: '', productType: '2K', componentType: 'Hardener', packSize: '5 L', unitVolume: 5, status: 'active' },
+  { articleNo: '184102', product: 'SIGMADUR 550', shade: 'White 7000', productType: '2K', componentType: 'Base', packSize: '20 L', unitVolume: 20, status: 'active' },
+  { articleNo: '184105', product: 'SIGMADUR 550', shade: 'Signal red 3000', productType: '2K', componentType: 'Base', packSize: '5 L', unitVolume: 5, status: 'active' },
+  { articleNo: '184103', product: 'SIGMADUR 550', shade: '', productType: '2K', componentType: 'Hardener', packSize: '2.5 L', unitVolume: 2.5, status: 'active' },
+  { articleNo: '181201', product: 'SIGMAPRIME 200', shade: 'Yellow green', productType: '2K', componentType: 'Base', packSize: '20 L', unitVolume: 20, status: 'active' },
+  { articleNo: '181202', product: 'SIGMAPRIME 200', shade: '', productType: '2K', componentType: 'Hardener', packSize: '5 L', unitVolume: 5, status: 'active' },
+  { articleNo: '187401', product: 'SIGMAGUARD CSF 585', shade: 'Off-white', productType: '2K', componentType: 'Base', packSize: '20 L', unitVolume: 20, status: 'active' },
+  { articleNo: '187402', product: 'SIGMAGUARD CSF 585', shade: '', productType: '2K', componentType: 'Hardener', packSize: '5 L', unitVolume: 5, status: 'active' },
+  { articleNo: '100292', product: 'PPG THINNER 91-92', shade: '', productType: '1K', componentType: '1K', packSize: '20 L', unitVolume: 20, status: 'active' },
+  { articleNo: '100293', product: 'PPG THINNER 21-06', shade: '', productType: '1K', componentType: '1K', packSize: '20 L', unitVolume: 20, status: 'active' },
+  { articleNo: '175510', product: 'SIGMACOVER 280', shade: 'Grey 5177', productType: '2K', componentType: 'Base', packSize: '20 L', unitVolume: 20, status: 'retired' },
+  { articleNo: '175511', product: 'SIGMACOVER 280', shade: '', productType: '2K', componentType: 'Hardener', packSize: '5 L', unitVolume: 5, status: 'retired' },
 ]
+
+const accepted = (sentAt: string) => ({ status: 'accepted' as const, sentAt, expiresAt: sentAt })
 
 export const users: User[] = [
-  { id: 'u01', name: 'Dana Whitfield', email: 'dana.whitfield@ppg.example', title: 'Sea Stock administrator', role: 'ppg-admin', scope: { kind: 'all' }, status: 'active', lastSignIn: '2026-10-21T14:05' },
-  { id: 'u02', name: 'Lars Eriksen', email: 'lars.eriksen@ppg.example', title: 'Marine sales', role: 'ppg-admin', scope: { kind: 'regions', regions: ['EMEA'] }, status: 'active', lastSignIn: '2026-10-20T09:31' },
-  { id: 'u03', name: 'Mei Lin Tan', email: 'meilin.tan@ppg.example', title: 'Marine sales', role: 'ppg-admin', scope: { kind: 'customers', customers: ['c3', 'c4'] }, status: 'active', lastSignIn: '2026-10-21T02:47' },
-  { id: 'u04', name: 'Carlos Rivera', email: 'carlos.rivera@ppg.example', title: 'Marine sales', role: 'ppg-admin', scope: { kind: 'regions', regions: ['USCA'] }, status: 'active', lastSignIn: '2026-10-19T17:12' },
-  { id: 'u05', name: 'Tom Hughes', email: 'tom.hughes@ppg.example', title: 'Marine sales', role: 'ppg-admin', scope: { kind: 'regions', regions: ['EMEA'] }, status: 'disabled', lastSignIn: '2026-09-30T08:00' },
-  { id: 'u06', name: 'Ingrid Solberg', email: 'ingrid.solberg@nordhavn.example', title: 'Fleet Manager', role: 'customer-admin', scope: { kind: 'customer', customer: 'c1' }, status: 'active', lastSignIn: '2026-10-21T07:58' },
-  { id: 'u07', name: 'Piotr Nowak', email: 'piotr.nowak@nordhavn.example', title: 'Procurement', role: 'customer-admin', scope: { kind: 'customer', customer: 'c1' }, status: 'active', lastSignIn: '2026-10-20T12:20' },
-  { id: 'u08', name: 'Sofia Marino', email: 'sofia.marino@meridian.example', title: 'Fleet Manager', role: 'customer-admin', scope: { kind: 'customer', customer: 'c2' }, status: 'active', lastSignIn: '2026-10-18T10:02' },
-  { id: 'u09', name: 'Arjun Rao', email: 'arjun.rao@pacificcrest.example', title: 'Fleet Manager', role: 'customer-admin', scope: { kind: 'customer', customer: 'c3' }, status: 'active', lastSignIn: '2026-10-21T03:15' },
-  { id: 'u10', name: 'Nur Aisyah', email: 'nur.aisyah@straits.example', title: 'Procurement', role: 'customer-admin', scope: { kind: 'customer', customer: 'c4' }, status: 'invited', lastSignIn: null },
-  { id: 'u11', name: 'Emily Brooks', email: 'emily.brooks@atlanticgulf.example', title: 'Fleet Manager', role: 'customer-admin', scope: { kind: 'customer', customer: 'c5' }, status: 'active', lastSignIn: '2026-10-20T15:40' },
-  { id: 'u12', name: 'Erik Lund', email: 'co.aurora@nordhavn.example', title: 'Chief Officer', role: 'ship-admin', scope: { kind: 'vessel', vessel: 'v01' }, status: 'active', lastSignIn: '2026-10-20T06:30' },
-  { id: 'u13', name: 'Jonas Berg', email: 'co.borealis@nordhavn.example', title: 'Chief Officer', role: 'ship-admin', scope: { kind: 'vessel', vessel: 'v02' }, status: 'active', lastSignIn: '2026-10-19T05:10' },
-  { id: 'u14', name: 'Mikkel Dahl', email: 'co.fjord@nordhavn.example', title: 'Chief Officer', role: 'ship-admin', scope: { kind: 'vessel', vessel: 'v03' }, status: 'active', lastSignIn: '2026-10-15T07:45' },
-  { id: 'u15', name: 'Henrik Moe', email: 'co.skagen@nordhavn.example', title: 'Chief Officer', role: 'ship-admin', scope: { kind: 'vessel', vessel: 'v04' }, status: 'active', lastSignIn: '2026-10-05T08:20' },
-  { id: 'u16', name: 'Marco Ferri', email: 'co.valencia@meridian.example', title: 'Chief Officer', role: 'ship-admin', scope: { kind: 'vessel', vessel: 'v05' }, status: 'active', lastSignIn: '2026-10-18T09:00' },
-  { id: 'u17', name: 'Luca Bianchi', email: 'co.genoa@meridian.example', title: 'Chief Officer', role: 'ship-admin', scope: { kind: 'vessel', vessel: 'v06' }, status: 'active', lastSignIn: '2026-10-07T11:25' },
-  { id: 'u18', name: 'Rizal Santos', email: 'co.osprey@pacificcrest.example', title: 'Chief Officer', role: 'ship-admin', scope: { kind: 'vessel', vessel: 'v07' }, status: 'active', lastSignIn: '2026-10-16T01:40' },
-  { id: 'u19', name: 'Thanh Nguyen', email: 'co.kestrel@pacificcrest.example', title: 'Chief Officer', role: 'ship-admin', scope: { kind: 'vessel', vessel: 'v08' }, status: 'active', lastSignIn: '2026-10-13T04:10' },
-  { id: 'u20', name: 'Kenji Sato', email: 'co.harrier@pacificcrest.example', title: 'Chief Officer', role: 'ship-admin', scope: { kind: 'vessel', vessel: 'v09' }, status: 'active', lastSignIn: '2026-10-20T00:35' },
-  { id: 'u21', name: 'James Carter', email: 'co.pioneer@atlanticgulf.example', title: 'Chief Officer', role: 'ship-admin', scope: { kind: 'vessel', vessel: 'v10' }, status: 'active', lastSignIn: '2026-10-18T13:15' },
-  { id: 'u22', name: 'Daniel Ortiz', email: 'co.sentinel@atlanticgulf.example', title: 'Chief Officer', role: 'ship-admin', scope: { kind: 'vessel', vessel: 'v11' }, status: 'active', lastSignIn: '2026-10-11T12:00' },
-  { id: 'u23', name: 'Ahmad Faisal', email: 'co.endeavour@straits.example', title: 'Chief Officer', role: 'ship-admin', scope: { kind: 'vessel', vessel: 'v12' }, status: 'invited', lastSignIn: null },
+  { id: 'u01', name: 'Dana Whitfield', email: 'dana.whitfield@ppg.example', title: 'Sea Stock administrator', role: 'ppg-admin', scope: { kind: 'all' }, status: 'active', lastSignIn: '2026-10-21T14:05', invite: accepted('2026-09-20T08:00') },
+  { id: 'u02', name: 'Lars Eriksen', email: 'lars.eriksen@ppg.example', title: 'Marine sales', role: 'ppg-admin', scope: { kind: 'all' }, status: 'active', lastSignIn: '2026-10-20T09:31', invite: accepted('2026-09-21T08:00') },
+  { id: 'u03', name: 'Mei Lin Tan', email: 'meilin.tan@ppg.example', title: 'Marine sales', role: 'ppg-admin', scope: { kind: 'all' }, status: 'active', lastSignIn: '2026-10-21T02:47', invite: accepted('2026-09-21T08:10') },
+  { id: 'u05', name: 'Tom Hughes', email: 'tom.hughes@ppg.example', title: 'Marine sales', role: 'ppg-admin', scope: { kind: 'all' }, status: 'disabled', lastSignIn: '2026-09-30T08:00', invite: accepted('2026-09-21T08:20') },
+  { id: 'u06', name: 'Ingrid Solberg', email: 'ingrid.solberg@nordhavn.example', title: 'Fleet Manager', role: 'customer-admin', scope: { kind: 'customer', customer: 'c1' }, status: 'active', lastSignIn: '2026-10-21T07:58', invite: accepted('2026-09-22T09:00') },
+  { id: 'u07', name: 'Piotr Nowak', email: 'piotr.nowak@nordhavn.example', title: 'Procurement', role: 'customer-admin', scope: { kind: 'customer', customer: 'c1' }, status: 'active', lastSignIn: '2026-10-20T12:20', invite: accepted('2026-09-22T09:05') },
+  { id: 'u08', name: 'Sofia Marino', email: 'sofia.marino@meridian.example', title: 'Fleet Manager', role: 'customer-admin', scope: { kind: 'customer', customer: 'c2' }, status: 'active', lastSignIn: '2026-10-18T10:02', invite: accepted('2026-09-22T10:00') },
+  { id: 'u09', name: 'Arjun Rao', email: 'arjun.rao@pacificcrest.example', title: 'Fleet Manager', role: 'customer-admin', scope: { kind: 'customer', customer: 'c3' }, status: 'active', lastSignIn: '2026-10-21T03:15', invite: accepted('2026-09-24T03:00') },
+  { id: 'u10', name: 'Nur Aisyah', email: 'nur.aisyah@straits.example', title: 'Procurement', role: 'customer-admin', scope: { kind: 'customer', customer: 'c4' }, status: 'invited', lastSignIn: null, invite: { status: 'pending', sentAt: '2026-10-20T04:00', expiresAt: '2026-10-27T04:00' } },
+  { id: 'u11', name: 'Emily Brooks', email: 'emily.brooks@atlanticgulf.example', title: 'Fleet Manager', role: 'customer-admin', scope: { kind: 'customer', customer: 'c5' }, status: 'active', lastSignIn: '2026-10-20T15:40', invite: accepted('2026-09-26T14:00') },
+  { id: 'u12', name: 'Priya Nair', email: 'priya.nair@meridian.example', title: 'Procurement', role: 'customer-admin', scope: { kind: 'customer', customer: 'c2' }, status: 'invited', lastSignIn: null, invite: { status: 'expired', sentAt: '2026-10-05T09:00', expiresAt: '2026-10-12T09:00' } },
 ]
 
-/** The vessel user who records on each vessel's device. */
-function crewOf(vessel: string): User {
-  const user = users.find((u) => u.scope.kind === 'vessel' && u.scope.vessel === vessel)
-  if (!user) throw new Error(`No vessel user for ${vessel}`)
-  return user
+/** The vessel's active tablet, from the assignments. */
+export function activeDeviceOf(vesselId: string): string | null {
+  return assignments.find((a) => a.vessel === vesselId && a.unassignedAt === null)?.device ?? null
 }
 
 export const deliveryNotes: DeliveryNote[] = [
   {
-    dnNumber: '5324641215', dnDate: '2026-10-14', vessel: 'v01', customerReference: 'PO 4500912273',
-    capturedBy: 'u12', capturedAt: '2026-10-14T15:42', syncedAt: '2026-10-14T19:05',
+    dnNumber: '5324641215', dnDate: '2026-10-14', vessel: 'v01', device: 'TAB-0101', customerReference: 'PO 4500912273',
+    imoOnNote: imoWithCheckDigit('981234'), vesselNameOnNote: 'NORDHAVN AURORA', imoCheck: 'match',
+    capturedAt: '2026-10-14T15:20', confirmedAt: '2026-10-14T15:42', receivedAt: '2026-10-14T19:05',
     lines: [
       { articleNo: '179061', dnCans: 8, receivedCans: 8, result: 'matched' },
       { articleNo: '179062', dnCans: 6, receivedCans: 6, result: 'matched' },
       { articleNo: '184102', dnCans: 4, receivedCans: 3, result: 'short', reason: 'One can dented and leaking; not taken into the locker.' },
       { articleNo: '184103', dnCans: 4, receivedCans: 4, result: 'matched' },
       { articleNo: '100293', dnCans: 2, receivedCans: 3, result: 'over', reason: 'Three cans delivered; the note lists two.' },
-      { articleNo: '181201', dnCans: 0, receivedCans: 2, result: 'not-on-note', reason: 'Delivered with this order but not listed on the note.' },
+      { articleNo: '181201', dnCans: null, receivedCans: 2, result: 'not-on-note', reason: 'Delivered with this order but not listed on the note.' },
     ],
   },
   {
-    dnNumber: '5324650871', dnDate: '2026-10-09', vessel: 'v05', customerReference: 'PO 4500913390',
-    capturedBy: 'u16', capturedAt: '2026-10-09T10:20', syncedAt: '2026-10-09T18:44',
+    dnNumber: '5324650871', dnDate: '2026-10-09', vessel: 'v05', device: 'TAB-0201', customerReference: 'PO 4500913390',
+    imoOnNote: imoWithCheckDigit('984660'), vesselNameOnNote: 'MERIDIAN VALENCIA', imoCheck: 'match',
+    capturedAt: '2026-10-09T10:05', confirmedAt: '2026-10-09T10:20', receivedAt: '2026-10-09T18:44',
     lines: [
       { articleNo: '184102', dnCans: 6, receivedCans: 6, result: 'matched' },
       { articleNo: '184103', dnCans: 8, receivedCans: 8, result: 'matched' },
@@ -127,17 +155,20 @@ export const deliveryNotes: DeliveryNote[] = [
     ],
   },
   {
-    dnNumber: '5324655402', dnDate: '2026-10-11', vessel: 'v07', customerReference: 'SO-88213',
-    capturedBy: 'u18', capturedAt: '2026-10-11T02:05', syncedAt: '2026-10-12T04:30',
+    dnNumber: '5324655402', dnDate: '2026-10-11', vessel: 'v07', device: 'TAB-0301', customerReference: 'SO-88213',
+    imoOnNote: null, vesselNameOnNote: 'PACIFIC CREST OSPREY', imoCheck: 'not_read',
+    capturedAt: '2026-10-11T01:50', confirmedAt: '2026-10-11T02:05', receivedAt: '2026-10-12T04:30',
     lines: [
       { articleNo: '187401', dnCans: 10, receivedCans: 10, result: 'matched' },
       { articleNo: '187402', dnCans: 8, receivedCans: 8, result: 'matched' },
       { articleNo: '100293', dnCans: 4, receivedCans: 0, result: 'not-received', reason: 'Not on the barge; supplier to send with the next delivery.' },
+      { articleNo: '189955', dnCans: 2, receivedCans: 2, result: 'matched' },
     ],
   },
   {
-    dnNumber: '5324660119', dnDate: '2026-10-16', vessel: 'v10', customerReference: 'PO 77120-GP',
-    capturedBy: 'u21', capturedAt: '2026-10-16T14:10', syncedAt: '2026-10-16T21:02',
+    dnNumber: '5324660119', dnDate: '2026-10-16', vessel: 'v10', device: 'TAB-0501', customerReference: 'PO 77120-GP',
+    imoOnNote: imoWithCheckDigit('975523'), vesselNameOnNote: 'GULF PIONEER', imoCheck: 'match',
+    capturedAt: '2026-10-16T13:55', confirmedAt: '2026-10-16T14:10', receivedAt: '2026-10-16T21:02',
     lines: [
       { articleNo: '179061', dnCans: 6, receivedCans: 6, result: 'matched' },
       { articleNo: '179062', dnCans: 4, receivedCans: 4, result: 'matched' },
@@ -145,8 +176,9 @@ export const deliveryNotes: DeliveryNote[] = [
     ],
   },
   {
-    dnNumber: '5324662580', dnDate: '2026-10-18', vessel: 'v02', customerReference: 'PO 4500914028',
-    capturedBy: 'u13', capturedAt: '2026-10-18T08:55', syncedAt: '2026-10-18T16:20',
+    dnNumber: '5324662580', dnDate: '2026-10-18', vessel: 'v02', device: 'TAB-0102', customerReference: 'PO 4500914028',
+    imoOnNote: imoWithCheckDigit('981235'), vesselNameOnNote: 'NORDHAVN BOREALIS', imoCheck: 'match',
+    capturedAt: '2026-10-18T08:40', confirmedAt: '2026-10-18T08:55', receivedAt: '2026-10-18T16:20',
     lines: [
       { articleNo: '179061', dnCans: 4, receivedCans: 4, result: 'matched' },
       { articleNo: '179062', dnCans: 4, receivedCans: 4, result: 'matched' },
@@ -155,8 +187,10 @@ export const deliveryNotes: DeliveryNote[] = [
     ],
   },
   {
-    dnNumber: '5324664017', dnDate: '2026-10-20', vessel: 'v09', customerReference: 'SO-88407',
-    capturedBy: 'u20', capturedAt: '2026-10-20T07:30', syncedAt: '2026-10-21T01:10',
+    // The IMO on the paper is a sister ship's: received on this vessel anyway, listed for review.
+    dnNumber: '5324664017', dnDate: '2026-10-20', vessel: 'v09', device: 'TAB-0303', customerReference: 'SO-88407',
+    imoOnNote: imoWithCheckDigit('977121'), vesselNameOnNote: 'PACIFIC CREST KESTREL', imoCheck: 'mismatch',
+    capturedAt: '2026-10-20T07:15', confirmedAt: '2026-10-20T07:30', receivedAt: '2026-10-21T01:10',
     lines: [
       { articleNo: '179063', dnCans: 6, receivedCans: 6, result: 'matched' },
       { articleNo: '179062', dnCans: 4, receivedCans: 5, result: 'over', reason: 'One extra hardener can delivered.' },
@@ -210,12 +244,12 @@ const consumption: [string, string, number, string][] = [
   ['v10', '184103', 2, '2026-10-18T15:21'],
   ['v11', '181201', 2, '2026-10-11T12:30'], ['v11', '181202', 2, '2026-10-11T12:31'],
   ['v11', '100292', 1, '2026-10-11T12:32'],
-  // Recorded after the last sync: still on the device, so not shown in the portal.
+  // Recorded after the last sync: still on the tablet, so not shown in the portal.
   ['v11', '184102', 1, '2026-10-19T10:00'],
 ]
 
-/** Stock corrections outside a receipt (FR-13): [vessel, article, cans, recorded at, reason]. */
-const adjustments: [string, string, number, string, string][] = [
+/** Stock corrections made on the tablet (FR-13): [vessel, article, cans, recorded at, reason]. */
+const tabletAdjustments: [string, string, number, string, string][] = [
   ['v03', '187402', -1, '2026-10-17T10:30', 'Can found damaged during a locker check; disposed of.'],
   ['v08', '100293', 1, '2026-10-13T05:00', 'Can found in the locker that was missed in the opening count.'],
 ]
@@ -226,9 +260,9 @@ function addHours(at: string, hours: number): string {
   return d.toISOString().slice(0, 16)
 }
 
-/** When a transaction reached the server: about a day later, never after the last sync. */
-function syncedAt(vessel: string, recordedAt: string): string | null {
-  const last = vessels.find((v) => v.id === vessel)?.lastSync
+/** When a tablet row reached the server: about a day later, never after the last sync. */
+function receivedAt(vesselId: string, recordedAt: string): string | null {
+  const last = vessels.find((v) => v.id === vesselId)?.lastSync
   if (!last || recordedAt > last) return null
   const next = addHours(recordedAt, 20)
   return next < last ? next : last
@@ -236,58 +270,83 @@ function syncedAt(vessel: string, recordedAt: string): string | null {
 
 function buildTransactions(): Transaction[] {
   const out: Omit<Transaction, 'id'>[] = []
-  const push = (t: Omit<Transaction, 'id' | 'user' | 'device' | 'syncedAt'>) => {
-    const synced = syncedAt(t.vessel, t.recordedAt)
-    if (!synced) return
-    const vessel = vessels.find((v) => v.id === t.vessel)
-    out.push({ ...t, user: crewOf(t.vessel).id, device: vessel?.device?.id ?? '', syncedAt: synced })
+  const fromTablet = (t: Omit<Transaction, 'id' | 'origin' | 'device' | 'recordedBy' | 'receivedAt'>) => {
+    const at = receivedAt(t.vessel, t.recordedAt)
+    if (!at) return
+    out.push({ ...t, origin: 'device', device: activeDeviceOf(t.vessel), recordedBy: null, receivedAt: at })
   }
+  const known = (articleNo: string) => items.some((i) => i.articleNo === articleNo)
 
-  for (const [vessel, lines] of Object.entries(baselines)) {
-    const on = vessels.find((v) => v.id === vessel)?.baselineOn ?? '2026-10-01'
+  for (const [vesselId, lines] of Object.entries(baselines)) {
+    const on = vessels.find((v) => v.id === vesselId)?.baselineOn ?? '2026-10-01'
     lines.forEach(([articleNo, cans], i) =>
-      push({ type: 'baseline', vessel, articleNo, cans, recordedAt: `${on}T08:${String(10 + i).padStart(2, '0')}`, source: 'Label scan' }),
+      fromTablet({ type: 'baseline', vessel: vesselId, articleNo, cans, recordedAt: `${on}T08:${String(10 + i).padStart(2, '0')}`, source: 'Label scan' }),
     )
   }
   for (const dn of deliveryNotes) {
     for (const line of dn.lines) {
-      if (line.receivedCans === 0) continue
-      push({ type: 'receipt', vessel: dn.vessel, articleNo: line.articleNo, cans: line.receivedCans, recordedAt: dn.capturedAt, source: 'DN scan', dn: dn.dnNumber, reason: line.reason })
+      // Unknown article numbers are held as unrecognised scans, not posted.
+      if (line.receivedCans === 0 || !known(line.articleNo)) continue
+      fromTablet({ type: 'receipt', vessel: dn.vessel, articleNo: line.articleNo, cans: line.receivedCans, recordedAt: dn.confirmedAt, source: 'DN scan', dn: dn.dnNumber })
     }
   }
-  for (const [vessel, articleNo, cans, recordedAt] of consumption) {
-    push({ type: 'consumption', vessel, articleNo, cans: -cans, recordedAt, source: 'Label scan' })
+  for (const [vesselId, articleNo, cans, recordedAt] of consumption) {
+    fromTablet({ type: 'consumption', vessel: vesselId, articleNo, cans: -cans, recordedAt, source: 'Label scan' })
   }
-  for (const [vessel, articleNo, cans, recordedAt, reason] of adjustments) {
-    push({ type: 'adjustment', vessel, articleNo, cans, recordedAt, source: 'Manual adjustment', reason })
+  for (const [vesselId, articleNo, cans, recordedAt, reason] of tabletAdjustments) {
+    fromTablet({ type: 'adjustment', vessel: vesselId, articleNo, cans, recordedAt, source: 'Manual adjustment', reason })
   }
+  // A correction made on the portal by a Customer Admin: names the person, no tablet.
+  out.push({ type: 'adjustment', vessel: 'v02', articleNo: '184103', cans: 1, origin: 'portal', device: null, recordedBy: 'u06', recordedAt: '2026-10-20T11:00', receivedAt: '2026-10-20T11:00', source: 'Manual adjustment', reason: 'Crew confirmed by phone: one hardener can was left out of the 19 Oct count.' })
   return out
     .sort((a, b) => b.recordedAt.localeCompare(a.recordedAt))
     .map((t, i, all) => ({ ...t, id: `TX-${String(10000 + all.length - i)}` }))
 }
 
-/** The synced event stream (FR-11). Sea Stock is worked out from it. */
+/** The synced stock ledger (FR-11). Sea Stock is worked out from it. */
 export const transactions: Transaction[] = buildTransactions()
 
-/** Not posted to Sea Stock until someone matches them to the master item list. */
+/** Not in Sea Stock until a PPG Admin matches them to an article (no product-and-shade guessing). */
 export const unrecognisedScans: UnrecognisedScan[] = [
-  { id: 'us1', vessel: 'v07', readArticleNo: '189955', readProduct: 'SIGMASHIELD 1200', readShade: 'Grey', cans: 2, type: 'receipt', recordedAt: '2026-10-11T02:09', user: 'u18' },
-  { id: 'us2', vessel: 'v10', readArticleNo: null, readProduct: 'SIGMADUR 520', readShade: 'Black 9000', cans: 1, type: 'consumption', recordedAt: '2026-10-18T15:25', user: 'u21' },
-  { id: 'us3', vessel: 'v01', readArticleNo: '17906l', readProduct: 'SIGMACOVER 350', readShade: 'Grey 5177', cans: 1, type: 'consumption', recordedAt: '2026-10-20T07:58', user: 'u12' },
+  { id: 'us1', vessel: 'v07', device: 'TAB-0301', kind: 'receipt', rawArticleNo: '189955', rawLabel: { product: 'SIGMASHIELD 1200', shade: 'Grey' }, cans: 2, recordedAt: '2026-10-11T02:05', receivedAt: '2026-10-12T04:30', dn: '5324655402' },
+  { id: 'us2', vessel: 'v10', device: 'TAB-0501', kind: 'consumption', rawArticleNo: '18452O', rawLabel: { product: 'SIGMADUR 520', shade: 'Black 9000' }, cans: 1, recordedAt: '2026-10-18T15:25', receivedAt: '2026-10-19T11:25' },
+  { id: 'us3', vessel: 'v01', device: 'TAB-0101', kind: 'consumption', rawArticleNo: '17906l', rawLabel: { product: 'SIGMACOVER 350', shade: 'Grey 5177' }, cans: 1, recordedAt: '2026-10-20T07:58', receivedAt: '2026-10-21T03:58' },
 ]
 
-/** FR-27 label extraction schema (version shown on the Label schema screen). */
+/** Uploaded events the server could not apply, held for an admin. */
+export const quarantinedEvents: QuarantinedEvent[] = [
+  { id: 'qe1', vessel: 'v05', device: 'TAB-0201', eventType: 'delivery_note', errorCode: 'duplicate_dn_number', errorDetail: 'DN 5324650871 was already received on this vessel on 9 Oct.', summary: 'Delivery note 5324650871, 3 lines, 18 cans', receivedAt: '2026-10-21T05:50', status: 'open', resolvedBy: null, resolvedAt: null, resolutionNote: null },
+  { id: 'qe2', vessel: 'v08', device: 'TAB-0302', eventType: 'adjustment', errorCode: 'reason_required', errorDetail: 'An adjustment needs a reason.', summary: 'Adjustment −2 cans of 187401 SIGMAGUARD CSF 585', receivedAt: '2026-10-17T09:45', status: 'open', resolvedBy: null, resolvedAt: null, resolutionNote: null },
+  { id: 'qe3', vessel: 'v02', device: 'TAB-0102', eventType: 'item', errorCode: 'invalid_quantity', errorDetail: 'Quantity must be at least 1.', summary: 'Consumption 0 cans of 179061 SIGMACOVER 350', receivedAt: '2026-10-15T16:20', status: 'dismissed', resolvedBy: 'u01', resolvedAt: '2026-10-16T09:00', resolutionNote: 'Empty scan by mistake; nothing to post.' },
+]
+
+export const auditLog: AuditEntry[] = [
+  { id: 'a01', at: '2026-10-21T14:05', actorType: 'user', actor: 'u01', vessel: null, customer: null, category: 'users', summary: 'Dana Whitfield signed in.' },
+  { id: 'a02', at: '2026-10-21T10:25', actorType: 'device', actor: 'TAB-0501', vessel: 'v10', customer: 'c5', category: 'sync', summary: 'Gulf Pioneer synced: 4 events applied.' },
+  { id: 'a03', at: '2026-10-21T05:50', actorType: 'device', actor: 'TAB-0201', vessel: 'v05', customer: 'c2', category: 'sync', summary: 'Meridian Valencia synced: 2 applied, 1 held (duplicate delivery note).' },
+  { id: 'a04', at: '2026-10-20T11:00', actorType: 'user', actor: 'u06', vessel: 'v02', customer: 'c1', category: 'inventory', summary: 'Ingrid Solberg adjusted Nordhavn Borealis: +1 can of 184103 SIGMADUR 550.' },
+  { id: 'a05', at: '2026-10-20T09:00', actorType: 'user', actor: 'u02', vessel: 'v12', customer: 'c4', category: 'devices', summary: 'Lars Eriksen issued an enrolment code for Straits Endeavour (expires 23 Oct).' },
+  { id: 'a06', at: '2026-10-20T04:00', actorType: 'user', actor: 'u01', vessel: null, customer: 'c4', category: 'users', summary: 'Dana Whitfield invited Nur Aisyah as Customer Admin of Straits Offshore Services.' },
+  { id: 'a07', at: '2026-10-16T09:00', actorType: 'user', actor: 'u01', vessel: 'v02', customer: 'c1', category: 'sync', summary: 'Dana Whitfield dismissed a held event from Nordhavn Borealis: empty scan by mistake.' },
+  { id: 'a08', at: '2026-10-15T08:00', actorType: 'user', actor: 'u01', vessel: null, customer: 'c4', category: 'customers_vessels', summary: 'Dana Whitfield added customer Straits Offshore Services (C-208190).' },
+  { id: 'a09', at: '2026-10-14T09:30', actorType: 'user', actor: 'u01', vessel: null, customer: null, category: 'label_schema', summary: 'Dana Whitfield published label schema version 3.' },
+  { id: 'a10', at: '2026-10-12T09:00', actorType: 'user', actor: 'u06', vessel: 'v04', customer: 'c1', category: 'customers_vessels', summary: 'Ingrid Solberg recorded a password reset for Nordhavn Skagen (crew change).' },
+  { id: 'a11', at: '2026-10-02T06:30', actorType: 'device', actor: 'TAB-0104', vessel: 'v04', customer: 'c1', category: 'devices', summary: 'Tablet TAB-0104 enrolled on Nordhavn Skagen.' },
+  { id: 'a12', at: '2026-09-30T06:00', actorType: 'system', actor: null, vessel: 'v01', customer: 'c1', category: 'devices', summary: 'Tablet TAB-0099 retired after its final sync.' },
+]
+
+/** Domain 3 label schema: the published version the tablets use. */
 export const labelSchema = {
   version: 3,
   publishedOn: '2026-10-14T09:30',
   publishedBy: 'u01',
   fields: [
-    { key: 'article_no', label: 'Article number', required: 'Always', role: 'Match key: ties the label to the DN line and the master item list', rule: '6 digits' },
-    { key: 'product', label: 'Product', required: 'Always', role: 'Fallback match key, with shade, when the article number cannot be read', rule: 'Must be a product on the master item list' },
-    { key: 'shade', label: 'Shade / colour', required: 'Where present', role: 'Fallback match key, with product', rule: 'Free text as printed, e.g. "Grey 5177"' },
-    { key: 'component_type', label: 'Component type', required: 'Always', role: 'Base, Hardener or 1K', rule: 'See component rules below' },
-    { key: 'pack_volume', label: 'Pack volume', required: 'Always', role: 'Turns cans into liters', rule: 'Number and unit, e.g. "20 L"' },
-    { key: 'batch_no', label: 'Batch number', required: 'Where present', role: 'Secondary; kept with the transaction', rule: 'Letters and digits as printed' },
+    { key: 'article_no', label: 'Article number', required: 'Always', purpose: 'Matches the can to the delivery-note line and the master item list', rule: '6 digits' },
+    { key: 'product', label: 'Product', required: 'Always', purpose: 'Shown to the crew to check the scan', rule: 'As printed' },
+    { key: 'shade', label: 'Shade / colour', required: 'Where present', purpose: 'Shown to the crew to check the scan', rule: 'Free text as printed, e.g. "Grey 5177"' },
+    { key: 'component_type', label: 'Component type', required: 'Always', purpose: 'Base, Hardener or 1K', rule: 'See component rules below' },
+    { key: 'pack_volume', label: 'Pack volume', required: 'Always', purpose: 'Checked against the article', rule: 'Number and unit, e.g. "20 L"' },
+    { key: 'batch_no', label: 'Batch number', required: 'Where present', purpose: 'Kept with the transaction', rule: 'Letters and digits as printed' },
   ] as LabelField[],
   componentRules: [
     { when: 'Product is one component (1K), including thinners', then: 'Component type = 1K' },

@@ -1,162 +1,250 @@
 /**
- * The Sea Stock data model, as the BRD (v1.2) describes it. Section numbers point to the BRD.
- * Static screens only: this is sample data, not a contract with an API.
+ * The Sea Stock data model: BRD v1.3 (21 Oct 2026) and the SeaStock Data Models (30 Oct 2026,
+ * 18 tables). Domain numbers point to the data model.
+ * Static screens only: this is sample data, not the API (see contracts/).
  */
 
-/** PPG sales regions (open item D-05). */
-export type RegionCode = 'APAC' | 'EMEA' | 'USCA'
-
-export interface Region {
-  code: RegionCode
-  name: string
-}
-
-/** §8 customer list: names and customer IDs as used in PPG systems, plus the region (FR-24). */
+/** Domain 1: a shipping company PPG supplies. No region (BRD v1.3: roll-up by customer only). */
 export interface Customer {
   id: string
-  /** Customer ID in PPG systems. Format to be confirmed by PPG (D-03). */
-  customerId: string
+  /** The customer ID in PPG systems (customer_code). */
+  customerCode: string
   name: string
-  region: RegionCode
   status: 'active' | 'inactive'
   addedOn: string
 }
 
-/** §8 vessel list. One device per vessel (D-12), one paint locker per vessel (D-06). */
+/** Domain 1: one ship. The IMO number is the vessel ID; a vessel is never identified by name. */
 export interface Vessel {
   id: string
-  /** Vessel ID in PPG systems. Format to be confirmed by PPG (D-03). */
-  vesselId: string
-  /** The DN header reads the IMO first, then the vessel name (FR-01). */
+  /** 7 digits with a valid check digit, e.g. "9812341". */
   imo: string
   name: string
   customer: string
-  device: Device | null
-  /** When the opening stock was captured (FR-08). Null: not done yet. */
+  /** Sent to the tablet at sync: scan labels, or enter receipts by hand. */
+  receivingMode: 'scan' | 'manual'
+  /** When the first baseline batch posted (FR-08). Null: not done yet. */
   baselineOn: string | null
-  /** Last time the device's queue reached the server (FR-20). */
+  /** Set only by a succeeded sync session (FR-20). */
   lastSync: string | null
   status: 'active' | 'inactive'
+  /** The vessel is the tablet's user: its sign-in account (no crew accounts). */
+  passwordChangedAt: string | null
+  lastSignInAt: string | null
 }
 
+/** Domain 2: one registered tablet. It belongs to a vessel only through an assignment. */
 export interface Device {
   id: string
   platform: 'Android' | 'iOS'
+  model: string
+  /** One of the guaranteed tablets; an unlisted model is a warning, not a block. */
+  modelSupported: boolean
+  osVersion: string
   appVersion: string
+  status: 'active' | 'retired' | 'revoked'
+  enrolledAt: string
+  firstSyncedAt: string | null
+  /** Retires after its next succeeded sync. */
+  retireRequestedAt: string | null
+  retiredAt: string | null
+  revokedAt: string | null
+  revokeReason: string | null
 }
 
-/** One component (1K), or two components (2K) with a Base and a Hardener (D-10). */
+/** Domain 2: which tablet served which vessel, and when. One active row per vessel and per tablet. */
+export interface Assignment {
+  id: string
+  vessel: string
+  device: string
+  assignedAt: string
+  /** Null = active. */
+  unassignedAt: string | null
+  unassignReason: string | null
+}
+
+/** Domain 2: one-time code that binds a tablet to one vessel (QR or typed). */
+export interface EnrolmentCode {
+  id: string
+  vessel: string
+  /** Shown once to the admin who issues it; only its hash is stored. */
+  code: string
+  issuedBy: string
+  issuedAt: string
+  /** 72 hours by default. */
+  expiresAt: string
+  /** The admin allowed replacing the vessel's active tablet. */
+  allowsReplacement: boolean
+  status: 'issued' | 'used' | 'cancelled'
+}
+
+/** One component (1K) or two components (2K: Base or Hardener) (D-10). */
 export type ComponentType = 'Base' | 'Hardener' | '1K'
 
-/** §8 master item list. */
+/** Domain 3: one PPG product as sold. */
 export interface Item {
   articleNo: string
   product: string
-  /** Shade or colour. Empty for hardeners, which carry no shade on the label. */
+  /** Empty for hardeners and thinners. */
   shade: string
+  productType: '1K' | '2K'
   componentType: ComponentType
-  /** Pack size as printed, e.g. "20 L". */
+  /** As printed, e.g. "20 L". */
   packSize: string
-  /** Liters per can, used to turn cans into liters (§9: inventory in liters is derived). */
+  /** Liters per can, used to turn cans into liters. */
   unitVolume: number
+  /** A retired article still matches scans. */
   status: 'active' | 'retired'
 }
 
-/** §9 transaction types. */
+/** Domain 5 transaction types. */
 export type TransactionType = 'receipt' | 'consumption' | 'adjustment' | 'baseline'
 
-/** §9 / FR-12 source of a transaction. */
-export type TransactionSource = 'DN scan' | 'Label scan' | 'Manual adjustment'
+/** Domain 5 / FR-12 source. */
+export type TransactionSource =
+  | 'DN scan'
+  | 'Label scan'
+  | 'Manual entry'
+  | 'Manual adjustment'
+  | 'Review match'
 
-/** §9 transaction record. Quantities are signed: consumption is negative. */
+/** Domain 5: one stock movement. Insert-only; signed (consumption is negative). */
 export interface Transaction {
   id: string
   type: TransactionType
   vessel: string
   articleNo: string
   cans: number
-  user: string
-  device: string
-  /** Device time when the crew recorded it. */
+  /** device = uploaded by the tablet (names no person); portal = recorded by an admin. */
+  origin: 'device' | 'portal'
+  /** The tablet, for device rows. */
+  device: string | null
+  /** The PPG Admin or Customer Admin, for portal rows. */
+  recordedBy: string | null
+  /** When the movement happened (tablet clock for device rows). */
   recordedAt: string
-  /** When it reached the server (FR-11). The portal only shows synced transactions. */
-  syncedAt: string
+  /** Server clock: when it arrived. */
+  receivedAt: string
   source: TransactionSource
-  /** Required for adjustments (FR-13) and for receipt differences (FR-05). */
+  /** Required for adjustments. */
   reason?: string
   /** Delivery note number, for receipts. */
   dn?: string
 }
 
-/** FR-04 result of tallying one line. */
+/** FR-04 result of one tally line. */
 export type LineResult = 'matched' | 'short' | 'over' | 'not-on-note' | 'not-received'
 
 export interface DeliveryNoteLine {
   articleNo: string
-  /** Quantity on the delivery note; 0 when the item was not on the note. */
-  dnCans: number
-  /** Quantity confirmed into the locker. */
+  /** Quantity on the note; null = not on the note. */
+  dnCans: number | null
   receivedCans: number
   result: LineResult
   reason?: string
 }
 
-/** §9 delivery note record. Images are not kept (D-07). */
+/** Domain 4: one confirmed delivery note. Insert-only; no image kept (D-07). */
 export interface DeliveryNote {
   dnNumber: string
   dnDate: string
+  /** Always the enrolled tablet's vessel, never a value read from paper. */
   vessel: string
+  device: string
+  /** As read from the note (display; the IMO is checked, never used to choose the vessel). */
+  imoOnNote: string | null
+  vesselNameOnNote: string | null
+  imoCheck: 'match' | 'mismatch' | 'not_read'
   customerReference: string
   lines: DeliveryNoteLine[]
-  capturedBy: string
+  /** Tablet clock: DN scanned, receipt confirmed. */
   capturedAt: string
-  syncedAt: string
+  confirmedAt: string
+  /** Server clock. */
+  receivedAt: string
 }
 
-/** Three roles, one per level (FR-23, D-13). Names as in the reference screens. */
-export type RoleKey = 'ppg-admin' | 'customer-admin' | 'ship-admin'
+/** Domain 1: two portal roles. The vessel signs in on its tablet; crew have no accounts. */
+export type RoleKey = 'ppg-admin' | 'customer-admin'
 
-export type Level = 'PPG' | 'Customer' | 'Vessel'
-
-/** FR-22: a user is associated with a vessel, a customer or a PPG entity. */
-export type Scope =
-  | { kind: 'all' }
-  | { kind: 'regions'; regions: RegionCode[] }
-  | { kind: 'customers'; customers: string[] }
-  | { kind: 'customer'; customer: string }
-  | { kind: 'vessel'; vessel: string }
+/** A PPG Admin sees every customer; a Customer Admin exactly one. */
+export type Scope = { kind: 'all' } | { kind: 'customer'; customer: string }
 
 export interface User {
   id: string
   name: string
   email: string
-  /** Job title from D-04, e.g. Chief Officer, Fleet Manager. */
+  /** Optional (no document requires it). */
   title: string
   role: RoleKey
   scope: Scope
   status: 'active' | 'invited' | 'disabled'
   lastSignIn: string | null
+  /** The latest emailed invite. */
+  invite: { status: 'pending' | 'accepted' | 'expired' | 'cancelled'; sentAt: string; expiresAt: string } | null
 }
 
-/** A scan the server could not match to the master item list (§13: flagged, not rejected). */
+/** Domain 5: a scanned item whose article number is not in the master list. Held, not in stock. */
 export interface UnrecognisedScan {
   id: string
   vessel: string
-  /** What the label gave: article number if read, else product and shade (A-02 fallback). */
-  readArticleNo: string | null
-  readProduct: string
-  readShade: string
+  device: string
+  kind: 'receipt' | 'consumption' | 'baseline'
+  /** As read from the label. */
+  rawArticleNo: string
+  /** The other label fields as read. */
+  rawLabel: { product?: string; shade?: string; batch?: string }
   cans: number
-  type: TransactionType
   recordedAt: string
-  user: string
+  receivedAt: string
+  dn?: string
 }
 
-/** FR-27 label extraction field. */
+/** Domain 2: an uploaded event the server could not apply, held for an admin. */
+export interface QuarantinedEvent {
+  id: string
+  vessel: string
+  device: string
+  eventType: 'delivery_note' | 'item' | 'adjustment' | 'unknown'
+  errorCode: string
+  errorDetail: string
+  /** A readable line about the event as sent. */
+  summary: string
+  receivedAt: string
+  status: 'open' | 'resolved' | 'dismissed'
+  resolvedBy: string | null
+  resolvedAt: string | null
+  resolutionNote: string | null
+}
+
+/** Domain 6: who did what, when, from which account or tablet. Insert-only. */
+export interface AuditEntry {
+  id: string
+  at: string
+  actorType: 'user' | 'device' | 'system'
+  /** User ID or device ID. */
+  actor: string | null
+  /** The vessel affected, for vessel and tablet events (scopes a Customer Admin's view). */
+  vessel: string | null
+  /** The customer affected (scopes a Customer Admin's view). */
+  customer: string | null
+  category:
+    | 'users'
+    | 'customers_vessels'
+    | 'devices'
+    | 'articles'
+    | 'label_schema'
+    | 'delivery_notes'
+    | 'inventory'
+    | 'sync'
+  summary: string
+}
+
+/** Domain 3: one field the tablet reads from a can label. */
 export interface LabelField {
   key: string
   label: string
   required: 'Always' | 'Where present' | 'Base and 1K only'
-  role: string
+  purpose: string
   rule: string
 }

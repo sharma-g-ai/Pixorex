@@ -2,9 +2,9 @@ import { Button } from '../../components/Button'
 import { DataTable } from '../../components/DataTable'
 import { Dialog } from '../../components/Dialog'
 import { Card, Detail, Mono, Muted } from '../../components/Page'
-import { ComponentBadge, LineResultBadge } from '../../components/StockBadges'
+import { ComponentBadge, ImoCheckBadge, LineResultBadge } from '../../components/StockBadges'
 import type { DeliveryNote, DeliveryNoteLine } from '../../data/model'
-import { customerById, itemByArticle, liters, userById, vesselById } from '../../data/queries'
+import { customerById, imoLabel, itemByArticle, liters, vesselById } from '../../data/queries'
 import { formatDate, formatDateTime, formatLiters } from '../../lib/format'
 import { differences, receivedCans } from './DeliveryNotesTable'
 
@@ -31,15 +31,22 @@ export function DeliveryNoteDialog({ dn, onClose }: { dn: DeliveryNote; onClose:
               <Mono>{dn.dnNumber}</Mono>
             </Detail>
             <Detail label="DN date">{formatDate(dn.dnDate)}</Detail>
-            <Detail label="Vessel (IMO)">{vessel?.imo}</Detail>
-            <Detail label="Vessel name">{vessel?.name}</Detail>
+            <Detail label="Vessel">
+              {vessel?.name} · {vessel && imoLabel(vessel.imo)}
+            </Detail>
+            <Detail label="IMO on the note">
+              {dn.imoOnNote ?? '—'} <ImoCheckBadge check={dn.imoCheck} />
+            </Detail>
+            <Detail label="Vessel name on the note">{dn.vesselNameOnNote ?? '—'}</Detail>
             <Detail label="Customer">{customer?.name}</Detail>
             <Detail label="Customer reference">
               <Mono>{dn.customerReference}</Mono>
             </Detail>
-            <Detail label="Received by">{userById(dn.capturedBy)?.name}</Detail>
-            <Detail label="Confirmed on tablet">{formatDateTime(dn.capturedAt)}</Detail>
-            <Detail label="Synced">{formatDateTime(dn.syncedAt)}</Detail>
+            <Detail label="Tablet">
+              <Mono>{dn.device}</Mono>
+            </Detail>
+            <Detail label="Confirmed on tablet">{formatDateTime(dn.confirmedAt)}</Detail>
+            <Detail label="Received">{formatDateTime(dn.receivedAt)}</Detail>
             <Detail label="Lines">{dn.lines.length}</Detail>
             <Detail label="Cans into the locker">{receivedCans(dn)}</Detail>
             <Detail label="Differences">{differences(dn)}</Detail>
@@ -90,7 +97,7 @@ export function DeliveryNoteDialog({ dn, onClose }: { dn: DeliveryNote; onClose:
                   width: 0.7,
                   align: 'right',
                   cell: (l) => {
-                    const d = l.receivedCans - l.dnCans
+                    const d = l.receivedCans - (l.dnCans ?? 0)
                     return (
                       <span className={d === 0 ? 'text-ink-subtle' : 'font-semibold text-warning'}>
                         {d > 0 ? `+${d}` : d}

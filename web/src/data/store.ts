@@ -1,45 +1,34 @@
 /**
  * The sample data as one shared store, so a change on one screen shows on every screen.
  * Changes are kept for the browser tab (sessionStorage) and can be reset to the sample data.
- * Static screens only: there is no API behind this.
+ * Every admin action also writes an audit row (data model Domain 6).
+ * Static screens only: there is no API behind this (see contracts/).
  */
 import { useSyncExternalStore } from 'react'
-import type {
-  Customer,
-  Item,
-  LabelField,
-  Region,
-  Transaction,
-  UnrecognisedScan,
-  User,
-  Vessel,
-} from './model'
+import type { AuditEntry, Customer, Item, LabelField, Transaction, UnrecognisedScan, User, Vessel } from './model'
 import {
+  assignments,
+  auditLog,
   customers,
   deliveryNotes,
+  devices,
+  enrolmentCodes,
   items,
   labelSchema,
   NOW,
-  regions,
+  quarantinedEvents,
   transactions,
   unrecognisedScans,
   users,
   vessels,
 } from './sample'
 
-const KEY = 'seastock.data'
+const KEY = 'seastock.data.v2'
 
 function snapshot() {
   return {
-    customers,
-    vessels,
-    users,
-    items,
-    regions,
-    transactions,
-    unrecognisedScans,
-    deliveryNotes,
-    labelSchema: { ...labelSchema },
+    customers, vessels, devices, assignments, enrolmentCodes, users, items, transactions,
+    unrecognisedScans, quarantinedEvents, deliveryNotes, auditLog, labelSchema: { ...labelSchema },
   }
 }
 
@@ -49,16 +38,19 @@ const initial: Snapshot = structuredClone(snapshot())
 
 /** Replaces the contents of every sample array in place, so every import sees the change. */
 function load(data: Snapshot) {
-  const fill = <T>(target: T[], from: T[]) =>
-    target.splice(0, target.length, ...structuredClone(from))
+  const fill = <T>(target: T[], from: T[]) => target.splice(0, target.length, ...structuredClone(from))
   fill(customers, data.customers)
   fill(vessels, data.vessels)
+  fill(devices, data.devices)
+  fill(assignments, data.assignments)
+  fill(enrolmentCodes, data.enrolmentCodes)
   fill(users, data.users)
   fill(items, data.items)
-  fill(regions, data.regions)
   fill(transactions, data.transactions)
   fill(unrecognisedScans, data.unrecognisedScans)
+  fill(quarantinedEvents, data.quarantinedEvents)
   fill(deliveryNotes, data.deliveryNotes)
+  fill(auditLog, data.auditLog)
   labelSchema.version = data.labelSchema.version
   labelSchema.publishedOn = data.labelSchema.publishedOn
   labelSchema.publishedBy = data.labelSchema.publishedBy
@@ -108,62 +100,206 @@ export function resetSampleData() {
   listeners.forEach((l) => l())
 }
 
-function upsert<T>(list: T[], row: T, same: (a: T) => boolean) {
+let seq = 0
+const newId = (prefix: string) => `${prefix}-${Date.now().toString(36)}-${(seq += 1)}`
+
+function audit(by: User, category: AuditEntry['category'], summary: string, vessel: string | null = null, customer: string | null = null) {
+  const v = vessels.find((x) => x.id === vessel)
+  auditLog.unshift({ id: newId('a'), at: NOW, actorType: 'user', actor: by.id, vessel, customer: customer ?? v?.customer ?? null, category, summary: `${by.name} ${summary}` })
+}
+
+function upsert<T>(list: T[], row: T, same: (a: T) => boolean): 'added' | 'changed' {
   const i = list.findIndex(same)
-  if (i >= 0) list[i] = row
-  else list.push(row)
+  if (i >= 0) {
+    list[i] = row
+    return 'changed'
+  }
+  list.push(row)
+  return 'added'
+}
+
+// ---- Customers and vessels ----
+
+export function saveCustomer(c: Customer, by: User) {
+  const what = upsert(customers, c, (x) => x.id === c.id)
+  audit(by, 'customers_vessels', `${what === 'added' ? 'added' : 'edited'} customer ${c.name} (${c.customerCode}).`, null, c.id)
   changed()
 }
 
-export const saveCustomer = (c: Customer) => upsert(customers, c, (x) => x.id === c.id)
-export const saveVessel = (v: Vessel) => upsert(vessels, v, (x) => x.id === v.id)
-export const saveUser = (u: User) => upsert(users, u, (x) => x.id === u.id)
-export const saveRegion = (r: Region) => upsert(regions, r, (x) => x.code === r.code)
+export function saveVessel(v: Vessel, by: User) {
+  const what = upsert(vessels, v, (x) => x.id === v.id)
+  audit(by, 'customers_vessels', `${what === 'added' ? 'added' : 'edited'} vessel ${v.name} (IMO ${v.imo}).`, v.id)
+  changed()
+}
 
-export function addItems(newItems: Item[]) {
+/** All-or-nothing import keyed on customer_code (import_customers). */
+export function importCustomers(rows: Customer[], by: User) {
+  for (const r of rows) upsert(customers, r, (x) => x.customerCode === r.customerCode)
+  audit(by, 'customers_vessels', `imported ${rows.length} customers from Excel.`)
+  changed()
+}
+
+/** All-or-nothing import keyed on IMO number (import_vessels). */
+export function importVessels(rows: Vessel[], by: User) {
+  for (const r of rows) upsert(vessels, r, (x) => x.imo === r.imo)
+  audit(by, 'customers_vessels', `imported ${rows.length} vessels from Excel.`, null, rows[0]?.customer ?? null)
+  changed()
+}
+
+/** record_vessel_password_reset(): at crew change. */
+export function recordPasswordReset(vesselId: string, by: User) {
+  const v = vessels.find((x) => x.id === vesselId)
+  if (!v) return
+  v.passwordChangedAt = NOW
+  audit(by, 'customers_vessels', `recorded a password reset for ${v.name} (crew change).`, v.id)
+  changed()
+}
+
+// ---- Tablets ----
+
+function code(): string {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+  const pick = () => chars[Math.floor(Math.random() * chars.length)]
+  return `${Array.from({ length: 4 }, pick).join('')}-${Array.from({ length: 4 }, pick).join('')}`
+}
+
+/** One open code per vessel: issuing a new one cancels the open one. Valid 72 hours. */
+export function issueEnrolmentCode(vesselId: string, allowsReplacement: boolean, by: User): string {
+  for (const c of enrolmentCodes) if (c.vessel === vesselId && c.status === 'issued') c.status = 'cancelled'
+  const value = code()
+  const expires = new Date(`${NOW}:00Z`)
+  expires.setUTCHours(expires.getUTCHours() + 72)
+  enrolmentCodes.push({ id: newId('ec'), vessel: vesselId, code: value, issuedBy: by.id, issuedAt: NOW, expiresAt: expires.toISOString().slice(0, 16), allowsReplacement, status: 'issued' })
+  const v = vessels.find((x) => x.id === vesselId)
+  audit(by, 'devices', `issued an enrolment code for ${v?.name ?? vesselId}${allowsReplacement ? ' (replaces the current tablet)' : ''}.`, vesselId)
+  changed()
+  return value
+}
+
+export function cancelEnrolmentCode(codeId: string, by: User) {
+  const c = enrolmentCodes.find((x) => x.id === codeId)
+  if (!c || c.status !== 'issued') return
+  c.status = 'cancelled'
+  audit(by, 'devices', 'cancelled an enrolment code.', c.vessel)
+  changed()
+}
+
+/** The tablet retires after its next succeeded sync. */
+export function retireDevice(deviceId: string, by: User) {
+  const d = devices.find((x) => x.id === deviceId)
+  if (!d || d.status !== 'active') return
+  d.retireRequestedAt = NOW
+  const a = assignments.find((x) => x.device === deviceId && x.unassignedAt === null)
+  audit(by, 'devices', `marked tablet ${d.id} to retire after its next sync.`, a?.vessel ?? null)
+  changed()
+}
+
+/** Revoked is final and ends the tablet's assignment at once. */
+export function revokeDevice(deviceId: string, reason: string, by: User) {
+  const d = devices.find((x) => x.id === deviceId)
+  if (!d || d.status !== 'active') return
+  d.status = 'revoked'
+  d.revokedAt = NOW
+  d.revokeReason = reason
+  const a = assignments.find((x) => x.device === deviceId && x.unassignedAt === null)
+  if (a) {
+    a.unassignedAt = NOW
+    a.unassignReason = `Revoked: ${reason}`
+  }
+  audit(by, 'devices', `revoked tablet ${d.id}: ${reason}`, a?.vessel ?? null)
+  changed()
+}
+
+// ---- Users ----
+
+export function saveUser(u: User, by: User) {
+  const what = upsert(users, u, (x) => x.id === u.id)
+  const customer = u.scope.kind === 'customer' ? u.scope.customer : null
+  audit(by, 'users', what === 'added' ? `invited ${u.name} (${u.email}).` : `edited user ${u.name}.`, null, customer)
+  changed()
+}
+
+export function resendInvite(userId: string, by: User) {
+  const u = users.find((x) => x.id === userId)
+  if (!u) return
+  const expires = new Date(`${NOW}:00Z`)
+  expires.setUTCDate(expires.getUTCDate() + 7)
+  u.invite = { status: 'pending', sentAt: NOW, expiresAt: expires.toISOString().slice(0, 16) }
+  audit(by, 'users', `re-sent the invite to ${u.name}.`, null, u.scope.kind === 'customer' ? u.scope.customer : null)
+  changed()
+}
+
+export function cancelInvite(userId: string, by: User) {
+  const u = users.find((x) => x.id === userId)
+  if (!u?.invite || u.invite.status !== 'pending') return
+  u.invite = { ...u.invite, status: 'cancelled' }
+  audit(by, 'users', `cancelled the invite to ${u.name}.`, null, u.scope.kind === 'customer' ? u.scope.customer : null)
+  changed()
+}
+
+// ---- Products ----
+
+export function addItems(newItems: Item[], by: User) {
   items.unshift(...newItems)
+  audit(by, 'articles', newItems.length === 1 ? `added article ${newItems[0]?.articleNo}.` : `loaded ${newItems.length} articles.`)
   changed()
 }
 
-export function setItemStatus(articleNo: string, status: Item['status']) {
+export function setItemStatus(articleNo: string, status: Item['status'], by: User) {
   const item = items.find((i) => i.articleNo === articleNo)
   if (!item) return
   item.status = status
+  audit(by, 'articles', `${status === 'retired' ? 'retired' : 'restored'} article ${articleNo}.`)
   changed()
 }
 
-export function publishLabelSchema(fields: LabelField[], by: string) {
+export function publishLabelSchema(fields: LabelField[], by: User) {
   labelSchema.fields.splice(0, labelSchema.fields.length, ...structuredClone(fields))
   labelSchema.version += 1
   labelSchema.publishedOn = NOW
-  labelSchema.publishedBy = by
+  labelSchema.publishedBy = by.id
+  audit(by, 'label_schema', `published label schema version ${labelSchema.version}.`)
+  changed()
+}
+
+// ---- Stock ----
+
+function post(t: Omit<Transaction, 'id'>) {
+  const next = Math.max(...transactions.map((x) => Number(x.id.slice(3))), 10000) + 1
+  transactions.push({ ...t, id: `TX-${next}` })
+  transactions.sort((a, b) => b.recordedAt.localeCompare(a.recordedAt))
+}
+
+/** A portal adjustment: names the person, no tablet. Reason required. */
+export function adjustStock(vesselId: string, articleNo: string, cans: number, reason: string, by: User) {
+  post({ type: 'adjustment', vessel: vesselId, articleNo, cans, origin: 'portal', device: null, recordedBy: by.id, recordedAt: NOW, receivedAt: NOW, source: 'Manual adjustment', reason })
+  const v = vessels.find((x) => x.id === vesselId)
+  audit(by, 'inventory', `adjusted ${v?.name ?? vesselId}: ${cans > 0 ? '+' : ''}${cans} ${Math.abs(cans) === 1 ? 'can' : 'cans'} of ${articleNo}.`, vesselId)
   changed()
 }
 
 /**
- * A scan the server could not match, now matched to an article by a PPG Admin: it leaves the
- * review list and posts to Sea Stock as the receipt or consumption it was.
+ * match_unrecognised_scan(): a PPG Admin matches a held scan to an active article. It posts as
+ * one transaction (origin portal, source review match, dated at the original scan).
  */
 export function matchScan(scan: UnrecognisedScan, articleNo: string, by: User) {
   const i = unrecognisedScans.findIndex((s) => s.id === scan.id)
   if (i < 0) return
   unrecognisedScans.splice(i, 1)
-  const vessel = vessels.find((v) => v.id === scan.vessel)
-  const next = Math.max(...transactions.map((t) => Number(t.id.slice(3))), 10000) + 1
-  const posted: Transaction = {
-    id: `TX-${next}`,
-    type: scan.type,
-    vessel: scan.vessel,
-    articleNo,
-    cans: scan.type === 'consumption' ? -scan.cans : scan.cans,
-    user: scan.user,
-    device: vessel?.device?.id ?? '',
-    recordedAt: scan.recordedAt,
-    syncedAt: NOW,
-    source: 'Label scan',
-    reason: `Matched to article ${articleNo} by ${by.name}; label read "${scan.readArticleNo ?? 'unreadable'}".`,
-  }
-  transactions.push(posted)
-  transactions.sort((a, b) => b.recordedAt.localeCompare(a.recordedAt))
+  const type = scan.kind === 'consumption' ? 'consumption' : scan.kind
+  post({ type, vessel: scan.vessel, articleNo, cans: scan.kind === 'consumption' ? -scan.cans : scan.cans, origin: 'portal', device: null, recordedBy: by.id, recordedAt: scan.recordedAt, receivedAt: NOW, source: 'Review match', reason: `Label read "${scan.rawArticleNo}"; matched to ${articleNo}.`, dn: scan.dn })
+  audit(by, 'inventory', `matched a held scan ("${scan.rawArticleNo}") to article ${articleNo}.`, scan.vessel)
+  changed()
+}
+
+/** Closing a held event posts nothing; the fix itself is done another way. */
+export function closeHeldEvent(eventId: string, outcome: 'resolved' | 'dismissed', note: string, by: User) {
+  const e = quarantinedEvents.find((x) => x.id === eventId)
+  if (!e || e.status !== 'open') return
+  e.status = outcome
+  e.resolvedBy = by.id
+  e.resolvedAt = NOW
+  e.resolutionNote = note
+  audit(by, 'sync', `${outcome} a held event (${e.errorCode}): ${note}`, e.vessel)
   changed()
 }

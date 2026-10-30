@@ -24,7 +24,7 @@ export function Sidebar({ sections, onSignOut }: SidebarProps) {
 
       <div className="mx-3.5 mb-3 rounded-lg bg-white/8 px-3.5 py-2.5">
         <div className="text-label font-bold tracking-wider text-white/50 uppercase">
-          {role.level} scope
+          {user.role === 'ppg-admin' ? 'PPG' : 'Customer'} scope
         </div>
         <div className="mt-0.5 truncate text-body-sm font-semibold text-white">
           {scopeLabel(user)}

@@ -8,8 +8,8 @@ export interface NavItem {
   icon: IconName
   /** BRD requirements the screen covers. */
   brd: string
-  /** Hidden from roles without it. */
-  needs: Permission
+  /** Shown to roles with any of these. */
+  needs: Permission[]
 }
 
 export interface NavSection {
@@ -24,29 +24,29 @@ const sections: NavSection[] = [
         path: '/overview',
         label: 'Overview',
         icon: 'grid',
-        brd: 'FR-20, FR-25, §13',
-        needs: 'view-overview',
+        brd: 'FR-20, FR-24, §13',
+        needs: ['view-stock'],
       },
       {
         path: '/sea-stock',
         label: 'Sea Stock',
         icon: 'box',
-        brd: 'FR-09, FR-20, FR-25',
-        needs: 'view-stock',
+        brd: 'FR-09, FR-13, FR-20, FR-24',
+        needs: ['view-stock'],
       },
       {
         path: '/consumption',
         label: 'Consumption',
         icon: 'droplet',
-        brd: 'FR-07, FR-20, FR-25',
-        needs: 'view-stock',
+        brd: 'FR-07, FR-20, FR-24',
+        needs: ['view-stock'],
       },
       {
         path: '/activity',
         label: 'Activity',
         icon: 'activity',
         brd: 'FR-01 – FR-05, FR-12, FR-13',
-        needs: 'view-stock',
+        needs: ['view-stock'],
       },
     ],
   },
@@ -57,22 +57,22 @@ const sections: NavSection[] = [
         path: '/admin/customers',
         label: 'Customers & vessels',
         icon: 'building',
-        brd: 'FR-21, FR-24',
-        needs: 'manage-customers',
+        brd: 'FR-21, A-14',
+        needs: ['manage-customers', 'manage-tablets'],
       },
       {
         path: '/admin/users',
         label: 'Users',
         icon: 'users',
         brd: 'FR-22, FR-23',
-        needs: 'manage-users',
+        needs: ['manage-users'],
       },
       {
         path: '/admin/products',
         label: 'Products',
         icon: 'list',
-        brd: 'FR-26, FR-27',
-        needs: 'manage-items',
+        brd: 'FR-25, FR-26',
+        needs: ['manage-items'],
       },
     ],
   },
@@ -80,16 +80,14 @@ const sections: NavSection[] = [
 
 export function navigationFor(user: User): NavSection[] {
   return sections
-    .map((s) => ({ ...s, items: s.items.filter((i) => can(user, i.needs)) }))
+    .map((s) => ({ ...s, items: s.items.filter((i) => i.needs.some((p) => can(user, p))) }))
     .filter((s) => s.items.length > 0)
 }
 
 export function allowedPath(user: User, path: string): boolean {
   const item = sections.flatMap((s) => s.items).find((i) => path.startsWith(i.path))
-  return !item || can(user, item.needs)
+  return !item || item.needs.some((p) => can(user, p))
 }
 
-/** Where a role lands after sign-in: a Chief Officer goes straight to their vessel's stock. */
-export function homePath(user: User): string {
-  return can(user, 'view-overview') ? '/overview' : '/sea-stock'
-}
+/** Where every portal user lands after sign-in. */
+export const HOME_PATH = '/overview'

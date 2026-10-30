@@ -12,7 +12,6 @@ import { Tabs } from '../../components/Tabs'
 import { TextField } from '../../components/TextField'
 import type { ComponentType, Item, Vessel } from '../../data/model'
 import { customerById, stockByProduct, stockLines, totals, vesselById } from '../../data/queries'
-import { roleInfo } from '../../data/roles'
 import { downloadCsv } from '../../lib/csv'
 import { formatLiters } from '../../lib/format'
 import { groupOfVessel, rollUpLabels, rollUpsFor, type RollUp } from '../../lib/rollUp'
@@ -36,14 +35,14 @@ interface GroupRow {
 }
 
 /**
- * FR-20 Sea Stock for any vessel in scope, rolled up by product, vessel, customer or region
+ * FR-20 Sea Stock for any vessel in scope, rolled up by product, vessel or customer
  * (FR-25), with CSV export. Picking one vessel shows its details: this is also the vessel page
  * and the Chief Officer's home.
  */
 export function SeaStockPage() {
   const { user } = useViewer()
   const scope = useScopeFilter()
-  const rollUps = rollUpsFor[roleInfo(user.role).level]
+  const rollUps = rollUpsFor[user.role]
   const [by, setBy] = useState<RollUp>('product')
   const [component, setComponent] = useState<ComponentType | ''>('')
   const [search, setSearch] = useState('')
@@ -117,11 +116,9 @@ export function SeaStockPage() {
     downloadCsv(
       'sea-stock-detail.csv',
       [
-        'Region',
         'Customer',
-        'Customer ID',
+        'Customer code',
         'Vessel',
-        'Vessel ID',
         'IMO',
         'Article no.',
         'Product',
@@ -136,11 +133,9 @@ export function SeaStockPage() {
         const v = vesselById(l.vessel)
         const c = v && customerById(v.customer)
         return [
-          c?.region ?? '',
           c?.name ?? '',
-          c?.customerId ?? '',
+          c?.customerCode ?? '',
           v?.name ?? '',
-          v?.vesselId ?? '',
           v?.imo ?? '',
           l.item.articleNo,
           l.item.product,

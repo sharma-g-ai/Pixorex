@@ -1,6 +1,6 @@
 import { Navigate, Outlet, useLocation, useNavigate } from 'react-router'
 import { Sidebar } from '../components/layout/Sidebar'
-import { allowedPath, homePath, navigationFor } from './navigation'
+import { allowedPath, HOME_PATH, navigationFor } from './navigation'
 import { useSession } from './viewer'
 
 /** Sidebar on the left, the current page on the right. */
@@ -14,7 +14,7 @@ export function Layout() {
     return <Navigate to="/sign-in" replace state={{ from: location.pathname + location.search }} />
 
   // A page the user's role may not open goes back to their home page.
-  if (!allowedPath(user, location.pathname)) return <Navigate to={homePath(user)} replace />
+  if (!allowedPath(user, location.pathname)) return <Navigate to={HOME_PATH} replace />
 
   return (
     <div className="flex h-screen overflow-hidden bg-page">

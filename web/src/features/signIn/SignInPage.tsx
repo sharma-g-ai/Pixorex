@@ -8,8 +8,8 @@ import { TextField } from '../../components/TextField'
 import { resetSampleData } from '../../data/store'
 
 /**
- * Sign in with work e-mail and password. The role decides where the user lands: PPG Admin and
- * Customer Admin on the overview, Ship Admin on their vessel's stock.
+ * Sign in with work e-mail and password; PPG Admin and Customer Admin both land on the overview.
+ * Vessels sign in on their tablet, not here.
  */
 export function SignInPage() {
   const { user, signIn } = useSession()
@@ -62,7 +62,7 @@ export function SignInPage() {
             >
               <h2 className="text-page-title font-bold">Sign in</h2>
               <p className="mt-1 text-small text-ink-muted">
-                Use the work e-mail your administrator registered.
+                Use the work e-mail your administrator registered. Vessels sign in on the tablet app.
               </p>
               <div className="mt-6 flex flex-col gap-4">
                 <TextField

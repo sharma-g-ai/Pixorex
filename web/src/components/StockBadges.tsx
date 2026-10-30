@@ -1,4 +1,4 @@
-import type { ComponentType, LineResult, TransactionType } from '../data/model'
+import type { ComponentType, DeliveryNote, LineResult, TransactionType } from '../data/model'
 import { daysSince } from '../data/queries'
 import { formatAgo, formatDateTime } from '../lib/format'
 import { Badge } from './Badge'
@@ -54,6 +54,17 @@ export function LineResultBadge({ result }: { result: LineResult }) {
  * Last sync of a vessel's device (FR-20). A-07 expects vessel-to-shore sync every 1–3 days,
  * so anything older is shown as late.
  */
+const imoChecks: Record<DeliveryNote['imoCheck'], { label: string; tone: 'success' | 'warning' | 'neutral' }> = {
+  match: { label: 'IMO matches', tone: 'success' },
+  mismatch: { label: 'IMO mismatch', tone: 'warning' },
+  not_read: { label: 'IMO not read', tone: 'neutral' },
+}
+
+/** The IMO read from a delivery note against the vessel's (checked, never used to choose the vessel). */
+export function ImoCheckBadge({ check }: { check: DeliveryNote['imoCheck'] }) {
+  return <Badge tone={imoChecks[check].tone}>{imoChecks[check].label}</Badge>
+}
+
 export function SyncAge({ at }: { at: string | null }) {
   const days = daysSince(at)
   if (at === null) return <Badge tone="neutral">Never synced</Badge>

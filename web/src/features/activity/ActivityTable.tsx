@@ -27,7 +27,7 @@ export function ActivityTable({
           cell: (t) => (
             <div>
               <div>{formatDateTime(t.recordedAt)}</div>
-              <Muted>Synced {formatDateTime(t.syncedAt)}</Muted>
+              <Muted>Received {formatDateTime(t.receivedAt)}</Muted>
             </div>
           ),
         },
@@ -78,16 +78,22 @@ export function ActivityTable({
           ),
         },
         {
-          header: 'By / device',
+          header: 'Recorded by',
           width: 1.2,
-          cell: (t) => (
-            <div className="min-w-0">
-              <div className="truncate">{userById(t.user)?.name}</div>
-              <Muted>
+          cell: (t) =>
+            t.origin === 'device' ? (
+              <div className="min-w-0">
                 <Mono>{t.device}</Mono>
-              </Muted>
-            </div>
-          ),
+                <div>
+                  <Muted>Tablet</Muted>
+                </div>
+              </div>
+            ) : (
+              <div className="min-w-0">
+                <div className="truncate">{userById(t.recordedBy ?? '')?.name}</div>
+                <Muted>Portal</Muted>
+              </div>
+            ),
         },
         {
           header: 'Source / reason',

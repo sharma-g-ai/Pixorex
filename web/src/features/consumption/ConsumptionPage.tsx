@@ -17,7 +17,6 @@ import {
   liters,
   vesselById,
 } from '../../data/queries'
-import { roleInfo } from '../../data/roles'
 import { downloadCsv } from '../../lib/csv'
 import { formatDate, formatLiters } from '../../lib/format'
 import { rollUpLabels, rollUpsFor, type RollUp } from '../../lib/rollUp'
@@ -46,15 +45,13 @@ function groupKey(t: Transaction, by: GroupBy): { key: string; name: string } {
       return { key: t.vessel, name: vessel?.name ?? t.vessel }
     case 'customer':
       return { key: customer?.id ?? '', name: customer?.name ?? '' }
-    case 'region':
-      return { key: customer?.region ?? '', name: customer?.region ?? '' }
   }
 }
 
-/** Consumption (FR-07 deductions) rolled up by product, vessel, customer or region (FR-25). */
+/** Consumption (FR-07 deductions) rolled up by product, vessel or customer (FR-24). */
 export function ConsumptionPage() {
   const { user } = useViewer()
-  const rollUps = rollUpsFor[roleInfo(user.role).level]
+  const rollUps = rollUpsFor[user.role]
   const scope = useScopeFilter()
   const period = usePeriod()
   const [by, setBy] = useState<GroupBy>('product')
@@ -106,7 +103,7 @@ export function ConsumptionPage() {
                     'Date',
                     'Customer',
                     'Vessel',
-                    'Vessel ID',
+                    'IMO',
                     'Article no.',
                     'Product',
                     'Shade',
@@ -122,7 +119,7 @@ export function ConsumptionPage() {
                       t.recordedAt.slice(0, 10),
                       customerById(v?.customer ?? '')?.name ?? '',
                       v?.name ?? '',
-                      v?.vesselId ?? '',
+                      v?.imo ?? '',
                       t.articleNo,
                       item?.product ?? '',
                       item?.shade ?? '',

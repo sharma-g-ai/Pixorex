@@ -9,7 +9,7 @@ const paths = [
   '/activity?tab=notes',
   '/activity?dn=5324641215',
   '/admin/customers?tab=vessels',
-  '/admin/customers?tab=regions',
+  '/admin/customers?tab=tablets',
   '/admin/users?tab=roles',
   '/admin/products?tab=label-schema',
   '/overview',
@@ -28,7 +28,7 @@ const paths = [
 ]
 
 describe('every screen renders for every preview role', () => {
-  for (const userId of ['u01', 'u02', 'u03', 'u06', 'u12']) {
+  for (const userId of ['u01', 'u03', 'u06', 'u08', 'u11']) {
     for (const path of paths) {
       it(`${users.find((u) => u.id === userId)?.role} ${path}`, async () => {
         sessionStorage.setItem('seastock.session', userId)
@@ -57,11 +57,14 @@ async function open(userId: string, path: string) {
 }
 
 describe('merged screens keep what they took over', () => {
-  it('a Chief Officer lands on their own vessel on Sea Stock', async () => {
-    await open('u12', '/')
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Sea Stock')
-    expect(screen.getByRole('heading', { name: 'Nordhavn Aurora' })).toBeInTheDocument()
-    expect(screen.queryByRole('link', { name: /Overview/ })).not.toBeInTheDocument()
+  it('a Customer Admin manages their vessels and tablets, not customers', async () => {
+    await open('u06', '/admin/customers')
+    expect(screen.getByRole('tab', { name: 'Vessels' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Tablets' })).toBeInTheDocument()
+    expect(screen.queryByRole('tab', { name: 'Customers' })).not.toBeInTheDocument()
+    expect(screen.getByRole('table', { name: 'Vessels' })).toHaveTextContent('Nordhavn Aurora')
+    expect(screen.getByRole('table', { name: 'Vessels' })).not.toHaveTextContent('Meridian Valencia')
+    expect(screen.queryByRole('button', { name: /Add vessel/ })).not.toBeInTheDocument()
   })
 
   it('Overview shows late sync, negative stock and unrecognised scans', async () => {
@@ -71,14 +74,24 @@ describe('merged screens keep what they took over', () => {
       'Meridian Genoa',
     )
     expect(screen.getByRole('table', { name: 'Unrecognised scans' })).toHaveTextContent('17906l')
+    expect(screen.getByRole('table', { name: 'Held sync events' })).toHaveTextContent('Pacific Crest')
+    expect(screen.getByRole('table', { name: 'IMO mismatches' })).toHaveTextContent('5324664017')
   })
 
-  it('Sea Stock rolls up by region for PPG, not for a customer', async () => {
+  it('only a PPG Admin matches unrecognised scans', async () => {
+    await open('u01', '/overview')
+    expect(screen.getAllByRole('button', { name: 'Match to article' })).not.toHaveLength(0)
+    cleanup()
+    await open('u06', '/overview')
+    expect(screen.queryByRole('button', { name: 'Match to article' })).not.toBeInTheDocument()
+  })
+
+  it('Sea Stock rolls up by customer for PPG, not for a Customer Admin', async () => {
     await open('u01', '/sea-stock')
-    expect(screen.getByRole('tab', { name: 'By region' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'By customer' })).toBeInTheDocument()
     cleanup()
     await open('u06', '/sea-stock')
-    expect(screen.queryByRole('tab', { name: 'By region' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('tab', { name: 'By customer' })).not.toBeInTheDocument()
     expect(screen.getByRole('tab', { name: 'By vessel' })).toBeInTheDocument()
   })
 
@@ -88,13 +101,13 @@ describe('merged screens keep what they took over', () => {
   })
 
   it('a delivery note outside the user’s scope does not open', async () => {
-    await open('u12', '/activity?dn=5324650871')
+    await open('u06', '/activity?dn=5324650871')
     expect(screen.queryByRole('table', { name: 'Tally' })).not.toBeInTheDocument()
   })
 
   it('admin screens hold their tabs', async () => {
     await open('u01', '/admin/customers')
-    for (const name of ['Customers', 'Vessels', 'Regions'])
+    for (const name of ['Customers', 'Vessels', 'Tablets'])
       expect(screen.getByRole('tab', { name })).toBeInTheDocument()
     cleanup()
     await open('u01', '/admin/products')
@@ -106,13 +119,13 @@ describe('merged screens keep what they took over', () => {
   })
 })
 
-describe('three roles', () => {
+describe('two portal roles', () => {
   it('uses the names from the reference screens', async () => {
     const { roles } = await import('../data/roles')
-    expect(roles.map((r) => r.label)).toEqual(['PPG Admin', 'Customer Admin', 'Ship Admin'])
+    expect(roles.map((r) => r.label)).toEqual(['PPG Admin', 'Customer Admin'])
   })
 
-  it('only a PPG Admin with all customers runs administration', async () => {
+  it('only a PPG Admin runs master data; a Customer Admin manages their own fleet', async () => {
     const { can } = await import('../data/roles')
     const { users } = await import('../data/sample')
     const byId = (id: string) => {
@@ -120,11 +133,13 @@ describe('three roles', () => {
       if (!user) throw new Error(id)
       return user
     }
-    expect(can(byId('u01'), 'manage-customers')).toBe(true) // all customers
-    expect(can(byId('u02'), 'manage-customers')).toBe(false) // EMEA only (sales)
-    expect(can(byId('u02'), 'export')).toBe(true)
-    expect(can(byId('u06'), 'manage-users')).toBe(true) // Customer Admin, own customer
-    expect(can(byId('u12'), 'view-review')).toBe(false) // Ship Admin
+    expect(can(byId('u01'), 'manage-customers')).toBe(true)
+    expect(can(byId('u01'), 'match-scans')).toBe(true)
+    expect(can(byId('u06'), 'manage-customers')).toBe(false) // Customer Admin
+    expect(can(byId('u06'), 'match-scans')).toBe(false)
+    expect(can(byId('u06'), 'manage-items')).toBe(false)
+    expect(can(byId('u06'), 'manage-users')).toBe(true) // own customer
+    expect(can(byId('u06'), 'manage-tablets')).toBe(true) // own vessels
   })
 })
 
@@ -157,13 +172,7 @@ describe('sign-in', () => {
     expect(
       await screen.findByText('Nordhavn Bulk Carriers', { selector: 'div' }),
     ).toBeInTheDocument()
-    expect(screen.queryByRole('link', { name: /Customers/ })).not.toBeInTheDocument()
-  })
-
-  it('Ship Admin lands on their own vessel', async () => {
-    await signIn('co.aurora@nordhavn.example')
-    expect(await screen.findAllByText('Nordhavn Aurora')).not.toHaveLength(0)
-    expect(screen.queryByText('Administration')).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /Products/ })).not.toBeInTheDocument()
   })
 
   it('wrong password, disabled and invited accounts cannot sign in', async () => {
@@ -173,7 +182,7 @@ describe('sign-in', () => {
     await signIn('tom.hughes@ppg.example')
     expect(screen.getByRole('alert')).toHaveTextContent('disabled')
     cleanup()
-    await signIn('co.endeavour@straits.example')
+    await signIn('nur.aisyah@straits.example')
     expect(screen.getByRole('alert')).toHaveTextContent('not set up yet')
   })
 
@@ -197,14 +206,13 @@ describe('changes show on other screens', () => {
     fireEvent.change(form.getByLabelText('Customer ID (as in PPG systems)'), {
       target: { value: 'C-999' },
     })
-    fireEvent.change(form.getByLabelText('Region'), { target: { value: 'EMEA' } })
     fireEvent.click(form.getByRole('button', { name: 'Add customer' }))
     expect(await screen.findByText('Test Lines')).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('tab', { name: 'Vessels' }))
     fireEvent.click(await screen.findByRole('button', { name: 'Add vessel' }))
     expect(
-      within(screen.getByRole('dialog')).getByRole('option', { name: 'Test Lines · EMEA' }),
+      within(screen.getByRole('dialog')).getByRole('option', { name: 'Test Lines · C-999' }),
     ).toBeInTheDocument()
   })
 })

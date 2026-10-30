@@ -10,7 +10,7 @@ interface CheckboxListProps<Value extends string> {
   onChange: (value: Value[]) => void
 }
 
-/** A labelled group of checkboxes for picking several values, e.g. regions or customers. */
+/** A labelled group of checkboxes for picking several values, e.g. customers. */
 export function CheckboxList<Value extends string>({
   label,
   options,

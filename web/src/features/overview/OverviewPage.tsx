@@ -7,7 +7,9 @@ import {
   consumedTotals,
   consumptionLines,
   daysAgo,
+  imoMismatchesFor,
   negativeStock,
+  openHeldEventsFor,
   scopeLabel,
   stockLines,
   totals,
@@ -26,7 +28,7 @@ const FROM = daysAgo(29)
 const TO = NOW.slice(0, 10)
 
 /**
- * Headline numbers and what needs attention. Breakdowns by region, customer and vessel live on
+ * Headline numbers and what needs attention. Breakdowns by customer and vessel live on
  * Sea Stock and Consumption, so they are not repeated here.
  */
 export function OverviewPage() {
@@ -39,7 +41,10 @@ export function OverviewPage() {
   const consumed = consumedTotals(consumptionLines(ids, FROM, TO))
   const late = lateVessels(ids).length
   const review = can(user, 'view-review')
-    ? negativeStock(ids).length + unrecognisedFor(ids).length
+    ? negativeStock(ids).length +
+      unrecognisedFor(ids).length +
+      openHeldEventsFor(ids).length +
+      imoMismatchesFor(ids).length
     : null
 
   return (

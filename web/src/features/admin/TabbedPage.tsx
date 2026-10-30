@@ -9,7 +9,8 @@ import { can, type Permission } from '../../data/roles'
 export interface PageTab {
   key: string
   label: string
-  needs: Permission
+  /** Shown if the user has any of these. */
+  needs: Permission[]
   content: ReactNode
 }
 
@@ -25,7 +26,7 @@ export function TabbedPage({
 }) {
   const { user } = useViewer()
   const [params, setParams] = useSearchParams()
-  const allowed = tabs.filter((t) => can(user, t.needs))
+  const allowed = tabs.filter((t) => t.needs.some((p) => can(user, p)))
   const current = allowed.find((t) => t.key === params.get('tab')) ?? allowed[0]
   return (
     <>

@@ -22,18 +22,18 @@ describe('shared components', () => {
     const onChange = vi.fn()
     render(
       <CheckboxList
-        label="Regions"
+        label="Customers"
         options={[
-          { value: 'APAC', label: 'APAC' },
-          { value: 'EMEA', label: 'EMEA' },
+          { value: 'c1', label: 'Nordhavn' },
+          { value: 'c2', label: 'Meridian' },
         ]}
-        value={['APAC']}
+        value={['c1']}
         onChange={onChange}
       />,
     )
-    fireEvent.click(screen.getByLabelText('EMEA'))
-    expect(onChange).toHaveBeenLastCalledWith(['APAC', 'EMEA'])
-    fireEvent.click(screen.getByLabelText('APAC'))
+    fireEvent.click(screen.getByLabelText('Meridian'))
+    expect(onChange).toHaveBeenLastCalledWith(['c1', 'c2'])
+    fireEvent.click(screen.getByLabelText('Nordhavn'))
     expect(onChange).toHaveBeenLastCalledWith([])
   })
 

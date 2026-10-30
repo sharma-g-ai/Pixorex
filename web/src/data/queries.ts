@@ -1,5 +1,19 @@
-import type { ComponentType, Customer, Item, RegionCode, Transaction, User, Vessel } from './model'
-import { customers, items, NOW, transactions, unrecognisedScans, users, vessels } from './sample'
+import type { ComponentType, Customer, Device, EnrolmentCode, Item, Transaction, User, Vessel } from './model'
+import {
+  assignments,
+  customers,
+  deliveryNotes,
+  devices,
+  enrolmentCodes,
+  imoWithCheckDigit,
+  items,
+  NOW,
+  quarantinedEvents,
+  transactions,
+  unrecognisedScans,
+  users,
+  vessels,
+} from './sample'
 
 // ---- Look-ups ----
 
@@ -15,60 +29,75 @@ export function userById(id: string): User | undefined {
   return users.find((u) => u.id === id)
 }
 
+export function deviceById(id: string): Device | undefined {
+  return devices.find((d) => d.id === id)
+}
+
 export function itemByArticle(articleNo: string): Item | undefined {
   return items.find((i) => i.articleNo === articleNo)
 }
 
-export function regionOfVessel(vessel: Vessel): RegionCode | undefined {
-  return customerById(vessel.customer)?.region
+/** The vessel's active tablet (one per vessel, D-12), or undefined. */
+export function activeDevice(vesselId: string): Device | undefined {
+  const a = assignments.find((x) => x.vessel === vesselId && x.unassignedAt === null)
+  return a ? deviceById(a.device) : undefined
 }
 
-// ---- Scope (FR-23, FR-24): what a user may see ----
+/** The vessel a tablet serves now, or undefined. */
+export function vesselOfDevice(deviceId: string): Vessel | undefined {
+  const a = assignments.find((x) => x.device === deviceId && x.unassignedAt === null)
+  return a ? vesselById(a.vessel) : undefined
+}
+
+/** The vessel's unused enrolment code that has not expired, or undefined. */
+export function openEnrolmentCode(vesselId: string): EnrolmentCode | undefined {
+  return enrolmentCodes.find((c) => c.vessel === vesselId && c.status === 'issued' && c.expiresAt > NOW)
+}
+
+/** 7 digits, the last one the IMO check digit. */
+export function isValidImo(imo: string): boolean {
+  return /^\d{7}$/.test(imo) && imoWithCheckDigit(imo.slice(0, 6)) === imo
+}
+
+/** "IMO 9812341" */
+export function imoLabel(imo: string): string {
+  return `IMO ${imo}`
+}
+
+// ---- Scope: a PPG Admin sees every customer; a Customer Admin only their own ----
 
 export function visibleCustomers(user: User): Customer[] {
   const s = user.scope
-  switch (s.kind) {
-    case 'all':
-      return customers
-    case 'regions':
-      return customers.filter((c) => s.regions.includes(c.region))
-    case 'customers':
-      return customers.filter((c) => s.customers.includes(c.id))
-    case 'customer':
-      return customers.filter((c) => c.id === s.customer)
-    case 'vessel': {
-      const vessel = vesselById(s.vessel)
-      return customers.filter((c) => c.id === vessel?.customer)
-    }
-  }
+  return s.kind === 'all' ? customers : customers.filter((c) => c.id === s.customer)
 }
 
 export function visibleVessels(user: User): Vessel[] {
-  if (user.scope.kind === 'vessel') {
-    const id = user.scope.vessel
-    return vessels.filter((v) => v.id === id)
-  }
   const ids = new Set(visibleCustomers(user).map((c) => c.id))
   return vessels.filter((v) => ids.has(v.customer))
 }
 
-export function scopeLabel(user: User): string {
-  const s = user.scope
-  switch (s.kind) {
-    case 'all':
-      return 'All regions'
-    case 'regions':
-      return `Region: ${s.regions.join(', ')}`
-    case 'customers':
-      return s.customers.map((id) => customerById(id)?.name ?? id).join(', ')
-    case 'customer':
-      return customerById(s.customer)?.name ?? s.customer
-    case 'vessel':
-      return vesselById(s.vessel)?.name ?? s.vessel
-  }
+/** Tablets a user may manage: any for a PPG Admin; for a Customer Admin, those last paired to their vessels. */
+export function visibleDevices(user: User): Device[] {
+  if (user.scope.kind === 'all') return devices
+  const ids = new Set(visibleVessels(user).map((v) => v.id))
+  return devices.filter((d) => {
+    const last = assignments.filter((a) => a.device === d.id).sort((a, b) => b.assignedAt.localeCompare(a.assignedAt))[0]
+    return last !== undefined && ids.has(last.vessel)
+  })
 }
 
-// ---- Sea Stock, worked out from the transaction stream ----
+/** The vessel a tablet was last paired to, current or not. */
+export function lastVesselOfDevice(deviceId: string): Vessel | undefined {
+  const last = assignments.filter((a) => a.device === deviceId).sort((a, b) => b.assignedAt.localeCompare(a.assignedAt))[0]
+  return last ? vesselById(last.vessel) : undefined
+}
+
+export function scopeLabel(user: User): string {
+  const s = user.scope
+  return s.kind === 'all' ? 'All customers' : (customerById(s.customer)?.name ?? s.customer)
+}
+
+// ---- Sea Stock, worked out from the ledger (vessel_stock) ----
 
 export interface StockLine {
   vessel: string
@@ -91,13 +120,7 @@ export function stockLines(vesselIds: string[]): StockLine[] {
     const item = itemByArticle(t.articleNo)
     if (!item) continue
     const key = `${t.vessel}|${t.articleNo}`
-    const line = totals.get(key) ?? {
-      vessel: t.vessel,
-      item,
-      cans: 0,
-      liters: 0,
-      lastChange: t.recordedAt,
-    }
+    const line = totals.get(key) ?? { vessel: t.vessel, item, cans: 0, liters: 0, lastChange: t.recordedAt }
     line.cans += t.cans
     line.liters = line.cans * item.unitVolume
     if (t.recordedAt > line.lastChange) line.lastChange = t.recordedAt
@@ -113,16 +136,11 @@ export interface ProductLine {
   vessels: number
 }
 
-/** Stock rolled up across vessels by article (FR-25). */
+/** Stock rolled up across vessels by article (FR-24). */
 export function stockByProduct(vesselIds: string[]): ProductLine[] {
   const byArticle = new Map<string, ProductLine>()
   for (const line of stockLines(vesselIds)) {
-    const p = byArticle.get(line.item.articleNo) ?? {
-      item: line.item,
-      cans: 0,
-      liters: 0,
-      vessels: 0,
-    }
+    const p = byArticle.get(line.item.articleNo) ?? { item: line.item, cans: 0, liters: 0, vessels: 0 }
     p.cans += line.cans
     p.liters += line.liters
     p.vessels += 1
@@ -140,38 +158,39 @@ export function byProductOrder(a: { item: Item }, b: { item: Item }): number {
   )
 }
 
-export function totals(lines: { cans: number; liters: number }[]): {
-  cans: number
-  liters: number
-} {
-  return lines.reduce((acc, l) => ({ cans: acc.cans + l.cans, liters: acc.liters + l.liters }), {
-    cans: 0,
-    liters: 0,
-  })
+export function totals(lines: { cans: number; liters: number }[]): { cans: number; liters: number } {
+  return lines.reduce((acc, l) => ({ cans: acc.cans + l.cans, liters: acc.liters + l.liters }), { cans: 0, liters: 0 })
 }
 
-// ---- Consumption ----
+// ---- Transactions and consumption ----
 
 export function transactionsFor(vesselIds: string[]): Transaction[] {
   const wanted = new Set(vesselIds)
   return transactions.filter((t) => wanted.has(t.vessel))
 }
 
-/** Consumption in a period (dates inclusive, YYYY-MM-DD), as positive cans and liters. */
+/** True when a timestamp's day falls in [from, to] (YYYY-MM-DD, inclusive). */
+export function inPeriod(at: string, from: string, to: string): boolean {
+  const day = at.slice(0, 10)
+  return day >= from && day <= to
+}
+
+/** Consumption in a period, as transactions (cans negative). */
 export function consumptionLines(vesselIds: string[], from: string, to: string): Transaction[] {
-  return transactionsFor(vesselIds).filter(
-    (t) =>
-      t.type === 'consumption' &&
-      t.recordedAt.slice(0, 10) >= from &&
-      t.recordedAt.slice(0, 10) <= to,
-  )
+  return transactionsFor(vesselIds).filter((t) => t.type === 'consumption' && inPeriod(t.recordedAt, from, to))
 }
 
 export function consumedTotals(lines: Transaction[]): { cans: number; liters: number } {
   return totals(lines.map((t) => ({ cans: -t.cans, liters: -liters(t.articleNo, t.cans) })))
 }
 
-// ---- Review (BRD §13 mitigations) ----
+/** Who recorded a transaction: the tablet for device rows, the admin for portal rows. */
+export function recordedByLabel(t: Transaction): string {
+  if (t.origin === 'portal') return userById(t.recordedBy ?? '')?.name ?? 'Portal'
+  return t.device ?? 'Tablet'
+}
+
+// ---- Review (BRD §13; data model Domains 2, 4, 5) ----
 
 export function negativeStock(vesselIds: string[]): StockLine[] {
   return stockLines(vesselIds).filter((l) => l.cans < 0)
@@ -182,13 +201,22 @@ export function unrecognisedFor(vesselIds: string[]) {
   return unrecognisedScans.filter((s) => wanted.has(s.vessel))
 }
 
+export function openHeldEventsFor(vesselIds: string[]) {
+  const wanted = new Set(vesselIds)
+  return quarantinedEvents.filter((e) => wanted.has(e.vessel) && e.status === 'open')
+}
+
+/** Delivery notes whose IMO read from the paper does not match the vessel. */
+export function imoMismatchesFor(vesselIds: string[]) {
+  const wanted = new Set(vesselIds)
+  return deliveryNotes.filter((d) => wanted.has(d.vessel) && d.imoCheck === 'mismatch')
+}
+
 // ---- Time ----
 
 export function daysSince(at: string | null): number | null {
   if (!at) return null
-  const ms =
-    new Date(`${NOW}:00Z`).getTime() -
-    new Date(`${at.length === 10 ? `${at}T00:00` : at}:00Z`).getTime()
+  const ms = new Date(`${NOW}:00Z`).getTime() - new Date(`${at.length === 10 ? `${at}T00:00` : at}:00Z`).getTime()
   return Math.floor(ms / 86_400_000)
 }
 
@@ -196,4 +224,10 @@ export function daysAgo(days: number): string {
   const d = new Date(`${NOW}:00Z`)
   d.setUTCDate(d.getUTCDate() - days)
   return d.toISOString().slice(0, 10)
+}
+
+export function hoursFrom(at: string, hours: number): string {
+  const d = new Date(`${at}:00Z`)
+  d.setUTCHours(d.getUTCHours() + hours)
+  return d.toISOString().slice(0, 16)
 }

@@ -10,152 +10,112 @@ import { FilterBar, useScopeFilter } from '../../components/ScopeFilters'
 import { SelectField } from '../../components/SelectField'
 import { Tabs } from '../../components/Tabs'
 import { TextField } from '../../components/TextField'
-import type { TransactionSource, TransactionType } from '../../data/model'
+import type { AuditEntry, DeliveryNote, TransactionSource, TransactionType } from '../../data/model'
 import {
   customerById,
+  inPeriod,
   itemByArticle,
   liters,
+  recordedByLabel,
   transactionsFor,
-  userById,
   vesselById,
+  visibleCustomers,
   visibleVessels,
 } from '../../data/queries'
-import { deliveryNotes } from '../../data/sample'
+import { can } from '../../data/roles'
+import { auditLog, deliveryNotes } from '../../data/sample'
+import { useStore } from '../../data/store'
 import { downloadCsv } from '../../lib/csv'
 import { ActivityTable } from './ActivityTable'
+import { AuditLogTable, auditCategories } from './AuditLogTable'
 import { DeliveryNoteDialog } from './DeliveryNoteDialog'
 import { DeliveryNotesTable, differences, receivedCans } from './DeliveryNotesTable'
 
-type TabKey = 'transactions' | 'notes'
+type TabKey = 'transactions' | 'notes' | 'audit'
+
+const sources: TransactionSource[] = ['DN scan', 'Label scan', 'Manual entry', 'Manual adjustment', 'Review match']
 
 /**
- * Everything recorded on board: the audit trail of transactions (FR-12, FR-13), and the
- * delivery notes received with their tally (FR-01 – FR-05). ?dn=<number> opens one note.
+ * Everything recorded: stock transactions (FR-12, FR-13), delivery notes with their tally
+ * (FR-01 – FR-05), and the audit log of admin and tablet actions (Domain 6).
+ * ?tab=notes|audit opens a tab; ?dn=<number> opens one delivery note.
  */
 export function ActivityPage() {
+  useStore()
   const { user } = useViewer()
   const [params, setParams] = useSearchParams()
-  const tab: TabKey = params.get('tab') === 'notes' ? 'notes' : 'transactions'
+  const showAudit = can(user, 'view-audit')
+  const asked = params.get('tab')
+  const tab: TabKey = asked === 'notes' ? 'notes' : asked === 'audit' && showAudit ? 'audit' : 'transactions'
   const scope = useScopeFilter()
   const period = usePeriod()
   const [type, setType] = useState<TransactionType | ''>('')
   const [source, setSource] = useState<TransactionSource | ''>('')
   const [tally, setTally] = useState('')
+  const [imoCheck, setImoCheck] = useState<DeliveryNote['imoCheck'] | ''>('')
   const [search, setSearch] = useState('')
+  const [category, setCategory] = useState<AuditEntry['category'] | ''>('')
 
   const ids = scope.vessels.map((v) => v.id)
-  const inPeriod = (at: string) => at.slice(0, 10) >= period.from && at.slice(0, 10) <= period.to
   const rows = transactionsFor(ids)
-    .filter((t) => inPeriod(t.recordedAt))
+    .filter((t) => inPeriod(t.recordedAt, period.from, period.to))
     .filter((t) => (!type || t.type === type) && (!source || t.source === source))
   const notes = deliveryNotes
-    .filter((dn) => ids.includes(dn.vessel) && inPeriod(dn.capturedAt))
+    .filter((dn) => ids.includes(dn.vessel) && inPeriod(dn.confirmedAt, period.from, period.to))
     .filter((dn) => !tally || (tally === 'matched' ? differences(dn) === 0 : differences(dn) > 0))
-    .filter((dn) =>
-      `${dn.dnNumber} ${dn.customerReference}`.toLowerCase().includes(search.trim().toLowerCase()),
-    )
-    .sort((a, b) => b.capturedAt.localeCompare(a.capturedAt))
+    .filter((dn) => !imoCheck || dn.imoCheck === imoCheck)
+    .filter((dn) => `${dn.dnNumber} ${dn.customerReference}`.toLowerCase().includes(search.trim().toLowerCase()))
+    .sort((a, b) => b.confirmedAt.localeCompare(a.confirmedAt))
+  // A Customer Admin sees only entries about their own customer (to confirm).
+  const ownCustomers = new Set(visibleCustomers(user).map((c) => c.id))
+  const audit = auditLog
+    .filter((a) => user.scope.kind === 'all' || (a.customer !== null && ownCustomers.has(a.customer)))
+    .filter((a) => !scope.vessel || a.vessel === scope.vessel)
+    .filter((a) => !scope.customer || a.customer === scope.customer)
+    .filter((a) => inPeriod(a.at, period.from, period.to) && (!category || a.category === category))
 
-  // Only notes for vessels the user may see open (FR-23).
-  const open = deliveryNotes.find(
-    (d) => d.dnNumber === params.get('dn') && visibleVessels(user).some((v) => v.id === d.vessel),
-  )
+  // Only notes for vessels the user may see open.
+  const open = deliveryNotes.find((d) => d.dnNumber === params.get('dn') && visibleVessels(user).some((v) => v.id === d.vessel))
   const closeNote = () => {
     params.delete('dn')
     setParams(params, { replace: true })
   }
 
-  const exportCsv = () =>
-    tab === 'transactions'
-      ? downloadCsv(
-          'activity.csv',
-          [
-            'Transaction ID',
-            'Type',
-            'Recorded (UTC)',
-            'Synced (UTC)',
-            'Region',
-            'Customer',
-            'Vessel',
-            'Article no.',
-            'Product',
-            'Shade',
-            'Cans',
-            'Liters',
-            'User',
-            'Device',
-            'Source',
-            'DN',
-            'Reason',
-          ],
-          rows.map((t) => {
-            const item = itemByArticle(t.articleNo)
-            const v = vesselById(t.vessel)
-            const c = v && customerById(v.customer)
-            return [
-              t.id,
-              t.type,
-              t.recordedAt,
-              t.syncedAt,
-              c?.region ?? '',
-              c?.name ?? '',
-              v?.name ?? '',
-              t.articleNo,
-              item?.product ?? '',
-              item?.shade ?? '',
-              t.cans,
-              liters(t.articleNo, t.cans),
-              userById(t.user)?.name ?? '',
-              t.device,
-              t.source,
-              t.dn ?? '',
-              t.reason ?? '',
-            ]
-          }),
-        )
-      : downloadCsv(
-          'delivery-notes.csv',
-          [
-            'DN number',
-            'DN date',
-            'Region',
-            'Customer',
-            'Vessel',
-            'IMO',
-            'Customer reference',
-            'Lines',
-            'Cans received',
-            'Differences',
-            'Received by',
-            'Confirmed (UTC)',
-            'Synced (UTC)',
-          ],
-          notes.map((dn) => {
-            const v = vesselById(dn.vessel)
-            const c = v && customerById(v.customer)
-            return [
-              dn.dnNumber,
-              dn.dnDate,
-              c?.region ?? '',
-              c?.name ?? '',
-              v?.name ?? '',
-              v?.imo ?? '',
-              dn.customerReference,
-              dn.lines.length,
-              receivedCans(dn),
-              differences(dn),
-              userById(dn.capturedBy)?.name ?? '',
-              dn.capturedAt,
-              dn.syncedAt,
-            ]
-          }),
-        )
+  const exportCsv = () => {
+    if (tab === 'transactions')
+      return downloadCsv(
+        'transactions.csv',
+        ['Transaction ID', 'Type', 'Recorded (UTC)', 'Received (UTC)', 'Customer', 'Vessel', 'IMO', 'Article no.', 'Product', 'Shade', 'Cans', 'Liters', 'Origin', 'Recorded by', 'Source', 'DN', 'Reason'],
+        rows.map((t) => {
+          const item = itemByArticle(t.articleNo)
+          const v = vesselById(t.vessel)
+          return [t.id, t.type, t.recordedAt, t.receivedAt, customerById(v?.customer ?? '')?.name ?? '', v?.name ?? '', v?.imo ?? '', t.articleNo, item?.product ?? '', item?.shade ?? '', t.cans, liters(t.articleNo, t.cans), t.origin, recordedByLabel(t), t.source, t.dn ?? '', t.reason ?? '']
+        }),
+      )
+    if (tab === 'notes')
+      return downloadCsv(
+        'delivery-notes.csv',
+        ['DN number', 'DN date', 'Customer', 'Vessel', 'IMO', 'IMO on note', 'IMO check', 'Customer reference', 'Lines', 'Cans received', 'Differences', 'Tablet', 'Confirmed (UTC)', 'Received (UTC)'],
+        notes.map((dn) => {
+          const v = vesselById(dn.vessel)
+          return [dn.dnNumber, dn.dnDate, customerById(v?.customer ?? '')?.name ?? '', v?.name ?? '', v?.imo ?? '', dn.imoOnNote ?? '', dn.imoCheck, dn.customerReference, dn.lines.length, receivedCans(dn), differences(dn), dn.device, dn.confirmedAt, dn.receivedAt]
+        }),
+      )
+    return downloadCsv(
+      'audit-log.csv',
+      ['When (UTC)', 'Actor type', 'Actor', 'Area', 'What happened'],
+      audit.map((a) => [a.at, a.actorType, a.actor ?? '', auditCategories[a.category], a.summary]),
+    )
+  }
+
+  const count =
+    tab === 'transactions' ? `${rows.length} transactions` : tab === 'notes' ? `${notes.length} delivery notes` : `${audit.length} entries`
 
   return (
     <>
       <PageHeader
         title="Activity"
-        subtitle="Everything recorded on board: receipts, consumption, adjustments and baseline counts"
+        subtitle="Everything recorded: stock movements, delivery notes and who did what"
         actions={
           <Button variant="secondary" onClick={exportCsv}>
             <Icon name="download" /> Export CSV
@@ -166,16 +126,17 @@ export function ActivityPage() {
         <Tabs
           label="Activity"
           current={tab}
-          onChange={(key) => setParams(key === 'notes' ? { tab: 'notes' } : {})}
+          onChange={(key) => setParams(key === 'transactions' ? {} : { tab: key })}
           tabs={[
             { key: 'transactions', label: 'Transactions' },
             { key: 'notes', label: 'Delivery notes' },
+            ...(showAudit ? [{ key: 'audit' as const, label: 'Audit log' }] : []),
           ]}
         />
         <FilterBar>
           {period.controls}
           {scope.controls}
-          {tab === 'transactions' ? (
+          {tab === 'transactions' && (
             <>
               <SelectField
                 label="Type"
@@ -195,15 +156,11 @@ export function ActivityPage() {
                 className="w-44"
                 value={source}
                 onChange={(e) => setSource(e.target.value as TransactionSource | '')}
-                options={[
-                  { value: '', label: 'All sources' },
-                  { value: 'DN scan', label: 'DN scan' },
-                  { value: 'Label scan', label: 'Label scan' },
-                  { value: 'Manual adjustment', label: 'Manual adjustment' },
-                ]}
+                options={[{ value: '', label: 'All sources' }, ...sources.map((s) => ({ value: s, label: s }))]}
               />
             </>
-          ) : (
+          )}
+          {tab === 'notes' && (
             <>
               <SelectField
                 label="Tally"
@@ -216,6 +173,18 @@ export function ActivityPage() {
                   { value: 'differences', label: 'With differences' },
                 ]}
               />
+              <SelectField
+                label="IMO check"
+                className="w-40"
+                value={imoCheck}
+                onChange={(e) => setImoCheck(e.target.value as DeliveryNote['imoCheck'] | '')}
+                options={[
+                  { value: '', label: 'All' },
+                  { value: 'match', label: 'Matches' },
+                  { value: 'mismatch', label: 'Mismatch' },
+                  { value: 'not_read', label: 'Not read' },
+                ]}
+              />
               <TextField
                 label="Search"
                 placeholder="DN number or customer ref."
@@ -225,29 +194,32 @@ export function ActivityPage() {
               />
             </>
           )}
+          {tab === 'audit' && (
+            <SelectField
+              label="Area"
+              className="w-48"
+              value={category}
+              onChange={(e) => setCategory(e.target.value as AuditEntry['category'] | '')}
+              options={[{ value: '', label: 'All areas' }, ...Object.entries(auditCategories).map(([value, label]) => ({ value, label }))]}
+            />
+          )}
         </FilterBar>
 
         <Card flush>
           <div className="flex justify-end px-5 pt-3">
-            <Muted>
-              {tab === 'transactions'
-                ? `${rows.length} transactions`
-                : `${notes.length} delivery notes`}{' '}
-              · times in UTC
-            </Muted>
+            <Muted>{count} · times in UTC</Muted>
           </div>
           <div className="p-4">
-            {tab === 'transactions' ? (
-              <ActivityTable rows={rows} />
-            ) : (
-              <DeliveryNotesTable rows={notes} />
-            )}
+            {tab === 'transactions' && <ActivityTable rows={rows} />}
+            {tab === 'notes' && <DeliveryNotesTable rows={notes} />}
+            {tab === 'audit' && <AuditLogTable rows={audit} />}
           </div>
         </Card>
         {tab === 'notes' && (
           <Note>
-            The crew resolves differences on the tablet before confirming (FR-04, FR-05); the portal
-            shows the result. Delivery note images are not kept (D-07).
+            The crew sorts out differences on the tablet before confirming; the portal shows the result. The
+            vessel is always the tablet’s vessel: the IMO read from the paper is only checked. Delivery note
+            images are not kept.
           </Note>
         )}
       </PageBody>

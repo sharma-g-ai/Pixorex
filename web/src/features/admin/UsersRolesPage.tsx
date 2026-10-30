@@ -9,11 +9,11 @@ export function UsersRolesPage() {
       title="Users"
       subtitle="Who has access, their role and their scope"
       tabs={[
-        { key: 'users', label: 'Users', needs: 'manage-users', content: <UsersPage /> },
+        { key: 'users', label: 'Users', needs: ['manage-users'], content: <UsersPage /> },
         {
           key: 'roles',
           label: 'Roles & permissions',
-          needs: 'manage-users',
+          needs: ['manage-users'],
           content: <RolesPage />,
         },
       ]}

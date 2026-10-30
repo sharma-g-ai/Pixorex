@@ -6,55 +6,72 @@ import { DataTable } from '../../components/DataTable'
 import { Dialog } from '../../components/Dialog'
 import { Card, Mono, Muted, Note } from '../../components/Page'
 import { SelectField } from '../../components/SelectField'
-import { SyncAge, TransactionBadge } from '../../components/StockBadges'
-import type { UnrecognisedScan } from '../../data/model'
+import { ImoCheckBadge, SyncAge, TransactionBadge } from '../../components/StockBadges'
+import { TextAreaField } from '../../components/TextAreaField'
+import type { QuarantinedEvent, UnrecognisedScan } from '../../data/model'
 import {
+  activeDevice,
   customerById,
   daysSince,
+  imoMismatchesFor,
   negativeStock,
+  openHeldEventsFor,
   unrecognisedFor,
-  userById,
   vesselById,
   visibleVessels,
 } from '../../data/queries'
 import { can } from '../../data/roles'
 import { items } from '../../data/sample'
-import { matchScan, useStore } from '../../data/store'
-import { formatDateTime } from '../../lib/format'
+import { closeHeldEvent, matchScan, useStore } from '../../data/store'
+import { formatDate, formatDateTime } from '../../lib/format'
 
-/** Vessels whose tablet has not synced within the 1–3 days A-07 expects. */
+/** Vessels whose tablet has not synced within the usual 1–3 days (A-07). */
 export function lateVessels(vesselIds: string[]) {
-  return visibleVesselsById(vesselIds).filter((v) => {
-    const days = daysSince(v.lastSync)
-    return days === null || days > 3
-  })
+  return vesselIds
+    .map((id) => vesselById(id))
+    .filter((v) => v !== undefined)
+    .filter((v) => {
+      const days = daysSince(v.lastSync)
+      return days === null || days > 3
+    })
 }
 
-function visibleVesselsById(ids: string[]) {
-  return ids.map((id) => vesselById(id)).filter((v) => v !== undefined)
+function VesselCell({ vesselId }: { vesselId: string }) {
+  const v = vesselById(vesselId)
+  return (
+    <div className="min-w-0">
+      <Link to={`/sea-stock?vessel=${vesselId}`} className="font-semibold text-brand hover:underline">
+        {v?.name}
+      </Link>
+      <div>
+        <Muted>{customerById(v?.customer ?? '')?.name}</Muted>
+      </div>
+    </div>
+  )
 }
+
+const kindToType = { receipt: 'receipt', consumption: 'consumption', baseline: 'baseline' } as const
 
 /**
- * What needs someone's attention: late syncs (A-07), and the BRD §13 mitigations — negative
- * stock surfaced for review, unrecognised articles flagged rather than rejected.
+ * What needs someone's attention: late syncs, negative stock, scans whose article number is not
+ * in the master list, uploads the server could not apply, and delivery notes whose IMO does not
+ * match the vessel (BRD §13; data model Domains 2, 4, 5).
  */
 export function NeedsAttention() {
   useStore()
   const { user } = useViewer()
   const ids = visibleVessels(user).map((v) => v.id)
   const late = lateVessels(ids)
-  const negative = can(user, 'view-review') ? negativeStock(ids) : []
-  const unrecognised = can(user, 'view-review') ? unrecognisedFor(ids) : []
+  const negative = negativeStock(ids)
+  const unrecognised = unrecognisedFor(ids)
+  const held = openHeldEventsFor(ids)
+  const mismatches = imoMismatchesFor(ids)
   const [matching, setMatching] = useState<UnrecognisedScan | null>(null)
-  const canResolve = can(user, 'resolve-unrecognised')
+  const [closing, setClosing] = useState<QuarantinedEvent | null>(null)
 
   return (
     <section id="attention" className="flex flex-col gap-5">
-      <Card
-        title="Late or no sync"
-        subtitle="No sync for more than 3 days (A-07 expects every 1–3 days)"
-        flush
-      >
+      <Card title="Late or no sync" subtitle="No sync for more than 3 days; vessels usually sync every 1–3 days" flush>
         <div className="p-4">
           <DataTable
             label="Late sync"
@@ -62,167 +79,183 @@ export function NeedsAttention() {
             rowKey={(v) => v.id}
             empty="Every vessel synced in the last 3 days"
             columns={[
-              {
-                header: 'Vessel',
-                width: 1.6,
-                cell: (v) => (
-                  <div>
-                    <Link
-                      to={`/sea-stock?vessel=${v.id}`}
-                      className="font-semibold text-brand hover:underline"
-                    >
-                      {v.name}
-                    </Link>
-                    <div>
-                      <Muted>{customerById(v.customer)?.name}</Muted>
-                    </div>
-                  </div>
-                ),
-              },
-              { header: 'Tablet', width: 0.9, cell: (v) => <Mono>{v.device?.id ?? '—'}</Mono> },
+              { header: 'Vessel', width: 1.6, cell: (v) => <VesselCell vesselId={v.id} /> },
+              { header: 'Tablet', width: 0.9, cell: (v) => <Mono>{activeDevice(v.id)?.id ?? 'None paired'}</Mono> },
               {
                 header: 'Opening stock',
                 width: 1,
-                cell: (v) =>
-                  v.baselineOn ? 'Captured' : <span className="text-warning">Not captured</span>,
+                cell: (v) => (v.baselineOn ? 'Captured' : <span className="text-warning">Not captured</span>),
               },
               { header: 'Last sync', width: 1.2, cell: (v) => <SyncAge at={v.lastSync} /> },
             ]}
           />
         </div>
       </Card>
-      {can(user, 'view-review') && (
-        <>
-          <Card
-            title="Negative stock"
-            subtitle="More cans scanned out than on record: usually a receipt not scanned, a missed opening count, or a can scanned out twice (BRD §13). Correct it with a stock adjustment on the tablet."
-            flush
-          >
-            <div className="p-4">
-              <DataTable
-                label="Negative stock"
-                rows={negative}
-                rowKey={(l) => `${l.vessel}-${l.item.articleNo}`}
-                empty="No negative stock"
-                columns={[
-                  {
-                    header: 'Vessel',
-                    width: 1.4,
-                    cell: (l) => (
-                      <div>
-                        <Link
-                          to={`/sea-stock?vessel=${l.vessel}`}
-                          className="font-semibold text-brand hover:underline"
-                        >
-                          {vesselById(l.vessel)?.name}
-                        </Link>
-                        <div>
-                          <Muted>{customerById(vesselById(l.vessel)?.customer ?? '')?.name}</Muted>
-                        </div>
-                      </div>
-                    ),
-                  },
-                  {
-                    header: 'Item',
-                    width: 1.8,
-                    cell: (l) => (
-                      <div>
-                        <div className="font-semibold">{l.item.product}</div>
-                        <Muted>
-                          <Mono>{l.item.articleNo}</Mono> · {l.item.componentType} ·{' '}
-                          {l.item.packSize}
-                        </Muted>
-                      </div>
-                    ),
-                  },
-                  {
-                    header: 'On record',
-                    width: 0.8,
-                    align: 'right',
-                    cell: (l) => <b className="text-danger">{l.cans} cans</b>,
-                  },
-                  { header: 'Last change', width: 1.1, cell: (l) => formatDateTime(l.lastChange) },
-                ]}
-              />
-            </div>
-          </Card>
 
-          <Card
-            title="Unrecognised scans"
-            subtitle="Held aside: not in Sea Stock until matched to an article"
-            flush
-          >
-            <div className="p-4">
-              <DataTable
-                label="Unrecognised scans"
-                rows={unrecognised}
-                rowKey={(s) => s.id}
-                empty="No unrecognised scans"
-                columns={[
-                  {
-                    header: 'Vessel',
-                    width: 1.3,
-                    cell: (s) => (
-                      <div>
-                        <div className="font-semibold">{vesselById(s.vessel)?.name}</div>
-                        <Muted>{userById(s.user)?.name}</Muted>
-                      </div>
-                    ),
-                  },
-                  { header: 'Type', width: 0.9, cell: (s) => <TransactionBadge type={s.type} /> },
-                  {
-                    header: 'Read from the label',
-                    width: 2,
-                    cell: (s) => (
-                      <div>
-                        <div>
-                          Article no.{' '}
-                          {s.readArticleNo ? (
-                            <Mono>{s.readArticleNo}</Mono>
-                          ) : (
-                            <span className="text-danger">not readable</span>
-                          )}
-                        </div>
-                        <Muted>
-                          {s.readProduct} · {s.readShade}
-                        </Muted>
-                      </div>
-                    ),
-                  },
-                  { header: 'Cans', width: 0.5, align: 'right', cell: (s) => s.cans },
-                  { header: 'Recorded', width: 1.1, cell: (s) => formatDateTime(s.recordedAt) },
-                  {
-                    header: '',
-                    width: 1.2,
-                    align: 'right',
-                    cell: (s) =>
-                      canResolve ? (
-                        <Button variant="secondary" onClick={() => setMatching(s)}>
-                          Match to article
-                        </Button>
-                      ) : (
-                        <Muted>PPG admin to match</Muted>
-                      ),
-                  },
-                ]}
-              />
-            </div>
-          </Card>
-        </>
-      )}
+      <Card
+        title="Negative stock"
+        subtitle="More cans scanned out than on record: usually a receipt not scanned, a can missed in the opening count, or a can scanned out twice. Correct it with a stock adjustment."
+        flush
+      >
+        <div className="p-4">
+          <DataTable
+            label="Negative stock"
+            rows={negative}
+            rowKey={(l) => `${l.vessel}-${l.item.articleNo}`}
+            empty="No negative stock"
+            columns={[
+              { header: 'Vessel', width: 1.4, cell: (l) => <VesselCell vesselId={l.vessel} /> },
+              {
+                header: 'Item',
+                width: 1.8,
+                cell: (l) => (
+                  <div>
+                    <div className="font-semibold">{l.item.product}</div>
+                    <Muted>
+                      <Mono>{l.item.articleNo}</Mono> · {l.item.componentType} · {l.item.packSize}
+                    </Muted>
+                  </div>
+                ),
+              },
+              { header: 'On record', width: 0.8, align: 'right', cell: (l) => <b className="text-danger">{l.cans} cans</b> },
+              { header: 'Last change', width: 1.1, cell: (l) => formatDateTime(l.lastChange) },
+            ]}
+          />
+        </div>
+      </Card>
+
+      <Card title="Unrecognised scans" subtitle="The article number read is not in the master item list. Held aside, not in Sea Stock, until a PPG Admin matches it." flush>
+        <div className="p-4">
+          <DataTable
+            label="Unrecognised scans"
+            rows={unrecognised}
+            rowKey={(s) => s.id}
+            empty="No unrecognised scans"
+            columns={[
+              { header: 'Vessel', width: 1.3, cell: (s) => <VesselCell vesselId={s.vessel} /> },
+              { header: 'Type', width: 0.9, cell: (s) => <TransactionBadge type={kindToType[s.kind]} /> },
+              {
+                header: 'Read from the label',
+                width: 1.8,
+                cell: (s) => (
+                  <div>
+                    <div>
+                      Article no. <Mono>{s.rawArticleNo}</Mono>
+                    </div>
+                    <Muted>{[s.rawLabel.product, s.rawLabel.shade].filter(Boolean).join(' · ')}</Muted>
+                  </div>
+                ),
+              },
+              { header: 'Cans', width: 0.5, align: 'right', cell: (s) => s.cans },
+              { header: 'Recorded', width: 1.1, cell: (s) => formatDateTime(s.recordedAt) },
+              {
+                header: '',
+                width: 1.2,
+                align: 'right',
+                cell: (s) =>
+                  can(user, 'match-scans') ? (
+                    <Button variant="secondary" onClick={() => setMatching(s)}>
+                      Match to article
+                    </Button>
+                  ) : (
+                    <Muted>PPG Admin to match</Muted>
+                  ),
+              },
+            ]}
+          />
+        </div>
+      </Card>
+
+      <Card title="Held sync events" subtitle="Uploaded from a tablet but not applied, e.g. a delivery note sent twice. Nothing is lost: each is kept here until an admin closes it." flush>
+        <div className="p-4">
+          <DataTable
+            label="Held sync events"
+            rows={held}
+            rowKey={(e) => e.id}
+            empty="No held events"
+            columns={[
+              { header: 'Vessel', width: 1.3, cell: (e) => <VesselCell vesselId={e.vessel} /> },
+              {
+                header: 'What was sent',
+                width: 1.8,
+                cell: (e) => (
+                  <div>
+                    <div>{e.summary}</div>
+                    <Muted>
+                      Tablet <Mono>{e.device}</Mono> · {formatDateTime(e.receivedAt)}
+                    </Muted>
+                  </div>
+                ),
+              },
+              { header: 'Why it was held', width: 1.8, cell: (e) => <span className="text-small">{e.errorDetail}</span> },
+              {
+                header: '',
+                width: 0.8,
+                align: 'right',
+                cell: (e) =>
+                  can(user, 'close-held-events') ? (
+                    <Button variant="secondary" onClick={() => setClosing(e)}>
+                      Close
+                    </Button>
+                  ) : (
+                    <Muted>PPG Admin to close</Muted>
+                  ),
+              },
+            ]}
+          />
+        </div>
+      </Card>
+
+      <Card title="Delivery notes with an IMO mismatch" subtitle="The IMO read from the paper is not this vessel’s. The receipt is still on the tablet’s vessel; check the note." flush>
+        <div className="p-4">
+          <DataTable
+            label="IMO mismatches"
+            rows={mismatches}
+            rowKey={(d) => d.dnNumber}
+            empty="No mismatches"
+            columns={[
+              { header: 'Vessel', width: 1.3, cell: (d) => <VesselCell vesselId={d.vessel} /> },
+              {
+                header: 'Delivery note',
+                width: 1.3,
+                cell: (d) => (
+                  <div>
+                    <Link to={`/activity?tab=notes&dn=${d.dnNumber}`} className="font-semibold text-brand hover:underline">
+                      DN <Mono>{d.dnNumber}</Mono>
+                    </Link>
+                    <div>
+                      <Muted>Dated {formatDate(d.dnDate)}</Muted>
+                    </div>
+                  </div>
+                ),
+              },
+              {
+                header: 'On the note',
+                width: 1.6,
+                cell: (d) => (
+                  <div>
+                    <div>
+                      IMO <Mono>{d.imoOnNote ?? '—'}</Mono> <ImoCheckBadge check={d.imoCheck} />
+                    </div>
+                    <Muted>{d.vesselNameOnNote}</Muted>
+                  </div>
+                ),
+              },
+              { header: 'Received', width: 1, cell: (d) => formatDateTime(d.confirmedAt) },
+            ]}
+          />
+        </div>
+      </Card>
 
       {matching && <MatchDialog scan={matching} onClose={() => setMatching(null)} />}
+      {closing && <CloseHeldDialog event={closing} onClose={() => setClosing(null)} />}
     </section>
   )
 }
 
 function MatchDialog({ scan, onClose }: { scan: UnrecognisedScan; onClose: () => void }) {
-  // Suggest the article whose product and shade match what was read (A-02 fallback).
-  const suggestion = items.find(
-    (i) => i.status === 'active' && i.product === scan.readProduct && i.shade === scan.readShade,
-  )
-  const [article, setArticle] = useState(suggestion?.articleNo ?? '')
   const { user } = useViewer()
+  const [article, setArticle] = useState('')
   return (
     <Dialog
       title="Match to article"
@@ -246,15 +279,10 @@ function MatchDialog({ scan, onClose }: { scan: UnrecognisedScan; onClose: () =>
     >
       <div className="flex flex-col gap-4">
         <p>
-          Read from the label: article no. {scan.readArticleNo ?? 'not readable'},{' '}
-          {scan.readProduct}, {scan.readShade} — {scan.cans} {scan.cans === 1 ? 'can' : 'cans'}.
+          Read from the label: article no. <Mono>{scan.rawArticleNo}</Mono>
+          {scan.rawLabel.product ? `, ${scan.rawLabel.product}` : ''}
+          {scan.rawLabel.shade ? `, ${scan.rawLabel.shade}` : ''} — {scan.cans} {scan.cans === 1 ? 'can' : 'cans'}.
         </p>
-        {suggestion && (
-          <Note>
-            Product and shade match article <b>{suggestion.articleNo}</b>. The article number was
-            probably misread.
-          </Note>
-        )}
         <SelectField
           label="Article on the master item list"
           value={article}
@@ -263,12 +291,13 @@ function MatchDialog({ scan, onClose }: { scan: UnrecognisedScan; onClose: () =>
             { value: '', label: 'Choose an article…' },
             ...items
               .filter((i) => i.status === 'active')
-              .map((i) => ({
-                value: i.articleNo,
-                label: `${i.articleNo} · ${i.product} ${i.shade || i.componentType} · ${i.packSize}`,
-              })),
+              .map((i) => ({ value: i.articleNo, label: `${i.articleNo} · ${i.product} ${i.shade || i.componentType} · ${i.packSize}` })),
           ]}
         />
+        <Note>
+          Posting adds it to the vessel’s stock as the {scan.kind} it was, dated at the original scan and
+          recorded under your name.
+        </Note>
         <p className="text-small">
           Not on the list? Add it to the{' '}
           <Link to="/admin/products" className="font-semibold text-brand hover:underline">
@@ -276,6 +305,51 @@ function MatchDialog({ scan, onClose }: { scan: UnrecognisedScan; onClose: () =>
           </Link>{' '}
           first.
         </p>
+      </div>
+    </Dialog>
+  )
+}
+
+function CloseHeldDialog({ event, onClose }: { event: QuarantinedEvent; onClose: () => void }) {
+  const { user } = useViewer()
+  const [outcome, setOutcome] = useState<'resolved' | 'dismissed'>('resolved')
+  const [note, setNote] = useState('')
+  return (
+    <Dialog
+      title="Close held event"
+      onClose={onClose}
+      footer={
+        <>
+          <Button variant="secondary" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button
+            disabled={!note.trim()}
+            onClick={() => {
+              closeHeldEvent(event.id, outcome, note.trim(), user)
+              onClose()
+            }}
+          >
+            Close event
+          </Button>
+        </>
+      }
+    >
+      <div className="flex flex-col gap-4">
+        <p>
+          {event.summary}. {event.errorDetail}
+        </p>
+        <SelectField
+          label="Outcome"
+          value={outcome}
+          onChange={(e) => setOutcome(e.target.value as 'resolved' | 'dismissed')}
+          options={[
+            { value: 'resolved', label: 'Resolved — fixed another way (e.g. a stock adjustment)' },
+            { value: 'dismissed', label: 'Dismissed — nothing to do' },
+          ]}
+        />
+        <TextAreaField label="Note (required)" value={note} onChange={(e) => setNote(e.target.value)} />
+        <p className="text-small">Closing posts nothing to stock and cannot be undone.</p>
       </div>
     </Dialog>
   )

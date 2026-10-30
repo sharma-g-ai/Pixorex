@@ -1,11 +1,11 @@
 import { useState } from 'react'
-import { Badge } from '../../components/Badge'
+import { useViewer } from '../../app/viewer'
 import { Button } from '../../components/Button'
 import { StatusBadge } from '../../components/StatusBadge'
 import { DataTable } from '../../components/DataTable'
-import { FilePicker } from '../../components/FilePicker'
 import { Dialog } from '../../components/Dialog'
 import { Icon } from '../../components/icons'
+import { ImportDialog } from './ImportDialog'
 import { SectionBar } from './SectionBar'
 import { Card, Mono, Muted, Note } from '../../components/Page'
 import { FilterBar } from '../../components/ScopeFilters'
@@ -17,9 +17,10 @@ import { items } from '../../data/sample'
 import { addItems, setItemStatus, useStore } from '../../data/store'
 import { formatLiters } from '../../lib/format'
 
-/** FR-26: the master item list, with additions, retirements and bulk load. */
+/** FR-25: the master item list, with additions, retirements and bulk load. */
 export function ItemsPage() {
   useStore()
+  const { user } = useViewer()
   const rows = items
   const [component, setComponent] = useState('')
   const [status, setStatus] = useState('active')
@@ -98,6 +99,7 @@ export function ItemsPage() {
                   width: 1.1,
                   cell: (i) => i.shade || <span className="text-ink-subtle">—</span>,
                 },
+                { header: 'Type', width: 0.5, cell: (i) => i.productType },
                 {
                   header: 'Component',
                   width: 0.9,
@@ -125,7 +127,7 @@ export function ItemsPage() {
                         Retire
                       </Button>
                     ) : (
-                      <Button variant="link" onClick={() => setItemStatus(i.articleNo, 'active')}>
+                      <Button variant="link" onClick={() => setItemStatus(i.articleNo, 'active', user)}>
                         Restore
                       </Button>
                     ),
@@ -135,8 +137,8 @@ export function ItemsPage() {
           </div>
         </Card>
         <Note>
-          Retired items stay on the list so past transactions keep their product details; the tablet
-          stops offering them for new scans. Pack size is as printed; unit volume is the liters per
+          Retired items stay on the list so past transactions keep their product details, and a
+          scan of a retired article is still recognised. Pack size is as printed; unit volume is the liters per
           can used for inventory (to confirm with PPG whether the two ever differ).
         </Note>
       </>
@@ -146,7 +148,7 @@ export function ItemsPage() {
           existing={rows.map((r) => r.articleNo)}
           onClose={() => setAdding(false)}
           onSave={(i) => {
-            addItems([i])
+            addItems([i], user)
             setAdding(false)
           }}
         />
@@ -164,7 +166,7 @@ export function ItemsPage() {
               <Button
                 variant="danger"
                 onClick={() => {
-                  setItemStatus(retiring.articleNo, 'retired')
+                  setItemStatus(retiring.articleNo, 'retired', user)
                   setRetiring(null)
                 }}
               >
@@ -174,7 +176,7 @@ export function ItemsPage() {
           }
         >
           {retiring.product} {retiring.shade || retiring.componentType}, {retiring.packSize}. Stock
-          already on board stays in Sea Stock; new scans of this article will be flagged for review.
+          already on board stays in Sea Stock, and scans of this article are still recognised. Retired items are not offered when matching unrecognised scans.
         </Dialog>
       )}
     </>
@@ -200,7 +202,7 @@ function ItemDialog({
   const volume = Number(packSize.replace(',', '.'))
   const componentType: ComponentType | '' = kind === '1K' ? '1K' : component
   const ready =
-    /^\d{6}$/.test(articleNo) && !duplicate && product.trim() && componentType && volume > 0
+    /^\d{6}$/.test(articleNo) && !duplicate && product.trim() && kind && componentType && volume > 0
   return (
     <Dialog
       title="Add item"
@@ -218,6 +220,7 @@ function ItemDialog({
                 articleNo,
                 product: product.trim().toUpperCase(),
                 shade: shade.trim(),
+                productType: kind === '1K' ? '1K' : '2K',
                 componentType,
                 packSize: `${volume} L`,
                 unitVolume: volume,
@@ -304,6 +307,7 @@ const bulkSample: Item[] = [
     articleNo: '189955',
     product: 'SIGMASHIELD 1200',
     shade: 'Grey',
+    productType: '2K',
     componentType: 'Base',
     packSize: '20 L',
     unitVolume: 20,
@@ -313,6 +317,7 @@ const bulkSample: Item[] = [
     articleNo: '189956',
     product: 'SIGMASHIELD 1200',
     shade: '',
+    productType: '2K',
     componentType: 'Hardener',
     packSize: '5 L',
     unitVolume: 5,
@@ -322,6 +327,7 @@ const bulkSample: Item[] = [
     articleNo: '184520',
     product: 'SIGMADUR 520',
     shade: 'Black 9000',
+    productType: '2K',
     componentType: 'Base',
     packSize: '20 L',
     unitVolume: 20,
@@ -331,6 +337,7 @@ const bulkSample: Item[] = [
     articleNo: '184521',
     product: 'SIGMADUR 520',
     shade: '',
+    productType: '2K',
     componentType: 'Hardener',
     packSize: '5 L',
     unitVolume: 5,
@@ -340,6 +347,7 @@ const bulkSample: Item[] = [
     articleNo: '181205',
     product: 'SIGMAPRIME 200',
     shade: 'Grey',
+    productType: '2K',
     componentType: 'Base',
     packSize: '20 L',
     unitVolume: 20,
@@ -349,6 +357,7 @@ const bulkSample: Item[] = [
     articleNo: '100294',
     product: 'PPG THINNER 91-10',
     shade: '',
+    productType: '1K',
     componentType: '1K',
     packSize: '5 L',
     unitVolume: 5,
@@ -356,68 +365,24 @@ const bulkSample: Item[] = [
   },
 ]
 
-/** Bulk load from PPG's Excel list (D-02). The preview shows what the file would change. */
+/** Bulk load from PPG's Excel list (D-02). Articles already on the list are left as they are. */
 function BulkLoadDialog({ onClose }: { onClose: () => void }) {
-  const [file, setFile] = useState<string | null>(null)
-  // Static screens: whatever file is picked, its rows are this sample of PPG's list.
+  const { user } = useViewer()
   const fileRows = [...items.slice(0, 11), ...bulkSample]
   const fresh = fileRows.filter((r) => !items.some((i) => i.articleNo === r.articleNo))
-  const preview = [
-    { label: 'New items', count: fresh.length, tone: 'success' as const },
-    {
-      label: 'Already on the list',
-      count: fileRows.length - fresh.length,
-      tone: 'neutral' as const,
-    },
-    { label: 'Rows with errors — skipped', count: 1, tone: 'danger' as const },
-  ]
   return (
-    <Dialog
+    <ImportDialog
       title="Bulk load items"
+      intro="Upload PPG’s item list as Excel (.xlsx) or CSV with the columns: article number, product, shade, product type, component type, pack size, unit volume. Items missing from the file are not retired automatically."
+      counts={[
+        { label: 'New items', count: fresh.length, tone: 'success' },
+        { label: 'Already on the list', count: fileRows.length - fresh.length, tone: 'neutral' },
+      ]}
+      problems={['Row 14: a 2K product needs component type Base or Hardener, not “2K”.']}
+      toLoad={fresh.length}
+      noun="new items"
+      onLoad={() => addItems(fresh, user)}
       onClose={onClose}
-      footer={
-        <>
-          <Button variant="secondary" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button
-            disabled={!file || fresh.length === 0}
-            onClick={() => {
-              addItems(fresh)
-              onClose()
-            }}
-          >
-            {fresh.length === 0 ? 'Nothing new to load' : `Load ${fresh.length} new items`}
-          </Button>
-        </>
-      }
-    >
-      <div className="flex flex-col gap-4">
-        <p>
-          Upload PPG’s item list as Excel (.xlsx) or CSV with the columns: article number, product,
-          shade, component type, pack size, unit volume. Items missing from the file are not retired
-          automatically.
-        </p>
-        <FilePicker
-          accept=".xlsx,.csv"
-          hint=".xlsx or .csv"
-          fileName={file}
-          onPick={(f) => setFile(f.name)}
-        />
-        {file && (
-          <div className="flex flex-col gap-2">
-            {preview.map((p) => (
-              <div key={p.label} className="flex items-center justify-between">
-                <span>{p.label}</span>
-                <Badge tone={p.tone}>{p.count}</Badge>
-              </div>
-            ))}
-            <Note tone="warning">
-              Row 14: component type “2K” is not allowed — use Base or Hardener.
-            </Note>
-          </div>
-        )}
-      </div>
-    </Dialog>
+    />
   )
 }

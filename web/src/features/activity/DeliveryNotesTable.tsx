@@ -3,7 +3,8 @@ import { Badge } from '../../components/Badge'
 import { DataTable } from '../../components/DataTable'
 import { Mono, Muted } from '../../components/Page'
 import type { DeliveryNote } from '../../data/model'
-import { userById, vesselById } from '../../data/queries'
+import { ImoCheckBadge } from '../../components/StockBadges'
+import { vesselById } from '../../data/queries'
 import { formatDate, formatDateTime, plural } from '../../lib/format'
 
 export function differences(dn: DeliveryNote): number {
@@ -73,12 +74,19 @@ export function DeliveryNotesTable({
             ),
         },
         {
+          header: 'IMO check',
+          width: 0.9,
+          cell: (dn) => <ImoCheckBadge check={dn.imoCheck} />,
+        },
+        {
           header: 'Received',
           width: 1.3,
           cell: (dn) => (
             <div>
-              <div>{formatDateTime(dn.capturedAt)}</div>
-              <Muted>{userById(dn.capturedBy)?.name}</Muted>
+              <div>{formatDateTime(dn.confirmedAt)}</div>
+              <Muted>
+                Tablet <Mono>{dn.device}</Mono>
+              </Muted>
             </div>
           ),
         },
