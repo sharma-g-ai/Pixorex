@@ -32,10 +32,14 @@ vi.mock('../../api/businessUnits', async (importOriginal) => ({
     ],
   }),
 }))
+const invites = vi.hoisted(() => ({ list: [] as object[] }))
+const resend = vi.hoisted(() => vi.fn(() => Promise.resolve({})))
 vi.mock('../../api/invites', async (importOriginal) => ({
   ...(await importOriginal<object>()),
-  useInvites: () => ({ data: [], isPending: false, isError: false }),
+  useInvites: () => ({ data: invites.list, isPending: false, isError: false }),
   useCreateInvite: () => ({ mutateAsync: vi.fn() }),
+  useResendInvite: () => ({ mutateAsync: resend, isPending: false }),
+  useCancelInvite: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }))
 vi.mock('../../api/buAdmins', () => ({
   useSetBuAdminUnits: () => ({ mutateAsync: vi.fn() }),
@@ -107,6 +111,9 @@ describe('EA unit page (canvas EA 25)', () => {
       'href',
       '/audit-log?unit=p04',
     )
+    // The canvas has four tiles; no "in delegated batches" tile.
+    expect(screen.queryByText('in delegated batches')).not.toBeInTheDocument()
+    expect(screen.getByText('Active')).toBeInTheDocument()
     expect(
       within(screen.getByRole('table', { name: 'Recent activity' })).getByText(
         'No admin actions in the last 7 days.',
@@ -130,11 +137,35 @@ describe('EA unit page: BU Admin card (canvas EA 25)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Remove' }))
     expect(screen.getByRole('dialog')).toBeInTheDocument()
   })
-  it('GIVEN no BU Admin THEN Assign BU Admin opens the invite with this unit ticked', () => {
+  it('GIVEN no BU Admin and a pending invite THEN Resend invite sends it again (canvas EAUnit11)', async () => {
+    invites.list = [
+      {
+        invite_id: 'i1',
+        email: 'm.lopez@ppg.com',
+        role: 'bu_admin',
+        status: 'pending',
+        units: [{ bu_id: 'p12', name: 'Plant 12' }],
+        invited_by_name: 'A. Mehta',
+        created_at: new Date(Date.now() - 18 * 3600_000).toISOString(),
+        expires_at: new Date(Date.now() + 6 * 3600_000).toISOString(),
+      },
+    ]
+    page('/overview/units/p12')
+    expect(screen.getByText(/Invite pending/)).toBeInTheDocument()
+    expect(screen.getByText(/Invite sent to m.lopez@ppg.com/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Invite someone else' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Resend invite' }))
+    expect(resend).toHaveBeenCalledWith('i1')
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      'Invite sent again to m.lopez@ppg.com.',
+    )
+    invites.list = []
+  })
+  it('GIVEN no BU Admin THEN Invite a BU Admin opens the invite with this unit ticked', () => {
     page('/overview/units/p12')
     expect(screen.queryByRole('link', { name: 'Manage' })).not.toBeInTheDocument()
     expect(screen.getByText('Since 4 Oct · M. Ortiz removed')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Assign BU Admin' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Invite a BU Admin' }))
     const dialog = within(screen.getByRole('dialog'))
     expect(dialog.getByRole('checkbox', { name: /Plant 12/ })).toBeChecked()
     expect(dialog.getByRole('checkbox', { name: /Plant 04/ })).toBeDisabled()

@@ -9,6 +9,7 @@ import { Badge } from '../../components/Badge'
 import { Button } from '../../components/Button'
 import { buttonClasses } from '../../components/buttonClasses'
 import { Card } from '../../components/Card'
+import { Icon, type IconName } from '../../components/icons'
 import { PageHeader } from '../../components/layout/PageHeader'
 import { Person } from '../../components/Person'
 import { StatTile } from '../../components/StatTile'
@@ -17,8 +18,9 @@ import { EditUnitsDialog } from '../buAdmins/EditUnitsDialog'
 import { InviteBuAdminDialog } from '../buAdmins/InviteBuAdminDialog'
 import { RemoveBuAdminDialog } from '../buAdmins/RemoveBuAdminDialog'
 import { editOptions, inviteOptions, removeOptions } from '../buAdmins/unitOptions'
+import { useInviteActions, type Notice } from '../invites/useInviteActions'
 import { waitingStatus } from '../review/reviewRules'
-import { shortDate, waitedFor } from '../../lib/time'
+import { shortDate, timeAgo, waitedFor } from '../../lib/time'
 import { technicianCount } from './unitSummary'
 import { latestAdminInvite } from './vacantUnits'
 
@@ -36,61 +38,74 @@ export function UnitDetailPage() {
 function UnitDetail({ unit, units }: { unit: BusinessUnit; units: BusinessUnit[] }) {
   const q = `?unit=${unit.bu_id}`
   const escalated = unit.escalated_count ?? 0
-  const [notice, setNotice] = useState<string | null>(null)
+  const [notice, setNotice] = useState<Notice | null>(null)
+  const links: { to: string; title: string; text: string; icon: IconName }[] = [
+    { to: `/scans${q}`, title: 'Scans', text: 'All scans from this unit', icon: 'table' },
+    { to: `/locations${q}`, title: 'Locations', text: 'Buildings, shops and bins', icon: 'pin' },
+    { to: '/bu-admins', title: 'BU Admin', text: 'Invite, change or remove', icon: 'users' },
+    {
+      to: `/audit-log${q}`,
+      title: 'Audit log',
+      text: 'Everything done in this unit',
+      icon: 'file',
+    },
+  ]
 
   return (
     <>
-      <PageHeader
-        title={unit.name}
-        subtitle={`Overview › Unit · ${technicianCount(unit)}`}
-        actions={
-          <Link to="/overview" className={buttonClasses('link')}>
-            ← Back to overview
-          </Link>
-        }
-      />
+      <PageHeader title={unit.name} subtitle={`Overview › Unit · ${technicianCount(unit)}`} />
       <div className="flex grow flex-col gap-5 overflow-y-auto px-8 pt-6 pb-8 *:shrink-0">
+        <Link to="/overview" className={`${buttonClasses('link')} self-start`}>
+          ← Back to overview
+        </Link>
         {notice && (
-          <Alert tone="info" role="status">
-            {notice}
+          <Alert tone={notice.error ? 'danger' : 'info'} role="status">
+            {notice.text}
           </Alert>
         )}
-        <AdminCard unit={unit} units={units} onDone={setNotice} />
-        <div className="grid grid-cols-2 gap-3.5 lg:grid-cols-5">
-          <StatTile
-            value={unit.technician_count ?? 0}
-            label={unit.technician_count === 1 ? 'technician' : 'technicians'}
-          />
-          <StatTile value={unit.waiting_count ?? 0} label="waiting review" to={`/scans${q}`} />
-          <StatTile
-            value={escalated}
-            label="over 24 h · escalated to you"
-            to={escalated ? `/escalations${q}` : undefined}
-            tone={escalated ? 'warning' : 'default'}
-          />
-          <StatTile value={unit.scans_this_month ?? 0} label="scans this month" to={`/scans${q}`} />
-          <StatTile value={unit.delegated_count ?? 0} label="in delegated batches" />
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-stretch">
+          <AdminCard unit={unit} units={units} onDone={setNotice} />
+          <div className="grid grow grid-cols-2 gap-3">
+            <StatTile
+              value={unit.technician_count ?? 0}
+              label={unit.technician_count === 1 ? 'technician' : 'technicians'}
+            />
+            <StatTile value={unit.waiting_count ?? 0} label="waiting review" to={`/scans${q}`} />
+            <StatTile
+              value={escalated}
+              label="over 24 h · escalated to you"
+              to={escalated ? `/escalations${q}` : undefined}
+              tone={escalated ? 'warning' : 'default'}
+            />
+            <StatTile
+              value={unit.scans_this_month ?? 0}
+              label="scans this month"
+              to={`/scans${q}`}
+            />
+          </div>
         </div>
-        <div className="grid gap-5 lg:grid-cols-2">
-          <EscalatedCard unit={unit} count={escalated} />
-          <Card title="Manage this unit">
-            <ul className="flex flex-col divide-y divide-line-soft">
-              {[
-                { to: `/scans${q}`, title: 'Scans', text: 'All scans from this unit' },
-                { to: `/locations${q}`, title: 'Locations', text: 'Buildings, shops and bins' },
-                { to: '/bu-admins', title: 'BU Admin', text: 'Invite, change or remove' },
-                { to: `/audit-log${q}`, title: 'Audit log', text: 'Everything done in this unit' },
-              ].map((link) => (
-                <li key={link.title}>
+        <div className="grid items-start gap-4 lg:grid-cols-3">
+          <div className="min-w-0 lg:col-span-2">
+            <EscalatedCard unit={unit} count={escalated} />
+          </div>
+          <Card title="Manage this unit" className="min-w-0">
+            <ul className="flex flex-col">
+              {links.map((link) => (
+                <li key={link.title} className="border-t border-line-soft">
                   <Link
                     to={link.to}
-                    className="flex items-center justify-between py-3 hover:text-brand-navy"
+                    className="flex items-center gap-3 py-2.75 hover:text-brand-navy"
                   >
-                    <span>
-                      <span className="block text-body font-semibold">{link.title}</span>
-                      <span className="text-small text-ink-muted">{link.text}</span>
+                    <span className="flex size-8 shrink-0 items-center justify-center rounded-[9px] bg-brand-navy-soft text-brand-navy">
+                      <Icon name={link.icon} size={15} aria-hidden="true" />
                     </span>
-                    <span aria-hidden="true">→</span>
+                    <span className="min-w-0 grow">
+                      <span className="block text-body font-semibold">{link.title}</span>
+                      <span className="text-small text-ink-subtle">{link.text}</span>
+                    </span>
+                    <span aria-hidden="true" className="font-bold text-brand-navy">
+                      →
+                    </span>
                   </Link>
                 </li>
               ))}
@@ -115,16 +130,17 @@ function UnitDetail({ unit, units }: { unit: BusinessUnit; units: BusinessUnit[]
 interface AdminCardProps {
   unit: BusinessUnit
   units: BusinessUnit[]
-  onDone: (text: string) => void
+  onDone: (notice: Notice) => void
 }
 
 /**
- * The unit's BU Admin, with "Edit units" and "Remove" as on the canvas (EA 25; 1.16, 1.17).
- * No BU Admin: "Assign BU Admin" invites one right here (contract 1.8).
+ * The unit's BU Admin, with "Edit units" and "Remove" under the name (canvas EA 25; 1.16, 1.17).
+ * No BU Admin: "Resend invite" and "Invite someone else" (canvas EAUnit11; 1.8, 1.10).
  */
 function AdminCard({ unit, units, onDone }: AdminCardProps) {
   const admins = useBuAdmins()
   const invites = useInvites()
+  const inviteActions = useInviteActions(onDone)
   const [open, setOpen] = useState<'invite' | 'edit' | 'remove' | null>(null)
   const admin = admins.data?.find((a) => a.user_id === unit.bu_admin?.user_id)
   const others = admin?.units.filter((u) => u.bu_id !== unit.bu_id).map((u) => u.name) ?? []
@@ -133,56 +149,51 @@ function AdminCard({ unit, units, onDone }: AdminCardProps) {
   const pending = !unit.bu_admin?.user_id && invite?.status === 'pending' ? invite : null
   const done = (text: string) => {
     setOpen(null)
-    onDone(text)
+    onDone({ text })
   }
+  const detail = others.length
+    ? `also runs ${others.join(', ')}`
+    : admin?.last_active_at
+      ? `active ${timeAgo(admin.last_active_at)}`
+      : null
 
   return (
     <Card
       title="BU Admin"
+      className="lg:w-107.5 lg:shrink-0"
       action={
         admin ? (
-          <div className="flex gap-3.5">
-            <button type="button" className={buttonClasses('link')} onClick={() => setOpen('edit')}>
-              Edit units
-            </button>
-            <button
-              type="button"
-              className={buttonClasses('danger-link')}
-              onClick={() => setOpen('remove')}
-            >
-              Remove
-            </button>
-          </div>
+          <Badge tone={admin.status === 'active' ? 'success' : 'neutral'}>
+            {admin.status === 'active' ? 'Active' : 'Not activated yet'}
+          </Badge>
         ) : (
-          <div className="flex items-center gap-3">
-            {pending && (
-              <Badge tone="warning">{`Invite pending · ${waitedFor(pending.created_at)}`}</Badge>
-            )}
-            <Button variant="secondary" onClick={() => setOpen('invite')}>
-              Assign BU Admin
-            </Button>
-          </div>
+          pending && (
+            <Badge tone="warning">{`Invite pending · ${waitedFor(pending.created_at)}`}</Badge>
+          )
         )
       }
     >
       {unit.bu_admin?.full_name ? (
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col gap-3">
           <Person
             name={unit.bu_admin.full_name}
-            detail={[admin?.email, others.length ? `also runs ${others.join(', ')}` : null]
-              .filter(Boolean)
-              .join(' · ')}
+            detail={[admin?.email, detail].filter(Boolean).join(' · ')}
           />
           {admin && (
-            <Badge tone={admin.status === 'active' ? 'success' : 'neutral'}>
-              {admin.status === 'active' ? 'Active' : 'Not activated yet'}
-            </Badge>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="secondary" onClick={() => setOpen('edit')}>
+                Edit units
+              </Button>
+              <Button variant="danger-outline" onClick={() => setOpen('remove')}>
+                Remove
+              </Button>
+            </div>
           )}
         </div>
       ) : (
         <div className="flex flex-col gap-3">
           <div>
-            <p className="text-body font-bold text-danger-strong">No BU Admin</p>
+            <p className="text-body font-bold text-danger">No BU Admin</p>
             {unit.vacant_since && (
               <p className="text-small text-ink-subtle">
                 {`Since ${shortDate(unit.vacant_since)}`}
@@ -196,6 +207,20 @@ function AdminCard({ unit, units, onDone }: AdminCardProps) {
               ? `Invite sent to ${pending.email}. Until someone accepts, ${unit.name}'s scans that wait over 24 hours come to you.`
               : "This unit's scans that wait over 24 hours come to you."}
           </Alert>
+          <div className="flex flex-wrap gap-2">
+            {pending && (
+              <Button
+                variant="secondary"
+                disabled={inviteActions.busy}
+                onClick={() => inviteActions.resend(pending)}
+              >
+                Resend invite
+              </Button>
+            )}
+            <Button onClick={() => setOpen('invite')}>
+              {pending ? 'Invite someone else' : 'Invite a BU Admin'}
+            </Button>
+          </div>
         </div>
       )}
       {open === 'invite' && (
@@ -246,11 +271,14 @@ function EscalatedCard({ unit, count: unitCount }: { unit: BusinessUnit; count: 
         </p>
       ) : (
         <>
-          <ul className="flex flex-col divide-y divide-line-soft">
+          <ul className="flex flex-col">
             {first.map((e) => {
               const status = waitingStatus(e.escalated_at)
               return (
-                <li key={e.escalation_id} className="flex items-center gap-3 py-2.5">
+                <li
+                  key={e.escalation_id}
+                  className="flex items-center gap-3 border-t border-line-soft py-2.5"
+                >
                   <Link to={`/escalations/${e.scan_id}`} className="min-w-0 grow hover:underline">
                     <span className="block truncate font-semibold">{e.equipment_type_name}</span>
                     <span className="font-mono text-meta text-ink-subtle">{e.record_no}</span>
@@ -261,12 +289,11 @@ function EscalatedCard({ unit, count: unitCount }: { unit: BusinessUnit; count: 
               )
             })}
           </ul>
-          <Link
-            to={`/escalations?unit=${unit.bu_id}`}
-            className={`${buttonClasses('secondary')} mt-3`}
-          >
-            Open all {count} escalated scans
-          </Link>
+          <div className="mt-3 flex justify-end">
+            <Link to={`/escalations?unit=${unit.bu_id}`} className={buttonClasses('primary')}>
+              Open all {count} escalated scans
+            </Link>
+          </div>
         </>
       )}
     </Card>

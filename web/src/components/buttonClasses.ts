@@ -1,5 +1,12 @@
 export type ButtonVariant =
-  'primary' | 'secondary' | 'danger' | 'link' | 'danger-link' | 'inverse' | 'inverse-outline'
+  | 'primary'
+  | 'secondary'
+  | 'danger'
+  | 'danger-outline'
+  | 'link'
+  | 'danger-link'
+  | 'inverse'
+  | 'inverse-outline'
 
 const boxed = 'rounded-lg border-[1.5px] px-4 py-2'
 
@@ -7,6 +14,8 @@ const variants: Record<ButtonVariant, string> = {
   primary: `${boxed} border-brand-navy bg-brand-navy text-white hover:bg-brand-navy-dark`,
   secondary: `${boxed} border-line-strong bg-surface text-ink hover:bg-page`,
   danger: `${boxed} border-danger bg-danger text-white hover:bg-danger-strong`,
+  // A destructive action next to others, e.g. "Remove" on the unit page (canvas EA 25).
+  'danger-outline': `${boxed} border-danger bg-surface text-danger hover:bg-danger-soft`,
   // On a navy bar (e.g. the selection bar in the review queue).
   inverse: `${boxed} border-surface bg-surface text-brand-navy hover:bg-brand-navy-tint`,
   'inverse-outline': `${boxed} border-white/50 text-white hover:bg-white/10`,

@@ -21,7 +21,9 @@ export function StatTile({ value, label, to, tone = 'default' }: StatTileProps) 
       </div>
     </>
   )
-  const box = 'block rounded-xl border border-line bg-surface px-4.5 py-4'
+  const box = `block rounded-xl border px-4.5 py-4 ${
+    tone === 'warning' ? 'border-warning-line bg-warning-soft' : 'border-line bg-surface'
+  }`
   return to ? (
     <Link to={to} className={`${box} hover:border-line-strong`}>
       {body}

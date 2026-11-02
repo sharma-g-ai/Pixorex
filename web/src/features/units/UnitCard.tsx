@@ -28,7 +28,7 @@ export function UnitCard({ unit, alsoRuns, adminLastActive, invite }: UnitCardPr
   return (
     <article
       aria-label={unit.name}
-      className="flex min-w-0 flex-col gap-3.5 rounded-xl border border-line bg-surface px-5 py-4.5"
+      className="relative flex min-w-0 flex-col gap-3.5 rounded-xl border border-line bg-surface px-5 py-4.5 hover:border-line-strong"
     >
       <div>
         <h3 className="text-unit-title font-bold">{unit.name}</h3>
@@ -51,19 +51,19 @@ export function UnitCard({ unit, alsoRuns, adminLastActive, invite }: UnitCardPr
         </div>
       )}
 
-      <div className="mt-auto flex items-end justify-between rounded-lg bg-page px-3 py-2.5">
-        <div>
-          <div className="text-xl font-bold">{unit.waiting_count ?? 0}</div>
-          <div className="text-meta text-ink-muted">waiting review</div>
-        </div>
-        <Link
-          to={`/overview/units/${unit.bu_id}`}
-          className="text-body-sm font-bold text-brand-navy"
-          aria-label={`Open ${unit.name}`}
-        >
-          Open unit →
-        </Link>
+      <div className="rounded-lg bg-page px-3 py-2.5">
+        <div className="text-xl font-bold">{unit.waiting_count ?? 0}</div>
+        <div className="text-meta text-ink-muted">waiting review</div>
       </div>
+
+      {/* The whole card opens the unit, as on the canvas; the link stretches over it. */}
+      <Link
+        to={`/overview/units/${unit.bu_id}`}
+        className="mt-auto text-body-sm font-bold text-brand-navy after:absolute after:inset-0 after:rounded-xl"
+        aria-label={`Open ${unit.name}`}
+      >
+        Open unit →
+      </Link>
     </article>
   )
 }
