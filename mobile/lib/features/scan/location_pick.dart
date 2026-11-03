@@ -17,6 +17,12 @@ class LocationPick {
     return LocationPick(tree, tree.roots.length == 1 ? [tree.roots.single] : const []);
   }
 
+  /// Starts at [nodeId] (a retake keeps the old scan's place), if it is still published.
+  factory LocationPick.at(LocationTree tree, String nodeId) {
+    final path = _pathTo(tree.roots, nodeId);
+    return path == null ? LocationPick.start(tree) : LocationPick(tree, path);
+  }
+
   final LocationTree tree;
 
   /// Picked nodes, top first; each is a child of the one before.
@@ -52,6 +58,15 @@ class LocationPick {
   String get context => chain.where((n) => _order(n.levelId) < _deepestRequired).map((n) => n.name).join(' › ');
 
   List<String> get nodeIds => chain.map((n) => n.nodeId).toList();
+
+  static List<LocationNode>? _pathTo(List<LocationNode> nodes, String id) {
+    for (final n in nodes) {
+      if (n.nodeId == id) return [n];
+      final below = _pathTo(n.children, id);
+      if (below != null) return [n, ...below];
+    }
+    return null;
+  }
 
   static List<LocationNode>? _pathOf(List<LocationNode> nodes, List<String> ids) {
     if (ids.isEmpty) return null;

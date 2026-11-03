@@ -25,6 +25,7 @@ class NewScanScreen extends StatefulWidget {
     required this.buId,
     required this.unitName,
     this.initialType,
+    this.retakeOf,
     this.onShutter,
     this.onGallery,
     this.onCamera,
@@ -37,6 +38,9 @@ class NewScanScreen extends StatefulWidget {
 
   /// Kept from the last scan (design 46): "change it if the next item is different".
   final EquipmentType? initialType;
+
+  /// Name of the scan this one replaces (design 65); the type then stays as it was.
+  final String? retakeOf;
   final ValueChanged<EquipmentType>? onShutter;
   final ValueChanged<EquipmentType>? onGallery;
 
@@ -99,7 +103,10 @@ class _NewScanScreenState extends State<NewScanScreen> {
               height: 56,
               child: Row(children: [
                 const BackButton(color: Colors.white),
-                const Expanded(child: Text('New scan', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600))),
+                Expanded(
+                  child: Text(widget.retakeOf == null ? 'New scan' : 'New scan · retake',
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                ),
                 if (widget.onMyScans != null)
                   Padding(
                     padding: const EdgeInsets.only(right: 16),
@@ -116,6 +123,21 @@ class _NewScanScreenState extends State<NewScanScreen> {
                   ),
               ]),
             ),
+            if (widget.retakeOf != null)
+              Container(
+                margin: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(
+                  color: CaptureColors.selectBorder.withValues(alpha: 0.16),
+                  borderRadius: BorderRadius.circular(9),
+                  border: Border.all(color: CaptureColors.selectBorder.withValues(alpha: 0.45)),
+                ),
+                child: Text(
+                  'This starts a new scan. The unreadable ${widget.retakeOf} is closed and kept with its history, '
+                  'linked to the new one.',
+                  style: const TextStyle(fontSize: 12, height: 1.45, color: Color(0xFFD6E1FA)),
+                ),
+              ),
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
               child: Text.rich(TextSpan(style: const TextStyle(fontSize: 11.5, color: CaptureColors.muted), children: [
@@ -182,7 +204,7 @@ class _NewScanScreenState extends State<NewScanScreen> {
           style: TextStyle(fontSize: 12.5, color: CaptureColors.muted));
     }
     return InkWell(
-      onTap: types == null ? null : _pickType,
+      onTap: types == null || widget.retakeOf != null ? null : _pickType,
       borderRadius: BorderRadius.circular(9),
       child: Container(
         height: 46,
@@ -204,7 +226,7 @@ class _NewScanScreenState extends State<NewScanScreen> {
           ),
           if (types == null)
             const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-          else
+          else if (widget.retakeOf == null)
             const Icon(Icons.expand_more, color: CaptureColors.muted),
         ]),
       ),

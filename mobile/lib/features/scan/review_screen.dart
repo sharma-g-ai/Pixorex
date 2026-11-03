@@ -18,7 +18,7 @@ const _red = Color(0xFFC0392B);
 const _mono = TextStyle(fontFamily: kFontFamily, fontFeatures: [FontFeature.tabularFigures()]);
 
 /// Check what the AI read and send the scan to a reviewer (design 57-62).
-/// Pops with `true` once the revision is accepted by the API.
+/// Pops with `true` once the revision is accepted by the API, `false` when discarded.
 class ReviewScreen extends StatefulWidget {
   const ReviewScreen({super.key, required this.scans, required this.scanId, this.pollEvery = const Duration(seconds: 3)});
   final ScanRepository scans;
@@ -43,6 +43,9 @@ class _ReviewScreenState extends State<ReviewScreen> {
   String? _key;
   String? _keyBody;
 
+  /// The type-mismatch question is asked once per visit (design 54).
+  bool _askedMismatch = false;
+
   @override
   void initState() {
     super.initState();
@@ -65,8 +68,89 @@ class _ReviewScreenState extends State<ReviewScreen> {
         _draft = ReviewDraft(scan);
       });
       if (!scan.isSettled) _poll = Timer(widget.pollEvery, _load);
+      if (scan.hasTypeMismatch && scan.reviewStatus == 'draft' && !_askedMismatch) {
+        _askedMismatch = true;
+        WidgetsBinding.instance.addPostFrameCallback((_) => _mismatch(scan));
+      }
     } on ApiException catch (e) {
       if (mounted) setState(() => _loadError = e.message);
+    }
+  }
+
+  /// Design 54: the photo looks like another type than the one chosen.
+  Future<void> _mismatch(Scan scan) async {
+    final suggestedId = scan.latestAttempt!.suggestedTypeId!;
+    String? suggested;
+    try {
+      suggested = (await widget.scans.equipmentTypes(scan.buId)).where((t) => t.typeId == suggestedId).firstOrNull?.name;
+    } on ApiException {
+      // Asked without the name: the choice still works.
+    }
+    if (!mounted) return;
+    final detected = scan.latestAttempt!.detectedLabel;
+    final choice = await showDialog<String>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        icon: const Icon(Icons.warning_amber_rounded, color: Brand.warn, size: 32),
+        title: const Text('Type mismatch'),
+        content: Text(
+          '${detected == null ? '' : 'Image appears to be: $detected. '}'
+          'You selected: ${scan.equipmentTypeName}.'
+          '${suggested == null ? '' : ' Suggested type: $suggested.'}\n\n'
+          'Re-extract as the suggested type, keep the current results, or discard?',
+        ),
+        actionsOverflowDirection: VerticalDirection.down,
+        actions: [
+          FilledButton(onPressed: () => Navigator.pop(ctx, 'keep'), child: const Text('Keep results')),
+          if (scan.attemptsUsed < Scan.maxAttempts)
+            OutlinedButton(
+              onPressed: () => Navigator.pop(ctx, 'reextract'),
+              child: Text('Re-extract as ${suggested ?? 'the suggested type'}'),
+            ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, 'discard'),
+            style: TextButton.styleFrom(foregroundColor: Brand.error),
+            child: const Text('Discard'),
+          ),
+        ],
+      ),
+    );
+    if (!mounted) return;
+    if (choice == 'discard') return _discard();
+    if (choice != 'reextract') return;
+    try {
+      await widget.scans.reExtract(scan.scanId, suggestedId);
+      await _load(); // now extracting as the new type: this page waits for it
+    } on ApiException catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+    }
+  }
+
+  /// Design 55: only before submitting (contract 2.27).
+  Future<void> _discard() async {
+    final s = _draft!.scan;
+    final yes = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Discard ${s.equipmentTypeName}?'),
+        content: const Text("It's removed from My Scans and can't be recovered. Nothing is sent to the reviewer."),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: Brand.error),
+            child: const Text('Discard scan'),
+          ),
+        ],
+      ),
+    );
+    if (yes != true || !mounted) return;
+    try {
+      await widget.scans.discard(s.scanId);
+      if (mounted) Navigator.of(context).pop(false);
+    } on ApiException catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
     }
   }
 
@@ -181,6 +265,12 @@ class _ReviewScreenState extends State<ReviewScreen> {
                     style: const TextStyle(fontSize: 11, color: Colors.white70)),
               ]),
         actions: [
+          if (s != null && s.reviewStatus == 'draft' && s.isSettled)
+            PopupMenuButton<String>(
+              tooltip: 'More',
+              onSelected: (_) => _discard(),
+              itemBuilder: (_) => const [PopupMenuItem(value: 'discard', child: Text('Discard scan'))],
+            ),
           if (d != null && _reviewable && d.flagged.isNotEmpty)
             Container(
               margin: const EdgeInsets.only(right: 16),

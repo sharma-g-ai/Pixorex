@@ -11,11 +11,15 @@ import '../scan/review_screen.dart';
 import '../scan/scan_repository.dart';
 import '../scan/scan_status.dart';
 
-/// Signed-in shell: Home (design 13/14) and Profile (design 15, sign-out part).
-/// My Scans and the offline Queue tab come with their own tasks.
+/// Opens My Scans, optionally on one tab (`needs_action`, ...); completes on the way back.
+typedef OpenMyScans = Future<void> Function({String? tab});
+
+/// Signed-in shell: Home (design 13/14), My Scans (opened as its own page) and Profile
+/// (design 15, sign-out part). The offline Queue tab comes with the offline work.
 class HomeShell extends StatefulWidget {
-  const HomeShell({super.key, required this.scans, this.onNewScan});
+  const HomeShell({super.key, required this.scans, this.onNewScan, this.onMyScans});
   final ScanRepository scans;
+  final OpenMyScans? onMyScans;
 
   /// Opens New scan (design 30) and completes when the technician comes back;
   /// Home then reloads. The green button is hidden when this is null.
@@ -31,6 +35,11 @@ class _HomeShellState extends State<HomeShell> {
 
   Future<void> _newScan() async {
     await widget.onNewScan!();
+    if (mounted) setState(() => _home = UniqueKey());
+  }
+
+  Future<void> _myScans({String? tab}) async {
+    await widget.onMyScans!(tab: tab);
     if (mounted) setState(() => _home = UniqueKey());
   }
 
@@ -52,6 +61,7 @@ class _HomeShellState extends State<HomeShell> {
                 key: _home,
                 scans: widget.scans,
                 onNewScan: widget.onNewScan == null ? null : _newScan,
+                onMyScans: widget.onMyScans == null ? null : _myScans,
               ) : _Profile(me)),
       ]),
       floatingActionButton: _tab == 0 && widget.onNewScan != null
@@ -65,8 +75,15 @@ class _HomeShellState extends State<HomeShell> {
             )
           : null,
       bottomNavigationBar: NavigationBar(
-        selectedIndex: _tab,
-        onDestinationSelected: (i) => setState(() => _tab = i),
+        // Home 0, My Scans 1 (a page of its own), Profile 2.
+        selectedIndex: widget.onMyScans == null ? (_tab == 0 ? 0 : 1) : _tab,
+        onDestinationSelected: (i) {
+          if (widget.onMyScans != null && i == 1) {
+            _myScans();
+          } else {
+            setState(() => _tab = i == 0 ? 0 : 2);
+          }
+        },
         backgroundColor: Colors.white,
         height: 64,
         // Design 14: no pill behind the active tab, navy label and icon instead.
@@ -76,12 +93,14 @@ class _HomeShellState extends State<HomeShell> {
               fontWeight: s.contains(WidgetState.selected) ? FontWeight.w700 : FontWeight.w400,
               color: s.contains(WidgetState.selected) ? Brand.navy : Brand.hint,
             )),
-        destinations: const [
-          NavigationDestination(
+        destinations: [
+          const NavigationDestination(
               icon: Icon(Icons.home_outlined, color: Brand.hint),
               selectedIcon: Icon(Icons.home_outlined, color: Brand.navy),
               label: 'Home'),
-          NavigationDestination(
+          if (widget.onMyScans != null)
+            const NavigationDestination(icon: Icon(Icons.list_alt, color: Brand.hint), label: 'My Scans'),
+          const NavigationDestination(
               icon: Icon(Icons.person_outline, color: Brand.hint),
               selectedIcon: Icon(Icons.person_outline, color: Brand.navy),
               label: 'Profile'),
@@ -134,9 +153,10 @@ class HomeData {
 }
 
 class HomeTab extends StatefulWidget {
-  const HomeTab({super.key, required this.scans, this.onNewScan, this.clock = DateTime.now});
+  const HomeTab({super.key, required this.scans, this.onNewScan, this.onMyScans, this.clock = DateTime.now});
   final ScanRepository scans;
   final VoidCallback? onNewScan;
+  final OpenMyScans? onMyScans;
   final DateTime Function() clock;
 
   @override
@@ -238,6 +258,7 @@ class _HomeTabState extends State<HomeTab> {
     return [
       if (needs.isNotEmpty)
         _ActionCard(
+          onTap: widget.onMyScans == null ? null : () => widget.onMyScans!(tab: 'needs_action'),
           count: needs.length,
           title: '${needs.length} scan${needs.length == 1 ? '' : 's'} need${needs.length == 1 ? 's' : ''} your action',
           detail: [
@@ -261,8 +282,17 @@ class _HomeTabState extends State<HomeTab> {
         _Stat('${d.today.where((s) => s.reviewStatus == 'approved').length}', 'Approved', const Color(0xFF2C7A30)),
       ]),
       const SizedBox(height: 16),
-      const Text('LATEST SCANS',
-          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.4, color: Brand.muted)),
+      Row(children: [
+        const Expanded(
+          child: Text('LATEST SCANS',
+              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.4, color: Brand.muted)),
+        ),
+        if (widget.onMyScans != null)
+          InkWell(
+            onTap: () => widget.onMyScans!(),
+            child: const Text('See all', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Brand.navy)),
+          ),
+      ]),
       const SizedBox(height: 10),
       for (final s in d.latest) ScanRow(s, now: now, onTap: () => _open(s)),
     ];
@@ -324,13 +354,14 @@ class ScanRow extends StatelessWidget {
 }
 
 class _ActionCard extends StatelessWidget {
-  const _ActionCard({required this.count, required this.title, required this.detail});
+  const _ActionCard({required this.count, required this.title, required this.detail, this.onTap});
+  final VoidCallback? onTap;
   final int count;
   final String title;
   final String detail;
 
   @override
-  Widget build(BuildContext context) => Container(
+  Widget build(BuildContext context) => GestureDetector(onTap: onTap, child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
           color: Brand.warnBg,
@@ -351,7 +382,7 @@ class _ActionCard extends StatelessWidget {
             ]),
           ),
         ]),
-      );
+      ));
 }
 
 class _Stat extends StatelessWidget {

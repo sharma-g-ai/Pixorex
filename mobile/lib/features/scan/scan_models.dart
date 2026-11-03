@@ -64,21 +64,25 @@ class Scan {
   const Scan({
     required this.scanId,
     required this.recordNo,
+    required this.buId,
     required this.equipmentTypeId,
     required this.equipmentTypeName,
     required this.locationPath,
     required this.processingStatus,
     required this.reviewStatus,
     required this.attemptsUsed,
+    this.locationNodeId,
     this.photoUrls = const [],
     this.latestAttempt,
     this.fields = const [],
   });
   final String scanId;
   final String recordNo;
+  final String buId;
   final String equipmentTypeId;
   final String equipmentTypeName;
   final String locationPath;
+  final String? locationNodeId;
   final String processingStatus;
   final String reviewStatus;
   final int attemptsUsed;
@@ -106,9 +110,11 @@ class Scan {
     return Scan(
       scanId: j['scan_id'] as String,
       recordNo: j['record_no'] as String,
+      buId: j['bu_id'] as String,
       equipmentTypeId: j['equipment_type_id'] as String,
       equipmentTypeName: j['equipment_type_name'] as String,
       locationPath: j['location_path'] as String,
+      locationNodeId: j['location_node_id'] as String?,
       processingStatus: j['processing_status'] as String,
       reviewStatus: j['review_status'] as String,
       attemptsUsed: j['attempts_used'] as int,

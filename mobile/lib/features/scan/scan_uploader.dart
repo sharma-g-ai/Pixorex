@@ -35,6 +35,7 @@ class ScanUploader {
       locationNodeId: locationNodeId,
       photoCount: draft.photos.length,
       capturedAt: draft.capturedAt,
+      retakeOfScanId: draft.retakeOfScanId,
     );
     draft
       ..sentScanId = scan.scanId

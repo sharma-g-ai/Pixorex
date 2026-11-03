@@ -23,6 +23,7 @@ class LocationScreen extends StatefulWidget {
     required this.photoCount,
     required this.onSubmit,
     this.thumbnail,
+    this.startAtNodeId,
     this.clock = DateTime.now,
   });
   final ScanRepository scans;
@@ -34,6 +35,9 @@ class LocationScreen extends StatefulWidget {
   final int photoCount;
   final Future<String?> Function(LocationPick pick) onSubmit;
   final Widget? thumbnail;
+
+  /// A retake starts where the old scan was (design 65) instead of the last location used.
+  final String? startAtNodeId;
   final DateTime Function() clock;
 
   @override
@@ -58,6 +62,16 @@ class _LocationScreenState extends State<LocationScreen> {
     setState(() => _error = null);
     try {
       final tree = await widget.scans.publishedLocations(widget.buId);
+      if (widget.startAtNodeId != null) {
+        final old = LocationPick.at(tree, widget.startAtNodeId!);
+        if (!mounted) return;
+        setState(() {
+          _last = old.isComplete ? old : null;
+          _lastAt = null;
+          _pick = old;
+        });
+        return;
+      }
       final saved = await widget.lastLocations.read(widget.buId);
       final last = saved == null ? null : LocationPick.start(tree, remembered: saved.nodeIds);
       // Only a remembered location that is still complete counts as "last used".
@@ -185,11 +199,17 @@ class _LocationScreenState extends State<LocationScreen> {
           ),
         )
       else ...[
-        _Label(changed ? 'Selected location' : 'Last used in ${widget.unitName}'),
+        _Label(changed
+            ? 'Selected location'
+            : (_lastAt == null ? 'Location of the old scan' : 'Last used in ${widget.unitName}')),
         _LocationCard(
           pick: pick,
           tenant: widget.tenantName,
-          note: changed ? 'You changed this just now' : 'Used for your last scan, ${ago(_lastAt!, widget.clock())}',
+          note: changed
+              ? 'You changed this just now'
+              : (_lastAt == null
+                  ? 'Where the scan you are retaking was'
+                  : 'Used for your last scan, ${ago(_lastAt!, widget.clock())}'),
           selected: true,
           badge: changed ? 'New' : null,
         ),

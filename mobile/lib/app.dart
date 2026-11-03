@@ -15,7 +15,9 @@ import 'features/auth/sign_in_screen.dart';
 import 'features/auth/splash_screen.dart';
 import 'features/home/home_screen.dart';
 import 'core/secure_store.dart';
+import 'core/api_exception.dart';
 import 'features/scan/location_pick.dart';
+import 'features/scan/my_scans_screen.dart';
 import 'features/scan/new_scan_flow.dart';
 import 'features/scan/photo_source.dart';
 import 'features/scan/scan_repository.dart';
@@ -125,20 +127,68 @@ class _AuthGate extends StatelessWidget {
     final session = context.read<SessionController>();
     final scans = ScanRepository(session.api);
     final unit = session.me == null ? null : activeUnit(session.me!);
+    final buId = unit?.buId;
+    if (buId == null) return HomeShell(scans: scans);
+    final nav = Navigator.of(context);
+
+    NewScanFlow flow({RetakeOf? retakeOf}) => NewScanFlow(
+          scans: scans,
+          lastLocations: LastLocationStore(store),
+          photoSource: photoSource,
+          buId: buId,
+          unitName: unit!.name ?? '',
+          tenantName: session.me!.tenantName,
+          retakeOf: retakeOf,
+          onMyScans: retakeOf == null ? () => openMyScans(nav, scans, unit.name ?? '', flow) : null,
+        );
+
     return HomeShell(
       scans: scans,
-      onNewScan: unit?.buId == null
-          ? null
-          : () => Navigator.of(context).push(MaterialPageRoute<void>(
-                builder: (_) => NewScanFlow(
-                  scans: scans,
-                  lastLocations: LastLocationStore(store),
-                  photoSource: photoSource,
-                  buId: unit!.buId!,
-                  unitName: unit.name ?? '',
-                  tenantName: session.me!.tenantName,
-                ),
-              )),
+      onNewScan: () => nav.push(MaterialPageRoute<void>(builder: (_) => flow())),
+      onMyScans: ({String? tab}) => openMyScans(nav, scans, unit!.name ?? '', flow, tab: tab),
     );
   }
 }
+
+/// My Scans, with Retake starting the capture flow for the old scan's type and place.
+Future<void> openMyScans(
+  NavigatorState nav,
+  ScanRepository scans,
+  String unitName,
+  NewScanFlow Function({RetakeOf? retakeOf}) flow, {
+  String? tab,
+}) =>
+    nav.push(MaterialPageRoute<void>(
+      builder: (context) => MyScansScreen(
+        scans: scans,
+        unitName: unitName,
+        initialTab: tab,
+        onRetake: (old) async {
+          try {
+            final scan = await scans.scan(old.scanId);
+            final type = (await scans.equipmentTypes(scan.buId)).where((t) => t.typeId == scan.equipmentTypeId).firstOrNull;
+            if (type == null) {
+              throw ApiException(
+                status: 409,
+                code: 'type-not-published',
+                title: '${scan.equipmentTypeName} is no longer set up for this unit. Ask your BU Admin.',
+              );
+            }
+            final sent = await nav.push<bool>(MaterialPageRoute(
+              builder: (_) => flow(
+                retakeOf: RetakeOf(
+                  scanId: scan.scanId,
+                  name: scan.equipmentTypeName,
+                  type: type,
+                  locationNodeId: scan.locationNodeId,
+                ),
+              ),
+            ));
+            return sent == true;
+          } on ApiException catch (e) {
+            if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+            return false;
+          }
+        },
+      ),
+    ));

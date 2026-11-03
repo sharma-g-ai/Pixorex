@@ -104,14 +104,22 @@ class LocationTree {
 /// A scan being captured, before it is sent. [clientCaptureId] is made with the first
 /// photo and is the scan's identity for life (docs/mobile-api.md section 5).
 class CaptureDraft {
-  CaptureDraft({required this.type, required this.clientCaptureId, required this.capturedAt, required Uint8List first})
-      : photos = [first];
+  CaptureDraft({
+    required this.type,
+    required this.clientCaptureId,
+    required this.capturedAt,
+    required Uint8List first,
+    this.retakeOfScanId,
+  }) : photos = [first];
 
   static const maxPhotos = 4;
 
   final EquipmentType type;
   String clientCaptureId;
   final DateTime capturedAt;
+
+  /// Set when this scan replaces one that couldn't be read or was rejected (design 65).
+  final String? retakeOfScanId;
 
   /// Prepared JPEGs, in order: photo 1 first.
   final List<Uint8List> photos;

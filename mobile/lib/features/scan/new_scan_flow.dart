@@ -27,6 +27,7 @@ class NewScanFlow extends StatefulWidget {
     required this.unitName,
     required this.tenantName,
     this.onMyScans,
+    this.retakeOf,
     this.prepare = prepareJpeg,
     this.clock = DateTime.now,
   });
@@ -37,6 +38,10 @@ class NewScanFlow extends StatefulWidget {
   final String unitName;
   final String tenantName;
   final VoidCallback? onMyScans;
+
+  /// Retake (design 65-67): same type, starts at the old place, sent with
+  /// retake_of_scan_id; the flow closes with `true` once the new scan is sent.
+  final RetakeOf? retakeOf;
   final PreparePhoto prepare;
   final DateTime Function() clock;
 
@@ -85,6 +90,7 @@ class _NewScanFlowState extends State<NewScanFlow> {
       clientCaptureId: const Uuid().v4(),
       capturedAt: widget.clock(),
       first: jpeg,
+      retakeOfScanId: widget.retakeOf?.scanId,
     );
     final route = ModalRoute.of(context)!;
     await Navigator.of(context).push(MaterialPageRoute<void>(
@@ -108,6 +114,7 @@ class _NewScanFlowState extends State<NewScanFlow> {
         typeName: draft.type.name,
         photoCount: draft.photos.length,
         thumbnail: Image.memory(draft.photos.first, fit: BoxFit.cover),
+        startAtNodeId: widget.retakeOf?.locationNodeId,
         clock: widget.clock,
         onSubmit: (pick) => _submit(draft, pick, newScan),
       ),
@@ -124,6 +131,10 @@ class _NewScanFlowState extends State<NewScanFlow> {
     await widget.lastLocations.save(widget.buId, pick.nodeIds, widget.clock());
     if (!mounted) return null;
     Navigator.of(context).popUntil((r) => r == newScan);
+    if (widget.retakeOf != null) {
+      Navigator.of(context).pop(true);
+      return null;
+    }
     _say(
       'Scan queued — extracting in background',
       action: widget.onMyScans == null ? null : SnackBarAction(label: 'VIEW', onPressed: widget.onMyScans!),
@@ -135,6 +146,8 @@ class _NewScanFlowState extends State<NewScanFlow> {
   Widget build(BuildContext context) => Stack(children: [
         NewScanScreen(
           scans: widget.scans,
+          initialType: widget.retakeOf?.type,
+          retakeOf: widget.retakeOf?.name,
           buId: widget.buId,
           unitName: widget.unitName,
           viewfinder: (hint) => _source.viewfinder(hint: hint),
@@ -145,4 +158,13 @@ class _NewScanFlowState extends State<NewScanFlow> {
         ),
         if (_busy) const Positioned.fill(child: ColoredBox(color: Colors.black38, child: Center(child: CircularProgressIndicator()))),
       ]);
+}
+
+/// The scan a retake replaces.
+class RetakeOf {
+  const RetakeOf({required this.scanId, required this.name, required this.type, this.locationNodeId});
+  final String scanId;
+  final String name;
+  final EquipmentType type;
+  final String? locationNodeId;
 }

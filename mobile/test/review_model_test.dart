@@ -19,6 +19,7 @@ AiField field(String key, String? value,
 Scan valveScan() => Scan(
       scanId: 's1',
       recordNo: 'REC-71',
+      buId: 'b1',
       equipmentTypeId: 't1',
       equipmentTypeName: 'Control Valve',
       locationPath: 'Plant 04 › Bin 05',
