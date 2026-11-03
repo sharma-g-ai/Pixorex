@@ -40,6 +40,9 @@ class ScanUploader {
       ..sentScanId = scan.scanId
       ..sentLocationId = locationNodeId
       ..sentPhotoCount = draft.photos.length;
+    // Sent in full before, but the answer was lost: photos are refused once the upload
+    // is confirmed (409 "Photos can only be sent while uploading"), and nothing is missing.
+    if (scan.processingStatus != 'uploading') return scan;
 
     for (var i = 0; i < draft.photos.length; i++) {
       await _scans.uploadPhoto(scan.scanId, i + 1, draft.photos[i]);

@@ -105,6 +105,24 @@ void main() {
     expect(api.bodies.last, containsPair('photo_count', 2));
   });
 
+  test('GIVEN the confirm answer was lost WHEN sent again THEN no photo is re-sent and it counts as sent', () async {
+    final (up, api) = await uploader();
+    final draft = draftWith(2);
+    var lost = true;
+    api.override = (r) => r.url.path.endsWith('/upload-complete') && lost ? throw http.ClientException('lost') : null;
+    await expectLater(up.send(draft, buId: 'b1', locationNodeId: 'bin-05'), throwsA(isA<ApiException>()));
+
+    // The API did confirm it: the same capture now comes back as extracting.
+    lost = false;
+    api.override = (r) => r.method == 'POST' && r.url.path.endsWith('/scans')
+        ? json(scanJson(processing: 'extracting')..['scan_id'] = 'scan-1', 200)
+        : null;
+    api.calls.clear();
+    final scan = await up.send(draft, buId: 'b1', locationNodeId: 'bin-05');
+    expect(scan.scanId, 'scan-1');
+    expect(api.calls, ['POST /business-units/b1/scans']);
+  });
+
   test('GIVEN the type was unpublished WHEN sent THEN the 409 reaches the screen, nothing uploaded', () async {
     final (up, api) = await uploader();
     api.override = (r) => r.url.path.endsWith('/scans') ? problem(409, 'type-not-published') : null;
