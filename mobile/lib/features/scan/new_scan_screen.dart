@@ -43,7 +43,9 @@ class NewScanScreen extends StatefulWidget {
   /// The phone's own camera app; the shutter is the in-app camera.
   final ValueChanged<EquipmentType>? onCamera;
   final VoidCallback? onMyScans;
-  final Widget? viewfinder;
+
+  /// The live camera, given the hint to show over it.
+  final Widget Function(String hint)? viewfinder;
 
   @override
   State<NewScanScreen> createState() => _NewScanScreenState();
@@ -131,8 +133,10 @@ class _NewScanScreenState extends State<NewScanScreen> {
               ]),
             ),
             Expanded(
-              child: widget.viewfinder ??
-                  _StaticViewfinder(type == null ? 'Choose the equipment type to start' : 'Align the nameplate within the frame'),
+              child: Builder(builder: (_) {
+                final hint = type == null ? 'Choose the equipment type to start' : 'Align the nameplate within the frame';
+                return widget.viewfinder?.call(hint) ?? _StaticViewfinder(hint);
+              }),
             ),
             const Padding(
               padding: EdgeInsets.fromLTRB(16, 12, 16, 0),

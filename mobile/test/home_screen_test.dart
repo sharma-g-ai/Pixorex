@@ -166,7 +166,7 @@ void main() {
       await rig.session.signIn(loginHint: 'j.martinez@ppg-plant04.com');
       await t.pumpWidget(ChangeNotifierProvider<SessionController>.value(
         value: rig.session,
-        child: MaterialApp(home: HomeShell(scans: ScanRepository(rig.api), onNewScan: () {})),
+        child: MaterialApp(home: HomeShell(scans: ScanRepository(rig.api), onNewScan: () async {})),
       ));
       await t.pumpAndSettle();
       expect(find.text('Field Technician · PPG Plant 04 — Coatings'), findsOneWidget);

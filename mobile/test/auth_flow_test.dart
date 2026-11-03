@@ -10,6 +10,7 @@ import 'package:pixorex_mobile/core/auth_tokens.dart';
 import 'package:pixorex_mobile/core/device_id.dart';
 import 'package:pixorex_mobile/core/oidc_client.dart';
 import 'package:pixorex_mobile/core/secure_store.dart';
+import 'package:pixorex_mobile/features/scan/photo_source.dart';
 import 'package:provider/provider.dart';
 import 'package:pixorex_mobile/features/auth/activate_screen.dart';
 import 'package:pixorex_mobile/features/auth/activation_controller.dart';
@@ -93,10 +94,15 @@ http.Response json(Object body, [int status = 200]) =>
 http.Response problem(int status, String code) =>
     json({'type': '/problems/$code', 'title': code, 'status': status, 'detail': 'detail for $code'}, status);
 
-Future<void> pumpApp(WidgetTester t, Rig rig) async {
+Future<void> pumpApp(WidgetTester t, Rig rig, {PhotoSource Function()? photoSource}) async {
   await t.pumpWidget(ChangeNotifierProvider<SessionController>.value(
     value: rig.session,
-    child: PixorexApp(invites: rig.invites, linkSource: NoLinks()),
+    child: PixorexApp(
+      invites: rig.invites,
+      linkSource: NoLinks(),
+      photoSource: photoSource,
+      store: rig.mem,
+    ),
   ));
   await t.pumpAndSettle();
 }

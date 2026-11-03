@@ -44,6 +44,7 @@ class Harness {
   final store = MemorySecureStore();
   late final LastLocationStore last = LastLocationStore(store);
   final submitted = <List<String>>[];
+  String? failWith;
 }
 
 Future<Harness> pumpLocation(
@@ -68,7 +69,10 @@ Future<Harness> pumpLocation(
       typeName: 'AC Generator Nameplate',
       photoCount: 2,
       clock: () => now,
-      onSubmit: (pick) async => h.submitted.add(pick.nodeIds),
+      onSubmit: (pick) async {
+        h.submitted.add(pick.nodeIds);
+        return h.failWith;
+      },
     ),
   ));
   await t.pumpAndSettle();
@@ -93,6 +97,21 @@ void main() {
     await t.tap(find.text('Submit scan'));
     await t.pumpAndSettle();
     expect(h.submitted.single, ['Plant 04', 'Building C', 'Paint Shop', 'Bin 05', 'A']);
+  });
+
+  testWidgets('GIVEN sending fails WHEN Submit is pressed THEN the reason shows above the button', (t) async {
+    final h = await pumpLocation(t, remembered: ['Plant 04', 'Building C', 'Paint Shop', 'Bin 05', 'A']);
+    h.failWith = "Couldn't send the scan. Check your connection and tap Submit scan again.";
+    await t.tap(find.text('Submit scan'));
+    await t.pumpAndSettle();
+    expect(find.text(h.failWith!), findsOneWidget);
+    expect(submitEnabled(t), isTrue); // can press again
+
+    h.failWith = null;
+    await t.tap(find.text('Submit scan'));
+    await t.pumpAndSettle();
+    expect(find.textContaining("Couldn't send"), findsNothing);
+    expect(h.submitted, hasLength(2));
   });
 
   testWidgets('GIVEN a first scan WHEN walking down the levels THEN each chooser follows the tree', (t) async {

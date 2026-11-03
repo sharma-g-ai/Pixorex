@@ -9,7 +9,8 @@ import 'location_pick.dart';
 import 'scan_repository.dart';
 
 /// Confirm location (design 41, 42, 45): the last location used in this unit is picked
-/// already; any level can be changed. [onSubmit] gets the finished pick.
+/// already; any level can be changed. [onSubmit] gets the finished pick and returns a
+/// message to show above the button when sending failed (null when it went through).
 class LocationScreen extends StatefulWidget {
   const LocationScreen({
     super.key,
@@ -31,7 +32,7 @@ class LocationScreen extends StatefulWidget {
   final String tenantName;
   final String typeName;
   final int photoCount;
-  final Future<void> Function(LocationPick pick) onSubmit;
+  final Future<String?> Function(LocationPick pick) onSubmit;
   final Widget? thumbnail;
   final DateTime Function() clock;
 
@@ -44,6 +45,7 @@ class _LocationScreenState extends State<LocationScreen> {
   LocationPick? _last;
   DateTime? _lastAt;
   String? _error;
+  String? _sendError;
   bool _submitting = false;
 
   @override
@@ -87,9 +89,13 @@ class _LocationScreenState extends State<LocationScreen> {
   }
 
   Future<void> _submit() async {
-    setState(() => _submitting = true);
+    setState(() {
+      _submitting = true;
+      _sendError = null;
+    });
     try {
-      await widget.onSubmit(_pick!);
+      final problem = await widget.onSubmit(_pick!);
+      if (mounted) setState(() => _sendError = problem);
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
@@ -150,6 +156,8 @@ class _LocationScreenState extends State<LocationScreen> {
             child: SafeArea(
               top: false,
               child: Column(mainAxisSize: MainAxisSize.min, children: [
+                if (_sendError != null)
+                  Padding(padding: const EdgeInsets.only(bottom: 10), child: InfoBanner(text: _sendError!, error: true)),
                 PillButton(label: 'Submit scan', loading: _submitting, onPressed: pick.isComplete && !_submitting ? _submit : null),
                 if (!pick.isComplete)
                   const Padding(

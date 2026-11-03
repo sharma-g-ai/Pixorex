@@ -16,8 +16,9 @@ class HomeShell extends StatefulWidget {
   const HomeShell({super.key, required this.scans, this.onNewScan});
   final ScanRepository scans;
 
-  /// Opens New scan (design 30); the green button is hidden until it is wired.
-  final VoidCallback? onNewScan;
+  /// Opens New scan (design 30) and completes when the technician comes back;
+  /// Home then reloads. The green button is hidden when this is null.
+  final Future<void> Function()? onNewScan;
 
   @override
   State<HomeShell> createState() => _HomeShellState();
@@ -25,6 +26,12 @@ class HomeShell extends StatefulWidget {
 
 class _HomeShellState extends State<HomeShell> {
   int _tab = 0;
+  Key _home = UniqueKey();
+
+  Future<void> _newScan() async {
+    await widget.onNewScan!();
+    if (mounted) setState(() => _home = UniqueKey());
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -40,7 +47,11 @@ class _HomeShellState extends State<HomeShell> {
           child: Image.asset('assets/pixorex_wordmark_white.png', height: 22, semanticLabel: 'Pixorex'),
         ),
         if (me != null) _UserStrip(me),
-        Expanded(child: _tab == 0 ? HomeTab(scans: widget.scans, onNewScan: widget.onNewScan) : _Profile(me)),
+        Expanded(child: _tab == 0 ? HomeTab(
+                key: _home,
+                scans: widget.scans,
+                onNewScan: widget.onNewScan == null ? null : _newScan,
+              ) : _Profile(me)),
       ]),
       floatingActionButton: _tab == 0 && widget.onNewScan != null
           ? FloatingActionButton(
@@ -48,7 +59,7 @@ class _HomeShellState extends State<HomeShell> {
               backgroundColor: const Color(0xFF3C9F40),
               foregroundColor: Colors.white,
               shape: const CircleBorder(),
-              onPressed: widget.onNewScan,
+              onPressed: _newScan,
               child: const Icon(Icons.photo_camera_outlined),
             )
           : null,

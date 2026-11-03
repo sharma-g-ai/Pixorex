@@ -110,11 +110,17 @@ class CaptureDraft {
   static const maxPhotos = 4;
 
   final EquipmentType type;
-  final String clientCaptureId;
+  String clientCaptureId;
   final DateTime capturedAt;
 
   /// Prepared JPEGs, in order: photo 1 first.
   final List<Uint8List> photos;
+
+  /// Set once the API has created the scan, so a retry can tell whether the
+  /// details it was created with have changed since.
+  String? sentScanId;
+  String? sentLocationId;
+  int? sentPhotoCount;
 
   bool get isFull => photos.length >= maxPhotos;
 }

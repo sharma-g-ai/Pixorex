@@ -14,7 +14,10 @@ import 'features/auth/session_controller.dart';
 import 'features/auth/sign_in_screen.dart';
 import 'features/auth/splash_screen.dart';
 import 'features/home/home_screen.dart';
-import 'features/scan/new_scan_screen.dart';
+import 'core/secure_store.dart';
+import 'features/scan/location_pick.dart';
+import 'features/scan/new_scan_flow.dart';
+import 'features/scan/photo_source.dart';
 import 'features/scan/scan_repository.dart';
 
 /// Source of links that open the app (invite links). A seam so tests can fake it.
@@ -32,9 +35,21 @@ class AppLinksSource implements LinkSource {
 }
 
 class PixorexApp extends StatefulWidget {
-  const PixorexApp({super.key, required this.invites, required this.linkSource});
+  const PixorexApp({
+    super.key,
+    required this.invites,
+    required this.linkSource,
+    this.photoSource,
+    this.store = const PlatformSecureStore(),
+  });
   final InviteRepository invites;
   final LinkSource linkSource;
+
+  /// The camera; tests pass a fake. Defaults to the phone's camera and gallery.
+  final PhotoSource Function()? photoSource;
+
+  /// Where small per-phone settings live (the last location per unit).
+  final SecureStore store;
 
   @override
   State<PixorexApp> createState() => _PixorexAppState();
@@ -86,13 +101,15 @@ class _PixorexAppState extends State<PixorexApp> {
       navigatorKey: _navigator,
       builder: (context, child) =>
           AnnotatedRegion<SystemUiOverlayStyle>(value: brandSystemBars, child: child!),
-      home: const _AuthGate(),
+      home: _AuthGate(photoSource: widget.photoSource ?? DevicePhotoSource.new, store: widget.store),
     );
   }
 }
 
 class _AuthGate extends StatelessWidget {
-  const _AuthGate();
+  const _AuthGate({required this.photoSource, required this.store});
+  final PhotoSource Function() photoSource;
+  final SecureStore store;
 
   @override
   Widget build(BuildContext context) {
@@ -113,7 +130,14 @@ class _AuthGate extends StatelessWidget {
       onNewScan: unit?.buId == null
           ? null
           : () => Navigator.of(context).push(MaterialPageRoute<void>(
-                builder: (_) => NewScanScreen(scans: scans, buId: unit!.buId!, unitName: unit.name ?? ''),
+                builder: (_) => NewScanFlow(
+                  scans: scans,
+                  lastLocations: LastLocationStore(store),
+                  photoSource: photoSource,
+                  buId: unit!.buId!,
+                  unitName: unit.name ?? '',
+                  tenantName: session.me!.tenantName,
+                ),
               )),
     );
   }

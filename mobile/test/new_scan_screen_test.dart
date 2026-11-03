@@ -5,6 +5,7 @@ import 'package:pixorex_mobile/features/scan/capture_models.dart';
 import 'package:pixorex_mobile/features/scan/new_scan_screen.dart';
 import 'package:pixorex_mobile/features/scan/scan_repository.dart';
 
+import 'photo_set_screen_test.dart' show FakePhotoSource;
 import 'auth_flow_test.dart' show Rig, json, meJson, problem, pumpApp;
 
 Map<String, dynamic> typesPage(List<String> names, {String? next}) => {
@@ -147,7 +148,7 @@ void main() {
         return json(meJson());
       });
       await rig.session.signIn(loginHint: 'j@x.co');
-      await pumpApp(t, rig);
+      await pumpApp(t, rig, photoSource: FakePhotoSource.new);
       await t.tap(find.byTooltip('New scan'));
       await t.pumpAndSettle();
       expect(find.text('New scan'), findsOneWidget);

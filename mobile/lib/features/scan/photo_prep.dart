@@ -16,8 +16,10 @@ class PhotoPrepException implements Exception {
 }
 
 /// Any photo the phone gives us → a JPEG the API accepts (contract 2.22: JPEG, ≤ 2 MB).
-/// Runs off the UI thread; decoding a 12 MP photo takes a moment.
-Future<Uint8List> prepareJpeg(Uint8List bytes) => Isolate.run(() => prepareJpegSync(bytes));
+/// Camera photos are decoded off the UI thread (a 12 MP photo takes a moment); small
+/// ones are quicker to do here than to start an isolate for.
+Future<Uint8List> prepareJpeg(Uint8List bytes) async =>
+    bytes.length < 256 * 1024 ? prepareJpegSync(bytes) : Isolate.run(() => prepareJpegSync(bytes));
 
 Uint8List prepareJpegSync(Uint8List bytes, {int limit = ScanRepository.maxPhotoBytes}) {
   final decoded = img.decodeImage(bytes);
