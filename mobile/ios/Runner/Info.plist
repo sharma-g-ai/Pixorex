@@ -78,5 +78,9 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSCameraUsageDescription</key>
+	<string>Pixorex uses the camera to photograph equipment nameplates.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Pixorex lets you pick a nameplate photo you already took.</string>
 </dict>
 </plist>

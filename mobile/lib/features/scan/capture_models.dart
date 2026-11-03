@@ -1,6 +1,8 @@
 /// What the technician picks before capturing: equipment types (contract 2.10) and the
-/// published location tree (contract 2.9).
+/// published location tree (contract 2.9), and the scan being captured.
 library;
+
+import 'dart:typed_data';
 
 /// One field of an equipment type (contract 2.10 with `include=fields`).
 class TypeField {
@@ -97,6 +99,24 @@ class LocationTree {
       roots: _nodes(snapshot['nodes']),
     );
   }
+}
+
+/// A scan being captured, before it is sent. [clientCaptureId] is made with the first
+/// photo and is the scan's identity for life (docs/mobile-api.md section 5).
+class CaptureDraft {
+  CaptureDraft({required this.type, required this.clientCaptureId, required this.capturedAt, required Uint8List first})
+      : photos = [first];
+
+  static const maxPhotos = 4;
+
+  final EquipmentType type;
+  final String clientCaptureId;
+  final DateTime capturedAt;
+
+  /// Prepared JPEGs, in order: photo 1 first.
+  final List<Uint8List> photos;
+
+  bool get isFull => photos.length >= maxPhotos;
 }
 
 List<LocationNode> _nodes(Object? raw) =>
