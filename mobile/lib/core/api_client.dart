@@ -29,7 +29,9 @@ class ApiClient {
   final Duration timeout;
   final AccessTokenProvider accessToken;
 
-  Future<Map<String, dynamic>> get(String path) => _send('GET', path);
+  /// Null and empty [query] values are left out.
+  Future<Map<String, dynamic>> get(String path, {Map<String, String?>? query}) =>
+      _send('GET', path, query: query);
 
   /// [authenticated] is false only for invite preview and accept: they carry
   /// neither the bearer token nor X-Device-Id.
@@ -41,15 +43,27 @@ class ApiClient {
   }) =>
       _send('POST', path, body: body, authenticated: authenticated, idempotencyKey: idempotencyKey);
 
+  /// Raw upload, e.g. a photo (contract 2.22): [headers] carry its Content-Type and Content-Digest.
+  Future<Map<String, dynamic>> putBytes(
+    String path,
+    List<int> bytes, {
+    required Map<String, String> headers,
+  }) =>
+      _send('PUT', path, bytes: bytes, extraHeaders: headers);
+
   Future<Map<String, dynamic>> _send(
     String method,
     String path, {
     Map<String, dynamic>? body,
+    List<int>? bytes,
+    Map<String, String>? extraHeaders,
+    Map<String, String?>? query,
     bool authenticated = true,
     String? idempotencyKey,
   }) async {
     final headers = <String, String>{'Accept': 'application/json'};
     if (body != null) headers['Content-Type'] = 'application/json';
+    if (extraHeaders != null) headers.addAll(extraHeaders);
     if (authenticated) {
       final token = await accessToken();
       if (token == null) {
@@ -60,8 +74,16 @@ class ApiClient {
     }
     if (idempotencyKey != null) headers['Idempotency-Key'] = idempotencyKey;
 
-    final request = http.Request(method, Uri.parse('$_baseUrl$path'))..headers.addAll(headers);
+    var uri = Uri.parse('$_baseUrl$path');
+    final params = {
+      for (final e in (query ?? const <String, String?>{}).entries)
+        if (e.value != null && e.value!.isNotEmpty) e.key: e.value!,
+    };
+    if (params.isNotEmpty) uri = uri.replace(queryParameters: params);
+
+    final request = http.Request(method, uri)..headers.addAll(headers);
     if (body != null) request.body = jsonEncode(body);
+    if (bytes != null) request.bodyBytes = bytes;
 
     final http.Response response;
     try {

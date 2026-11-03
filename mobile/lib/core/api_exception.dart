@@ -6,6 +6,7 @@ class ApiException implements Exception {
     required this.title,
     this.detail,
     this.fieldErrors = const [],
+    this.fields = const [],
     this.correlationId,
   });
 
@@ -17,6 +18,9 @@ class ApiException implements Exception {
   final String title;
   final String? detail;
   final List<FieldError> fieldErrors;
+
+  /// Labels some 409s carry, e.g. `required-fields-empty` (docs/mobile-api.md section 3).
+  final List<String> fields;
   final String? correlationId;
 
   bool get isNetwork => status == 0;
@@ -35,6 +39,7 @@ class ApiException implements Exception {
   factory ApiException.fromProblem(int status, Map<String, dynamic> json) {
     final type = (json['type'] as String?) ?? '';
     final errors = json['errors'];
+    final fields = json['fields'];
     return ApiException(
       status: status,
       code: type.isEmpty ? 'unknown' : type.split('/').last,
@@ -50,6 +55,7 @@ class ApiException implements Exception {
                   ))
               .toList()
           : const [],
+      fields: fields is List ? fields.map((f) => f.toString()).toList() : const [],
     );
   }
 
