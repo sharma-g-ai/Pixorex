@@ -74,16 +74,23 @@ HANDLERS = {
 # Runs when an event is failed for good, so nothing waits on it for ever.
 ON_GIVE_UP = {BUILD_EVENT: export_files.give_up, EXTRACTION_EVENT: extraction.give_up}
 RETRYABLE = (OSError, smtplib.SMTPException, LookupError, BotoCoreError, ClientError)
+# Which events each worker role takes: AI extraction runs in its own container, so a scan
+# backlog never holds up emails or exports.
+EVENTS = {
+    "all": list(HANDLERS),
+    "extraction": [EXTRACTION_EVENT],
+    "general": [e for e in HANDLERS if e != EXTRACTION_EVENT],
+}
 
 
 async def run_due(
     pool: Pool, settings: WorkerSettings, *, send: Sender = mail.send_email, limit: int = 50
 ) -> int:
-    """Runs up to `limit` due events; returns how many were handled."""
+    """Runs up to `limit` due events of this worker's role; returns how many were handled."""
     handled = 0
     for _ in range(limit):
         async with pool.connection() as conn, conn.transaction():
-            event = await _claim(conn, list(HANDLERS))
+            event = await _claim(conn, EVENTS[settings.worker_role])
             if event is None:
                 return handled
             handler = HANDLERS.get(event["event_type"])

@@ -29,7 +29,7 @@ uv run pytest tests/integration/test_review.py::test_name                       
 PIXOREX_TEST_ADMIN_URL="postgresql://postgres:local-only@localhost:5433/postgres" uv run pytest  # integration tests (skipped without it)
 uv run alembic revision -m "summary"   # new migration: plain SQL in upgrade(), forward-only, runs as pixorex_owner
 uv run uvicorn --factory app.main:create_app --reload   # keep --reload on Windows (psycopg async needs it)
-python -m app.workers.runner            # worker (Compose service `worker`)
+python -m app.workers.runner            # worker (Compose `worker` = PIXOREX_WORKER_ROLE general; `extraction-worker` = extraction)
 ```
 The API refuses to start if `PIXOREX_DATABASE_URL` uses `postgres` or `pixorex_owner` (they bypass RLS).
 

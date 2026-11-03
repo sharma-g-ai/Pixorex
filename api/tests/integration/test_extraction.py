@@ -13,9 +13,10 @@ from tests.integration.conftest import Api
 from tests.integration.helpers import TARA
 
 
-def _settings(database: dict[str, str]) -> WorkerSettings:
+def _settings(database: dict[str, str], role: str = "all") -> WorkerSettings:
     return WorkerSettings(  # type: ignore[call-arg]
         worker_database_url=database["worker"],
+        worker_role=role,
         minio_access_key="k",
         minio_secret_key="s",  # noqa: S106  (test value)
         openai_api_key="sk-test",
@@ -53,7 +54,7 @@ def ai(monkeypatch: pytest.MonkeyPatch) -> dict[str, Any]:
     return seen
 
 
-async def _run(pool: Any, owner_sql: Any, database: dict[str, str]) -> None:
+async def _run(pool: Any, owner_sql: Any, database: dict[str, str], role: str = "all") -> None:
     owner_sql(
         "UPDATE outbox_event SET next_run_at = now() - interval '1 second' WHERE status = 'pending'"
     )
@@ -61,7 +62,26 @@ async def _run(pool: Any, owner_sql: Any, database: dict[str, str]) -> None:
     async def no_mail(settings: Any, **_: str) -> None:
         return None
 
-    await outbox.run_due(pool, _settings(database), send=no_mail, limit=1000)
+    await outbox.run_due(pool, _settings(database, role), send=no_mail, limit=1000)
+
+
+async def test_only_the_extraction_worker_reads_scans(
+    api: Api,
+    owner_sql: Any,
+    unit: dict[str, str],
+    uploads: dict[str, bytes],
+    pool: Any,
+    database: dict[str, str],
+    ai: dict[str, Any],
+) -> None:
+    """GIVEN an uploaded scan WHEN the general worker runs THEN the scan still waits;
+    WHEN the extraction worker runs THEN it is ready to review."""
+    sid = _confirmed(api, unit)["scan_id"]
+    await _run(pool, owner_sql, database, role="general")
+    assert ai["calls"] == 0
+    assert api.get(f"/scans/{sid}", TARA).json()["processing_status"] == "extracting"
+    await _run(pool, owner_sql, database, role="extraction")
+    assert api.get(f"/scans/{sid}", TARA).json()["processing_status"] == "ready_to_review"
 
 
 async def test_an_upload_is_extracted_and_ready_to_review(

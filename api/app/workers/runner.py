@@ -1,6 +1,7 @@
 """The worker process: sends due outbox events and runs the scheduled jobs.
 
-python -m app.workers.runner        (Docker Compose service "worker")
+python -m app.workers.runner        (Docker Compose services "worker" and "extraction-worker",
+                                    split by PIXOREX_WORKER_ROLE)
 """
 
 import asyncio
@@ -57,12 +58,14 @@ async def main() -> None:
         if settings.keycloak_admin_secret
         else None
     )
-    _log.info("worker_started")
+    if settings.worker_role == "extraction":
+        keycloak = None  # scheduled jobs and the Keycloak re-read belong to the general worker
+    _log.info("worker_started", role=settings.worker_role)
     next_jobs = next_keycloak = 0.0
     try:
         while not stop.is_set():
             try:
-                if time.monotonic() >= next_jobs:
+                if settings.worker_role != "extraction" and time.monotonic() >= next_jobs:
                     totals = await jobs.run_all(pool)
                     if any(totals.values()):
                         _log.info("jobs_done", **totals)
