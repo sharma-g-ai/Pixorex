@@ -51,12 +51,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         )
         app.state.ai = (
             ai_proxy.AiConfig(
-                url=str(settings.portkey_url).rstrip("/"),
-                api_key=settings.portkey_api_key,
-                config_id=settings.portkey_config_id,
+                url=str(settings.openai_url).rstrip("/"),
+                api_key=settings.openai_api_key,
+                model=settings.openai_model,
                 timeout_s=settings.ai_timeout_s,
             )
-            if settings.portkey_api_key and settings.portkey_config_id
+            if settings.openai_api_key
             else None
         )
         # Don't block start-up on the database; /ready reports it until it is reachable.

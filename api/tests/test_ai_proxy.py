@@ -1,4 +1,4 @@
-"""The AI proxy's call to Portkey and how it checks the answer (no network)."""
+"""The AI proxy's call to OpenAI and how it checks the answer (no network)."""
 
 import json
 from typing import Any
@@ -10,7 +10,7 @@ from pydantic import SecretStr
 from app.services import ai_proxy
 
 CONFIG = ai_proxy.AiConfig(
-    url="https://portkey.test/v1", api_key=SecretStr("k"), config_id="pc-test", timeout_s=5
+    url="https://openai.test/v1", api_key=SecretStr("k"), model="gpt-test", timeout_s=5
 )
 PNG = b"\x89PNG\r\n\x1a\n" + b"x" * 20
 
@@ -25,7 +25,7 @@ def _client(content: str | None, status: int = 200, seen: list[Any] | None = Non
     return httpx.AsyncClient(transport=httpx.MockTransport(answer))
 
 
-async def test_sends_the_photo_with_the_portkey_headers_and_reads_fields() -> None:
+async def test_sends_the_photo_with_the_openai_key_and_model_and_reads_fields() -> None:
     seen: list[httpx.Request] = []
     content = (
         '```json\n{"fields": [{"label": "Serial number", "data_type": "text"},'
@@ -40,14 +40,44 @@ async def test_sends_the_photo_with_the_portkey_headers_and_reads_fields() -> No
         {"label": "Rated voltage", "data_type": "number"},
     ]
     request = seen[0]
-    assert str(request.url) == "https://portkey.test/v1/chat/completions"
-    assert request.headers["x-portkey-api-key"] == "k"
-    assert request.headers["x-portkey-config"] == "pc-test"
+    assert str(request.url) == "https://openai.test/v1/chat/completions"
+    assert request.headers["authorization"] == "Bearer k"
     sent = json.loads(request.content)
     parts = sent["messages"][1]["content"]
     assert parts[0]["text"] == 'Equipment type name: "Motor"'
     assert parts[1]["image_url"]["url"].startswith("data:image/png;base64,")
-    assert "model" not in sent  # the Portkey config picks it
+    assert parts[1]["image_url"]["detail"] == "high"
+    assert sent["model"] == "gpt-test"
+    assert sent["reasoning_effort"] == "low"
+    assert "temperature" not in sent  # GPT-5.6 models reject it
+
+
+async def test_extraction_sends_every_photo_at_high_detail_without_temperature() -> None:
+    seen: list[httpx.Request] = []
+    content = '{"fields": {"serial": {"value": "SN-1", "confidence": 0.9, "format_ok": true}}}'
+    field = {
+        "field_key": "serial",
+        "label": "Serial number",
+        "data_type": "text",
+        "options": None,
+        "format_rule": None,
+    }
+    async with _client(content, seen=seen) as http:
+        result = await ai_proxy.extract(
+            http,
+            CONFIG,
+            photos=[(PNG, "image/png"), (PNG, "image/png")],
+            type_name="Motor",
+            fields=[field],
+            type_names=["Motor"],
+            extra_instructions=None,
+        )
+    assert result.fields["serial"]["value"] == "SN-1"
+    sent = json.loads(seen[0].content)
+    images = [p for p in sent["messages"][1]["content"] if p["type"] == "image_url"]
+    assert [p["image_url"]["detail"] for p in images] == ["high", "high"]
+    assert (sent["model"], sent["reasoning_effort"]) == ("gpt-test", "low")
+    assert "temperature" not in sent
 
 
 async def test_odd_answers_are_cleaned_up() -> None:

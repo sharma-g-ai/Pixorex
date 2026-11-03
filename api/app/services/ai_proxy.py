@@ -1,13 +1,13 @@
 """The AI Inference Proxy (ARCHITECTURE §2, CONSTITUTION rule 8): the only path from Pixorex
-to a model provider. Calls go to Portkey (OpenAI-compatible chat completions); the Portkey
-config chooses the provider and model, so the API names none.
+to a model provider. Calls go straight to OpenAI (chat completions); the model comes from
+settings (PIXOREX_OPENAI_MODEL).
 
 A1 (CONSTITUTION BC-03): prompt building and injection defence need human review.
 - The label photo and the type name are data, never instructions: the system prompt says
   so, and the answer is checked against a fixed shape before anything is returned.
 - Nothing is stored (contract 2.20; whether the photo or the cost is kept: OPEN O-15).
-- OPEN P-14: the PRD expects US endpoints with zero data retention; the Portkey config in use
-  decides where the photo goes.
+- OPEN P-14: the PRD expects US endpoints with zero data retention; the OpenAI project's
+  settings decide where the photo goes.
 TODO (A1, CONSTITUTION rule 8): PII stripping before the call is not built."""
 
 import base64
@@ -24,6 +24,9 @@ _log = structlog.get_logger("pixorex.ai_proxy")
 DATA_TYPES = ("text", "number", "date", "dropdown", "boolean")
 MAX_FIELDS = 30
 MAX_LABEL = 80
+# Reading a label needs little reasoning. GPT-5.6 models reject a temperature other than 1,
+# so none is sent; photos go at "high" detail (the default, "original", costs about 4x more).
+REASONING_EFFORT = "low"
 
 SUGGEST_PROMPT = (
     "You read photos of equipment labels and nameplates for an industrial asset register. "
@@ -44,7 +47,7 @@ class AiUnavailableError(Exception):
 class AiConfig:
     url: str
     api_key: SecretStr
-    config_id: str
+    model: str
     timeout_s: float
 
 
@@ -85,22 +88,20 @@ async def suggest_fields(
 ) -> list[dict[str, str]]:
     photo = f"data:{mime};base64,{base64.b64encode(image).decode()}"
     body = {
+        "model": config.model,
         "messages": [
             {"role": "system", "content": SUGGEST_PROMPT},
             {
                 "role": "user",
                 "content": [
                     {"type": "text", "text": f"Equipment type name: {json.dumps(type_name)}"},
-                    {"type": "image_url", "image_url": {"url": photo}},
+                    {"type": "image_url", "image_url": {"url": photo, "detail": "high"}},
                 ],
             },
         ],
-        "temperature": 0,
+        "reasoning_effort": REASONING_EFFORT,
     }
-    headers = {
-        "x-portkey-api-key": config.api_key.get_secret_value(),
-        "x-portkey-config": config.config_id,
-    }
+    headers = {"Authorization": f"Bearer {config.api_key.get_secret_value()}"}
     try:
         response = await http.post(
             f"{config.url}/chat/completions", json=body, headers=headers, timeout=config.timeout_s
@@ -184,15 +185,13 @@ async def extract(
     content: list[dict[str, Any]] = [{"type": "text", "text": text}]
     for image, mime in photos:
         url = f"data:{mime};base64,{base64.b64encode(image).decode()}"
-        content.append({"type": "image_url", "image_url": {"url": url}})
+        content.append({"type": "image_url", "image_url": {"url": url, "detail": "high"}})
     body = {
+        "model": config.model,
         "messages": [{"role": "system", "content": system}, {"role": "user", "content": content}],
-        "temperature": 0,
+        "reasoning_effort": REASONING_EFFORT,
     }
-    headers = {
-        "x-portkey-api-key": config.api_key.get_secret_value(),
-        "x-portkey-config": config.config_id,
-    }
+    headers = {"Authorization": f"Bearer {config.api_key.get_secret_value()}"}
     try:
         response = await http.post(
             f"{config.url}/chat/completions", json=body, headers=headers, timeout=config.timeout_s

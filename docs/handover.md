@@ -55,7 +55,7 @@ Branch: `feature/PX-02-mobile-api`. Read this first. It says what is done, what 
 - How a technician's invite link opens the app (deep link). Not decided yet. Needed for the activation screens (T 03–05).
 - Any screen that needs data the API doesn't give. Ask; don't work around it.
 
-**AI extraction is running (21 Oct):** after upload-complete, poll `GET /scans/{scanId}` until it is `ready_to_review` (or `failed` / `retake_required`). The backend needs the Portkey values in `.env`.
+**AI extraction is running (21 Oct):** after upload-complete, poll `GET /scans/{scanId}` until it is `ready_to_review` (or `failed` / `retake_required`). The backend needs `PIXOREX_OPENAI_API_KEY` in `.env`.
 
 ---
 
@@ -88,7 +88,7 @@ Branch: `feature/PX-02-mobile-api`. Read this first. It says what is done, what 
 
 | Item | Waiting for |
 |---|---|
-| AI extraction through Portkey (scans and "AI assist" for equipment types) | Vishnu: the Portkey key, the model, and OK for the photo-upload library |
+| AI extraction through OpenAI, direct (scans and "AI assist" for equipment types) | Vishnu: the OpenAI key, the model, and OK for the photo-upload library |
 | DLP check on exports (O-14) | **Agreed 19 Oct:** names, emails and phone numbers are masked. Built on `feature/PX-11-idempotency-dlp`; needs architect review (A0) |
 | Retention job (FR-6.6) | Lead: legal hold, minimum values, table shape, delete or anonymise |
 | Storing idempotency keys | **Agreed 19 Oct:** built on `feature/PX-11-idempotency-dlp` (new table, 24 hours) |

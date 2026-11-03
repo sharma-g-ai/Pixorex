@@ -79,12 +79,12 @@ def flags_for(
 
 
 def ai_config(settings: WorkerSettings) -> ai_proxy.AiConfig | None:
-    if not settings.portkey_api_key or not settings.portkey_config_id:
+    if not settings.openai_api_key:
         return None
     return ai_proxy.AiConfig(
-        url=str(settings.portkey_url).rstrip("/"),
-        api_key=settings.portkey_api_key,
-        config_id=settings.portkey_config_id,
+        url=str(settings.openai_url).rstrip("/"),
+        api_key=settings.openai_api_key,
+        model=settings.openai_model,
         timeout_s=settings.ai_timeout_s,
     )
 
@@ -112,7 +112,7 @@ async def run(conn: Conn, settings: WorkerSettings, event: dict[str, Any], _send
     config, files = ai_config(settings), storage_config(settings)
     if config is None or files is None:
         # Retried with backoff by the outbox; after the last try the attempt fails.
-        raise LookupError("AI or photo storage is not configured (PIXOREX_PORTKEY_*, MINIO_*)")
+        raise LookupError("AI or photo storage is not configured (PIXOREX_OPENAI_*, MINIO_*)")
     photos = [
         (image, _photo_mime(image))
         for image in [

@@ -242,26 +242,26 @@ def _suggest(api: Api, user: str, image: bytes = PNG, name: str = "Motor") -> An
 
 
 def test_ai_assist_suggests_fields_from_a_photo(api: Api) -> None:
-    """Contract 2.20 through the AI proxy (Portkey, faked here); nothing is saved."""
+    """Contract 2.20 through the AI proxy (OpenAI, faked here); nothing is saved."""
     import httpx
     from pydantic import SecretStr
 
     from app.services.ai_proxy import AiConfig
 
     app: Any = api.client.app
-    _problem(_suggest(api, BO), 503, "ai-unavailable")  # no Portkey key configured
+    _problem(_suggest(api, BO), 503, "ai-unavailable")  # no OpenAI key configured
     sent: list[httpx.Request] = []
 
-    def portkey(request: httpx.Request) -> httpx.Response:
+    def openai(request: httpx.Request) -> httpx.Response:
         sent.append(request)
         content = '{"fields": [{"label": "Serial number", "data_type": "text"}]}'
         return httpx.Response(200, json={"choices": [{"message": {"content": content}}]})
 
     app.state.ai = AiConfig(
-        url="https://portkey.test/v1", api_key=SecretStr("k"), config_id="pc", timeout_s=5
+        url="https://openai.test/v1", api_key=SecretStr("k"), model="gpt-test", timeout_s=5
     )
     real_http = app.state.http
-    app.state.http = httpx.AsyncClient(transport=httpx.MockTransport(portkey))
+    app.state.http = httpx.AsyncClient(transport=httpx.MockTransport(openai))
     try:
         answer = _suggest(api, BO)
         assert answer.status_code == 200, answer.text

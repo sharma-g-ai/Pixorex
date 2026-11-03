@@ -18,8 +18,7 @@ def _settings(database: dict[str, str]) -> WorkerSettings:
         worker_database_url=database["worker"],
         minio_access_key="k",
         minio_secret_key="s",  # noqa: S106  (test value)
-        portkey_api_key="pk",
-        portkey_config_id="pc-test",
+        openai_api_key="sk-test",
     )
 
 
