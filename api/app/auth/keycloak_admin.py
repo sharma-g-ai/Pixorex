@@ -108,6 +108,24 @@ class KeycloakAdmin:
         status: dict[str, Any] = response.json()
         return status
 
+    async def events(
+        self, *, date_from: str, types: list[str], first: int, max_results: int
+    ) -> list[dict[str, Any]]:
+        """Keycloak's stored user events (kept 7 days) for the reconciliation job
+        (docs/keycloak.md 8.4). date_from is YYYY-MM-DD. The service account needs the
+        realm-management view-events role.
+        A0 DRAFT (2026-11-02, agent-written at Vishnu's request), NEEDS ARCHITECT REVIEW."""
+        params: list[tuple[str, str | int]] = [
+            ("dateFrom", date_from),
+            ("first", first),
+            ("max", max_results),
+            *(("type", t) for t in types),
+        ]
+        response = await self._call("GET", "/events", params=params)
+        response.raise_for_status()
+        events: list[dict[str, Any]] = response.json()
+        return events
+
     async def disable_login(self, *, app_user_id: str, keycloak_user_id: str | None = None) -> None:
         """Stop IdP sign-in immediately (docs/keycloak.md §6.11: full removal).
 

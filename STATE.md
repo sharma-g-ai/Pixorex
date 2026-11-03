@@ -81,7 +81,7 @@ Lanes: **FSD-A** Foundation · **FSD-B** API & Security · **Divya** web · **Fl
 | P-1 | Tenant + first EA creation | Operator CLI (ARCHITECTURE §4.6) | Owner + TA | |
 | O-11 | Active unit: session vs token | `user_session.active_bu_id` + `X-Device-Id` | Manager / TA | |
 | O-12 | Activation and phone-change codes | Keycloak required actions, same authenticator and lock counter; API learns via event listener | Manager / TA | **D-08** (16 Oct): as proposed |
-| O-13 | Lock state in BU-01 | Keycloak attack-detection admin API | Manager / TA | |
+| O-13 | Lock state in BU-01 | Keycloak attack-detection admin API | Manager / TA | Built 2026-11-02 as proposed in docs/keycloak.md 5.3 (Vishnu); **needs Manager / TA confirmation** |
 | O-23 | Multi-unit activation, primary unit | Accept all pending invites for the email; primary = oldest invite's unit | You + Divya | **D-09** (16 Oct): as proposed, same role only |
 | P-10 | bu_admin_user_id vs user_unit_role | Role row authoritative; checked by constraint trigger | TA | |
 | P-3 | SMS provider | Existing account — confirm DLT sender + OTP template approved | You | |
@@ -96,6 +96,10 @@ Lanes: **FSD-A** Foundation · **FSD-B** API & Security · **Divya** web · **Fl
 - 2026-10-14 — PRD V3 baseline adopted: 3 roles, no Client Portal, no SAML, frozen 31-table model, two approvals per PR (constitution v1.2).
 - 2026-10-16 — Python pinned to 3.12 instead of 3.11 (approved by the lead); CONSTITUTION v1.4.
 - 2026-10-16 — D-08, D-09, D-11 (O-12, O-23, web session); reasoning in `docs/proposals/decisions-o12-o23.md`. O-7 (scan limit) stays open: not on the screens.
+- 2026-11-02 — O-13 (Vishnu, to confirm with Manager / TA): the technicians list reads each lock from Keycloak's attack-detection API, cached 30 s; locked until = last failure + 30 min.
+- 2026-11-02 — Keycloak event reconciliation (docs/keycloak.md 8.4) built in the worker, every 5 min, events since yesterday. Needs `view-events` on `pixorex-api-admin` (Iswarya) and architect review of `keycloak_admin.events` (A0).
+- 2026-11-02 — Phone-change event format proposed in `docs/proposals/phone-change-event.md`; to agree with Iswarya before building.
+- 2026-11-02 — AI calls go straight to OpenAI, not through Portkey (confirmed to Vishnu). `ai_proxy.py` stays the only path; settings `PIXOREX_OPENAI_API_KEY`, `PIXOREX_OPENAI_MODEL` (default `gpt-5.6-terra`, reasoning effort low, photos at "high" detail; test `gpt-5.6-luna` on real nameplates before switching). P-14 (US / zero retention) still open.
 - 2026-10-15 — Dashboard decisions D-01 to D-07, delegated by the lead to the dashboard team ("implement the best way possible"); detail and reasoning in `docs/proposals/web-dashboard-stack.md`:
 
 | ID | Topic | Decision | Follow-up |

@@ -125,6 +125,15 @@ async def keycloak_id(conn: Conn, user_id: UUID) -> str | None:
     return str(value) if value else None
 
 
+async def by_keycloak_ids(conn: Conn, keycloak_ids: list[str]) -> dict[str, UUID]:
+    """Keycloak user id -> app_user id, for the users of the current tenant (RLS)."""
+    cur = await conn.execute(
+        "SELECT id, keycloak_user_id FROM app_user WHERE keycloak_user_id = ANY(%s)",
+        (keycloak_ids,),
+    )
+    return {str(r["keycloak_user_id"]): r["id"] for r in await cur.fetchall()}
+
+
 async def active_roles_in(conn: Conn, bu_ids: list[UUID], role: str) -> list[dict[str, Any]]:
     cur = await conn.execute(
         "SELECT user_id, bu_id FROM user_unit_role"

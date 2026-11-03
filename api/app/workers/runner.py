@@ -7,10 +7,13 @@ import asyncio
 import signal
 import time
 
+import httpx
 import structlog
 
+from app.auth.keycloak_admin import KeycloakAdmin
 from app.core.db import Conn
 from app.core.logging import configure_logging
+from app.services import keycloak_events
 from app.workers import jobs, outbox
 from app.workers.settings import WorkerSettings, get_worker_settings
 
@@ -43,8 +46,19 @@ async def main() -> None:
             pass
     pool = _pool(settings)
     await pool.open(wait=True, timeout=60)
+    http = httpx.AsyncClient()
+    keycloak = (
+        KeycloakAdmin(
+            realm_url=settings.keycloak_realm_url,
+            client_id=settings.keycloak_admin_client_id,
+            client_secret=settings.keycloak_admin_secret,
+            http=http,
+        )
+        if settings.keycloak_admin_secret
+        else None
+    )
     _log.info("worker_started")
-    next_jobs = 0.0
+    next_jobs = next_keycloak = 0.0
     try:
         while not stop.is_set():
             try:
@@ -53,6 +67,12 @@ async def main() -> None:
                     if any(totals.values()):
                         _log.info("jobs_done", **totals)
                     next_jobs = time.monotonic() + settings.worker_jobs_every_s
+                if keycloak and time.monotonic() >= next_keycloak:
+                    next_keycloak = time.monotonic() + settings.worker_keycloak_every_s
+                    try:
+                        await keycloak_events.reconcile(pool, keycloak)
+                    except (httpx.HTTPError, RuntimeError) as exc:
+                        _log.warning("keycloak_reconcile_failed", error=type(exc).__name__)
                 sent = await outbox.run_due(pool, settings)
                 if sent:
                     _log.info("outbox_done", events=sent)
@@ -63,6 +83,7 @@ async def main() -> None:
             except TimeoutError:
                 pass
     finally:
+        await http.aclose()
         await pool.close()
         _log.info("worker_stopped")
 

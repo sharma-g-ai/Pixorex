@@ -78,3 +78,15 @@ async def has_detail(conn: Conn, *, tenant_id: UUID, category: str, key: str, va
         (tenant_id, category, key, value),
     )
     return await cur.fetchone() is not None
+
+
+async def details_present(
+    conn: Conn, *, tenant_id: UUID, category: str, key: str, values: list[str]
+) -> set[str]:
+    """Which of these values already appear under details->>key (one query for many)."""
+    cur = await conn.execute(
+        "SELECT DISTINCT details->>%s AS value FROM audit_log"
+        " WHERE tenant_id = %s AND category = %s AND details->>%s = ANY(%s)",
+        (key, tenant_id, category, key, values),
+    )
+    return {r["value"] for r in await cur.fetchall()}

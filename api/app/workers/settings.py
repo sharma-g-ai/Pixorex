@@ -15,17 +15,24 @@ class WorkerSettings(BaseSettings):
     worker_database_url: SecretStr  # the pixorex_worker role
     worker_tick_s: float = 15.0  # how often due emails are sent
     worker_jobs_every_s: float = 60.0  # how often the scheduled jobs run
+    worker_keycloak_every_s: float = 300.0  # how often Keycloak's stored events are re-read
+
+    # Keycloak admin access, to re-read stored sign-in events (docs/keycloak.md 8.4).
+    # Unset secret: the reconciliation job doesn't run.
+    keycloak_realm_url: str = "http://localhost:8080/realms/pixorex"
+    keycloak_admin_client_id: str = "pixorex-api-admin"
+    keycloak_admin_secret: SecretStr | None = None
 
     minio_url: AnyHttpUrl = AnyHttpUrl("http://localhost:9000")
     minio_access_key: str | None = None
     minio_secret_key: SecretStr | None = None
     minio_bucket: str = "pixorex"
 
-    # AI Inference Proxy (Portkey), for scan extraction. Unset key: extraction waits and
-    # retries, then the attempt fails.
-    portkey_url: AnyHttpUrl = AnyHttpUrl("https://api.portkey.ai/v1")
-    portkey_api_key: SecretStr | None = None
-    portkey_config_id: str | None = None
+    # AI Inference Proxy (OpenAI, direct), for scan extraction. Unset key: extraction waits
+    # and retries, then the attempt fails.
+    openai_url: AnyHttpUrl = AnyHttpUrl("https://api.openai.com/v1")
+    openai_api_key: SecretStr | None = None
+    openai_model: str = "gpt-5.6-terra"
     ai_timeout_s: float = 60.0
 
     invite_base_url: AnyHttpUrl = AnyHttpUrl("http://localhost:5173")  # the web app
@@ -44,8 +51,8 @@ class WorkerSettings(BaseSettings):
         "smtp_user",
         "minio_access_key",
         "minio_secret_key",
-        "portkey_api_key",
-        "portkey_config_id",
+        "openai_api_key",
+        "keycloak_admin_secret",
         mode="before",
     )
     @classmethod

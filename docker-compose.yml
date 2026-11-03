@@ -41,8 +41,8 @@ services:
       PIXOREX_OIDC_INTERNAL_URL: http://keycloak:8080/realms/pixorex
       PIXOREX_KEYCLOAK_ADMIN_SECRET: ${PIXOREX_KEYCLOAK_ADMIN_SECRET:-}
       PIXOREX_KEYCLOAK_EVENTS_SECRET: ${PIXOREX_AUDIT_SECRET:-local-only-audit-secret}  # same as Keycloak's
-      PIXOREX_PORTKEY_API_KEY: ${PIXOREX_PORTKEY_API_KEY:-}      # AI assist (Portkey); from .env, never committed
-      PIXOREX_PORTKEY_CONFIG_ID: ${PIXOREX_PORTKEY_CONFIG_ID:-}
+      PIXOREX_OPENAI_API_KEY: ${PIXOREX_OPENAI_API_KEY:-}      # AI assist (OpenAI); from .env, never committed
+      PIXOREX_OPENAI_MODEL: ${PIXOREX_OPENAI_MODEL:-gpt-5.6-terra}
       PIXOREX_MINIO_URL: http://minio:9000
       PIXOREX_MINIO_PUBLIC_URL: http://localhost:9000   # download links open in the browser
       PIXOREX_MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-pixorex-local}        # local only
@@ -83,8 +83,10 @@ services:
       PIXOREX_MINIO_URL: http://minio:9000   # builds exports over 1,000 rows into MinIO; reads scan photos
       PIXOREX_MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-pixorex-local}
       PIXOREX_MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-local-only-minio}
-      PIXOREX_PORTKEY_API_KEY: ${PIXOREX_PORTKEY_API_KEY:-}   # AI extraction of scans (from .env)
-      PIXOREX_PORTKEY_CONFIG_ID: ${PIXOREX_PORTKEY_CONFIG_ID:-}
+      PIXOREX_OPENAI_API_KEY: ${PIXOREX_OPENAI_API_KEY:-}   # AI extraction of scans (from .env)
+      PIXOREX_KEYCLOAK_REALM_URL: http://keycloak:8080/realms/pixorex   # re-reads stored sign-in events
+      PIXOREX_KEYCLOAK_ADMIN_SECRET: ${PIXOREX_KEYCLOAK_ADMIN_SECRET:-}
+      PIXOREX_OPENAI_MODEL: ${PIXOREX_OPENAI_MODEL:-gpt-5.6-terra}
     healthcheck:
       disable: true   # no HTTP port; "docker compose logs worker" shows it working
     depends_on:

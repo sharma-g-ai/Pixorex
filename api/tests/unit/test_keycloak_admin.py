@@ -143,3 +143,45 @@ async def test_disable_login_is_a_noop_when_the_person_never_activated() -> None
     await _admin(fake).disable_login(app_user_id=DANA)
     assert fake.puts == []
     assert fake.logouts == []
+
+
+async def test_stored_events_are_read_with_their_filters() -> None:
+    seen: list[httpx.Request] = []
+
+    def events(request: httpx.Request) -> httpx.Response:
+        if request.url.path.endswith("/protocol/openid-connect/token"):
+            return httpx.Response(200, json={"access_token": "t", "expires_in": 300})
+        seen.append(request)
+        return httpx.Response(200, json=[{"id": "e1", "type": "LOGIN"}])
+
+    admin = KeycloakAdmin(
+        realm_url="http://keycloak/realms/pixorex",
+        client_id="pixorex-api-admin",
+        client_secret=SecretStr("test-only"),
+        http=httpx.AsyncClient(transport=httpx.MockTransport(events)),
+    )
+    found = await admin.events(
+        date_from="2026-11-01", types=["LOGIN", "LOGOUT"], first=200, max_results=200
+    )
+    assert found == [{"id": "e1", "type": "LOGIN"}]
+    request = seen[0]
+    assert request.url.path == "/admin/realms/pixorex/events"
+    assert request.url.params.get_list("type") == ["LOGIN", "LOGOUT"]
+    assert (request.url.params["dateFrom"], request.url.params["first"]) == ("2026-11-01", "200")
+    assert request.headers["authorization"] == "Bearer t"
+
+
+async def test_stored_events_need_the_view_events_role() -> None:
+    def refused(request: httpx.Request) -> httpx.Response:
+        if request.url.path.endswith("/protocol/openid-connect/token"):
+            return httpx.Response(200, json={"access_token": "t", "expires_in": 300})
+        return httpx.Response(403)
+
+    admin = KeycloakAdmin(
+        realm_url="http://keycloak/realms/pixorex",
+        client_id="pixorex-api-admin",
+        client_secret=SecretStr("test-only"),
+        http=httpx.AsyncClient(transport=httpx.MockTransport(refused)),
+    )
+    with pytest.raises(httpx.HTTPStatusError):
+        await admin.events(date_from="2026-11-01", types=["LOGIN"], first=0, max_results=200)
