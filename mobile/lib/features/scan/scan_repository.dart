@@ -4,6 +4,7 @@ import 'package:crypto/crypto.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../core/api_client.dart';
+import 'capture_models.dart';
 import 'scan_models.dart';
 
 /// The scan endpoints the app calls (docs/mobile-api.md sections 5-6).
@@ -15,6 +16,28 @@ class ScanRepository {
 
   /// Max photo size the API accepts (contract 2.22).
   static const maxPhotoBytes = 2 * 1024 * 1024;
+
+  // ---- what the technician picks before capturing -------------------------------------
+
+  /// Published types only, with their fields (contract 2.10), every page.
+  Future<List<EquipmentType>> equipmentTypes(String buId) async {
+    final types = <EquipmentType>[];
+    String? cursor;
+    do {
+      final page = Page.fromJson(
+        await _api.get('/business-units/$buId/equipment-types',
+            query: {'status': 'published', 'include': 'fields', 'limit': '100', 'cursor': cursor}),
+        EquipmentType.fromJson,
+      );
+      types.addAll(page.items);
+      cursor = page.nextCursor;
+    } while (cursor != null);
+    return types;
+  }
+
+  /// Contract 2.9: the tree frozen at publish.
+  Future<LocationTree> publishedLocations(String buId) async =>
+      LocationTree.fromJson(await _api.get('/business-units/$buId/locations/published'));
 
   // ---- capture -------------------------------------------------------------------------
 

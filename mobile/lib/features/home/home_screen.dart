@@ -83,9 +83,10 @@ String initials(String name) =>
     name.split(RegExp(r'\s+')).where((p) => p.isNotEmpty).take(2).map((p) => p[0].toUpperCase()).join();
 
 /// The unit the API resolves calls to (`active_bu_id`), else the first technician unit.
-String unitName(Me me) =>
-    (me.technicianUnits.where((u) => u.buId == me.activeBuId).firstOrNull ?? me.technicianUnits.firstOrNull)?.name ??
-    '';
+UnitRole? activeUnit(Me me) =>
+    me.technicianUnits.where((u) => u.buId == me.activeBuId).firstOrNull ?? me.technicianUnits.firstOrNull;
+
+String unitName(Me me) => activeUnit(me)?.name ?? '';
 
 class _UserStrip extends StatelessWidget {
   const _UserStrip(this.me);

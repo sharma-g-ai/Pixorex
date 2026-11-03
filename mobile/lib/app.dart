@@ -14,6 +14,7 @@ import 'features/auth/session_controller.dart';
 import 'features/auth/sign_in_screen.dart';
 import 'features/auth/splash_screen.dart';
 import 'features/home/home_screen.dart';
+import 'features/scan/new_scan_screen.dart';
 import 'features/scan/scan_repository.dart';
 
 /// Source of links that open the app (invite links). A seam so tests can fake it.
@@ -98,8 +99,22 @@ class _AuthGate extends StatelessWidget {
     final status = context.select<SessionController, SessionStatus>((s) => s.status);
     return switch (status) {
       SessionStatus.restoring => const SplashScreen(),
-      SessionStatus.signedIn => HomeShell(scans: ScanRepository(context.read<SessionController>().api)),
+      SessionStatus.signedIn => _signedIn(context),
       SessionStatus.signedOut || SessionStatus.signingIn => const SignInScreen(),
     };
+  }
+
+  Widget _signedIn(BuildContext context) {
+    final session = context.read<SessionController>();
+    final scans = ScanRepository(session.api);
+    final unit = session.me == null ? null : activeUnit(session.me!);
+    return HomeShell(
+      scans: scans,
+      onNewScan: unit?.buId == null
+          ? null
+          : () => Navigator.of(context).push(MaterialPageRoute<void>(
+                builder: (_) => NewScanScreen(scans: scans, buId: unit!.buId!, unitName: unit.name ?? ''),
+              )),
+    );
   }
 }
