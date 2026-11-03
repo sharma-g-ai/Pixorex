@@ -49,7 +49,7 @@ paths:
 
 
         Needs action = ready_to_review, rejected, failed, retake_required; In progress = uploading, extracting,
-        waiting_for_approval; Approved = approved. q searches name, serial and bin. Screens T 14, 26, 47-51, 56,
+        waiting_for_approval; Approved = approved. All (no tab) leaves out discarded scans; ask for them with review_status=discarded. q searches name, serial and bin. Screens T 14, 26, 47-51, 56,
         62-64, 67, 70, 73.'
       x-roles: &id001
       - field_technician

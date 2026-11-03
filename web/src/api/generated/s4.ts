@@ -15,7 +15,7 @@ export interface paths {
          * Technician's own scans by tab
          * @description Contract ref 3.1 in the API Contracts doc.
          *
-         *     Needs action = ready_to_review, rejected, failed, retake_required; In progress = uploading, extracting, waiting_for_approval; Approved = approved. q searches name, serial and bin. Screens T 14, 26, 47-51, 56, 62-64, 67, 70, 73.
+         *     Needs action = ready_to_review, rejected, failed, retake_required; In progress = uploading, extracting, waiting_for_approval; Approved = approved. All (no tab) leaves out discarded scans; ask for them with review_status=discarded. q searches name, serial and bin. Screens T 14, 26, 47-51, 56, 62-64, 67, 70, 73.
          */
         get: operations["listMyScans"];
         put?: never;

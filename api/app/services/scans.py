@@ -170,10 +170,11 @@ async def create(
         original = await repo.scan_for_update(session.conn, body.retake_of_scan_id)
         if original is None or original["technician_id"] != caller.user_id:
             raise ProblemError(409, "invalid-state", "Only your own scan can be retaken.")
-        # Status table: rejected, or a draft whose extraction ended in retake_required.
+        # Status table: rejected, or a draft whose extraction failed. A failed one may be
+        # retaken before its tries run out (screens T 47, 63: Retry and Retake photo).
         retakeable = original["review_status"] == "rejected" or (
             original["review_status"] == "draft"
-            and original["processing_status"] == "retake_required"
+            and original["processing_status"] in ("failed", "retake_required")
         )
         if not retakeable:
             raise ProblemError(409, "invalid-state", "This scan can't be retaken now.")

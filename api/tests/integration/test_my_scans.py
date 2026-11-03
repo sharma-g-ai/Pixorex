@@ -142,6 +142,8 @@ def test_my_scans_tabs_search_and_paging(
     approved = _create(api, unit, _body(unit)).json()["scan_id"]
     owner_sql("UPDATE scan SET review_status = 'approved' WHERE id = %s", (approved,))
     _create(api, unit, _body(unit), user=DANA)  # someone else's
+    discarded = _create(api, unit, _body(unit)).json()["scan_id"]
+    assert api.post(f"/scans/{discarded}/discard", TARA).status_code == 204
 
     def ids(**query: Any) -> list[str]:
         params = {"bu_id": unit["bu"], "limit": 100, **query}
@@ -149,7 +151,10 @@ def test_my_scans_tabs_search_and_paging(
         assert response.status_code == 200, response.text
         return [s["scan_id"] for s in response.json()["items"]]
 
+    # Screen T 55-56: a discarded scan is removed from My Scans; asked for, it is still there.
     assert set(ids()) == {ready, uploading, submitted, approved}
+    assert set(ids(tab="all")) == {ready, uploading, submitted, approved}
+    assert ids(review_status="discarded") == [discarded]
     assert ids(tab="needs_action") == [ready]  # a submitted scan is not "needs action"
     assert set(ids(tab="in_progress")) == {uploading, submitted}
     assert ids(tab="approved") == [approved]

@@ -106,7 +106,7 @@ All of these are built and tested.
      - `idempotency-conflict`: same id, different details;
      - `type-not-published`;
      - `location-not-published`;
-     - `invalid-state`: a retake target that isn't yours, or isn't rejected or "retake required".
+     - `invalid-state`: a retake target that isn't yours, or isn't rejected, failed or "retake required".
 3. **Upload each photo**: `PUT /scans/{scanId}/photos/1` … with header `Content-Type: image/jpeg`, the raw JPEG bytes as the body, and header `Content-Digest: sha-256=:<base64 of the SHA-256>:` (RFC 9530).
    - Max 2 MB (2 × 1024 × 1024 bytes).
    - Sending the same number again replaces it.
@@ -171,7 +171,7 @@ Your own scans, newest change first. Filters: `bu_id`, `tab`, `review_status`, `
 | `needs_action` | Drafts that are `ready_to_review`, `failed` or `retake_required`, and any `rejected` scan |
 | `in_progress` | Drafts that are `uploading` or `extracting`, and `waiting_for_approval` |
 | `approved` | `approved` |
-| `all` (or none) | Everything, including closed and discarded |
+| `all` (or none) | Everything except discarded (ask for those with `review_status=discarded`); closed ones are listed |
 
 `q` searches the type name, the submitted values (serial etc.) and the location path.
 

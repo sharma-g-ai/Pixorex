@@ -139,7 +139,7 @@ Slice 2 lets the Enterprise Admin build and publish locations, lets the BU Admin
 
 | \# | Endpoint | Who | Request | Response | Rules | Screens |
 | :---- | :---- | :---- | :---- | :---- | :---- | :---- |
-| 2.21 | POST /business-units/{buId}/scans | field\_technician | {client\_capture\_id, equipment\_type\_id, location\_node\_id, photo\_count (1–4), captured\_at, retake\_of\_scan\_id (optional)}; header Idempotency-Key \= client\_capture\_id | 201 {scan\_id, record\_no, processing\_status: "uploading"}; same client\_capture\_id again → 200 same scan | Type must be published in the unit; node must be in the unit's published tree. Pins the type's active contract and saves location\_path\_snapshot. Retake: original must be the caller's; it becomes closed. | T 32–46, 65–66, 71–72 |
+| 2.21 | POST /business-units/{buId}/scans | field\_technician | {client\_capture\_id, equipment\_type\_id, location\_node\_id, photo\_count (1–4), captured\_at, retake\_of\_scan\_id (optional)}; header Idempotency-Key \= client\_capture\_id | 201 {scan\_id, record\_no, processing\_status: "uploading"}; same client\_capture\_id again → 200 same scan | Type must be published in the unit; node must be in the unit's published tree. Pins the type's active contract and saves location\_path\_snapshot. Retake: original must be the caller's and rejected, or a draft that failed (retries left or not); it becomes closed. | T 32–46, 65–66, 71–72 |
 | 2.22 | PUT /scans/{scanId}/photos/{photoNo} | field\_technician (own scan) | image/jpeg body; header Content-Digest (SHA-256, RFC 9530\) | 204 | photoNo 1 to photo\_count. Stored at /{tenant}/{bu}/{scan}/{photo\_no}. Over 2 MB (Release Plan S2), digest mismatch or not JPEG → 400\. Upload route → **OPEN O-17**. | T 38–40, 52 |
 | 2.23 | POST /scans/{scanId}/upload-complete | field\_technician (own scan) | — | 202 {processing\_status: "extracting"} | All photos present, else 409 photos-missing. Creates attempt 1 (trigger \= first) and an outbox\_event for the proxy. Answers within 500 ms (Release Plan S3). | T 46, 52, 78 |
 | 2.24 | GET /scans/{scanId} | Own technician; admins of the unit; technician assigned to review it | — | {scan\_id, record\_no, processing\_status, review\_status, equipment\_type, location\_path, photos \[{photo\_no, url (15 min)}\], attempts\_used, latest\_attempt {status, detected\_label, suggested\_type\_id, suggestion\_confidence}, fields \[{field\_key, label, data\_type, is\_required, is\_critical, ai\_value, confidence, flag\_reasons\[\]}\]} | — | T 53–54, 57, 78–79 |
@@ -157,10 +157,10 @@ Slice 3 closes the loop from technician self-review to approval or rejection, in
 
 | \# | Endpoint | Who | Request | Response | Rules | Screens |
 | :---- | :---- | :---- | :---- | :---- | :---- | :---- |
-| 3.1 | GET /me/scans | field\_technician | ?bu\_id=\&tab=all, needs\_action, in\_progress or approved\&review\_status=\&equipment\_type\_id=\&from=\&to=\&q= | List of {scan\_id, record\_no, equipment\_type, location\_path, processing\_status, review\_status, attempts\_used, reject\_category, updated\_at} | Tabs per V3: Needs action \= ready\_to\_review, rejected, failed, retake\_required; In progress \= uploading, extracting, waiting\_for\_approval; Approved \= approved. q searches name, serial and bin. The phone-only offline queue is not in this list. | T 14, 26, 47–51, 56, 62–64, 67, 70, 73 |
+| 3.1 | GET /me/scans | field\_technician | ?bu\_id=\&tab=all, needs\_action, in\_progress or approved\&review\_status=\&equipment\_type\_id=\&from=\&to=\&q= | List of {scan\_id, record\_no, equipment\_type, location\_path, processing\_status, review\_status, attempts\_used, reject\_category, updated\_at} | Tabs per V3: Needs action \= ready\_to\_review, rejected, failed, retake\_required; In progress \= uploading, extracting, waiting\_for\_approval; Approved \= approved. All (no tab) leaves out discarded scans; ask for them with review\_status=discarded. q searches name, serial and bin. The phone-only offline queue is not in this list. | T 14, 26, 47–51, 56, 62–64, 67, 70, 73 |
 | 3.2 | POST /scans/{scanId}/revisions | field\_technician (own scan only) | {fields \[{field\_key, verification\_state: accepted, corrected, unreadable or left\_empty, value, unreadable\_reason, note}\], submit\_anyway} | 201 {revision\_id, revision\_no, review\_status: "waiting\_for\_approval"} | Scan must be ready\_to\_review (draft) or rejected. Every flagged field needs a verdict, else 409 flags-not-reviewed (the self-review gate). Required field empty without submit\_anyway \= true → 409 required-fields-empty; with it, the field is left\_empty and listed in empty\_required\_fields. unreadable needs a reason; other needs a note. After a rejection: origin \= rejection\_fix, resubmit\_to\_user\_id \= who rejected. Progress before submit stays on the phone. **Audit** (review). | T 57–61, 69–70, 80 |
 
-Retake after a rejection or 3 failed attempts uses POST /scans with retake\_of\_scan\_id (2.21).
+Retake after a rejection or a failed extraction (retries left or not) uses POST /scans with retake\_of\_scan\_id (2.21).
 
 ### **3B. Review and decisions**
 
@@ -328,5 +328,5 @@ Every error is RFC 9457 problem+json, as in the earlier contract set; code is th
 | review\_status | waiting\_for\_approval | approved or rejected | 3.5 |
 | review\_status | approved | rejected | 3.7 (override) |
 | review\_status | rejected | waiting\_for\_approval | 3.2 (fix and resubmit) |
-| review\_status | rejected, or draft with retake\_required | closed | 2.21 with retake\_of\_scan\_id |
+| review\_status | rejected, or draft with failed or retake\_required | closed | 2.21 with retake\_of\_scan\_id |
 

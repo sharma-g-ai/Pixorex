@@ -276,6 +276,10 @@ async def my_scans(
     params: list[object] = [technician_id]
     if filters.get("tab") in MY_TABS:
         where.append(MY_TABS[filters["tab"]])
+    if not filters.get("review_status"):
+        # Screens T 55-56: a discarded scan is removed from My Scans (still kept, and listed
+        # when review_status=discarded is asked for).
+        where.append("s.review_status <> 'discarded'")
     for key, sql in (
         ("bu_id", "s.bu_id = %s"),
         ("review_status", "s.review_status = %s"),

@@ -377,7 +377,7 @@ export interface paths {
          * Create a scan (repeat-safe)
          * @description Contract ref 2.21 in the API Contracts doc.
          *
-         *     Idempotency-Key must equal client_capture_id. Pins the type's active extraction_contract and saves location_path_snapshot. retake_of_scan_id: original must be the caller's; it becomes closed. Screens T 32-46, 65-66, 71-72.
+         *     Idempotency-Key must equal client_capture_id. Pins the type's active extraction_contract and saves location_path_snapshot. retake_of_scan_id: original must be the caller's and rejected, or a draft that failed (retries left or not); it becomes closed. Screens T 32-46, 65-66, 71-72.
          */
         post: operations["createScan"];
         delete?: never;

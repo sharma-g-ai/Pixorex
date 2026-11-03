@@ -981,7 +981,7 @@ paths:
 
 
         Idempotency-Key must equal client_capture_id. Pins the type''s active extraction_contract and saves location_path_snapshot.
-        retake_of_scan_id: original must be the caller''s; it becomes closed. Screens T 32-46, 65-66, 71-72.'
+        retake_of_scan_id: original must be the caller''s and rejected, or a draft that failed (retries left or not); it becomes closed. Screens T 32-46, 65-66, 71-72.'
       x-roles: &id009
       - field_technician
       x-brd:

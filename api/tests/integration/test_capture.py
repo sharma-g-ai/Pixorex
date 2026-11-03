@@ -162,6 +162,25 @@ def test_a_retake_closes_the_original(api: Api, owner_sql: Any, unit: dict[str, 
     assert status == [("closed",)]
 
 
+def test_a_failed_scan_can_be_retaken_before_its_tries_run_out(
+    api: Api, owner_sql: Any, unit: dict[str, str]
+) -> None:
+    """Screens T 47, 63: a failed scan offers Retry (n left) and Retake photo."""
+    original = _create(api, unit, _body(unit)).json()
+    owner_sql(
+        "UPDATE scan SET processing_status = 'ready_to_review' WHERE id = %s",
+        (original["scan_id"],),
+    )
+    _problem(  # read fine: nothing to retake
+        _create(api, unit, _body(unit, retake_of_scan_id=original["scan_id"])), 409, "invalid-state"
+    )
+    owner_sql("UPDATE scan SET processing_status = 'failed' WHERE id = %s", (original["scan_id"],))
+    retake = _create(api, unit, _body(unit, retake_of_scan_id=original["scan_id"]))
+    assert retake.status_code == 201 and retake.json()["retake_of_scan_id"] == original["scan_id"]
+    status = owner_sql("SELECT review_status FROM scan WHERE id = %s", (original["scan_id"],))
+    assert status == [("closed",)]
+
+
 def test_scan_detail_and_who_may_see_it(
     api: Api, owner_sql: Any, unit: dict[str, str], uploads: dict[str, bytes]
 ) -> None:
