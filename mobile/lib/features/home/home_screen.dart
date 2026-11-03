@@ -7,6 +7,7 @@ import '../../widgets/auth_widgets.dart';
 import '../auth/me.dart';
 import '../auth/session_controller.dart';
 import '../scan/scan_models.dart';
+import '../scan/review_screen.dart';
 import '../scan/scan_repository.dart';
 import '../scan/scan_status.dart';
 
@@ -172,6 +173,18 @@ class _HomeTabState extends State<HomeTab> {
     }
   }
 
+  /// Opens the scan; after it is sent for review, says so and reloads (design 62).
+  Future<void> _open(MyScan s) async {
+    final sent = await Navigator.of(context).push<bool>(MaterialPageRoute(
+      builder: (_) => ReviewScreen(scans: widget.scans, scanId: s.scanId),
+    ));
+    if (!mounted) return;
+    if (sent == true) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${s.equipmentTypeName} sent to reviewer')));
+    }
+    await _load();
+  }
+
   @override
   Widget build(BuildContext context) {
     final data = _data;
@@ -251,7 +264,7 @@ class _HomeTabState extends State<HomeTab> {
       const Text('LATEST SCANS',
           style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.4, color: Brand.muted)),
       const SizedBox(height: 10),
-      for (final s in d.latest) ScanRow(s, now: now),
+      for (final s in d.latest) ScanRow(s, now: now, onTap: () => _open(s)),
     ];
   }
 }
@@ -271,14 +284,15 @@ String ago(DateTime t, DateTime now) {
 }
 
 class ScanRow extends StatelessWidget {
-  const ScanRow(this.scan, {super.key, required this.now});
+  const ScanRow(this.scan, {super.key, required this.now, this.onTap});
   final MyScan scan;
   final DateTime now;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final look = ScanStatusLook.of(scan.processingStatus, scan.reviewStatus);
-    return Container(
+    final row = Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
@@ -305,6 +319,7 @@ class ScanRow extends StatelessWidget {
         ScanStatusPill(look),
       ]),
     );
+    return onTap == null ? row : GestureDetector(onTap: onTap, child: row);
   }
 }
 
