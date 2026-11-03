@@ -82,7 +82,7 @@ void main() {
     expect(find.text('Retry (2 left)'), findsOneWidget);
     expect(find.text('Failed 3 times — retake the photo'), findsOneWidget);
     expect(find.text('No retries left'), findsOneWidget);
-    expect(find.text('Retake photo'), findsOneWidget);
+    expect(find.text('Retake photo'), findsNWidgets(2)); // with Retry while tries are left (design 47)
     expect(find.text('Bin 07 · ready to check'), findsOneWidget);
     expect(find.text('Attempt 2 of 3 · 5 min ago'), findsOneWidget);
     expect(
@@ -119,10 +119,17 @@ void main() {
 
   testWidgets('GIVEN a scan out of tries WHEN Retake photo is tapped THEN a new scan starts for it', (t) async {
     final (_, retakes) = await pumpMyScans(t);
-    await t.tap(find.text('Retake photo'));
+    await t.tap(find.text('Retake photo').last);
     await t.pumpAndSettle();
     expect(retakes, ['Chemical Label']);
     expect(find.text('New scan created · old one closed'), findsOneWidget);
+  });
+
+  testWidgets('GIVEN a failed scan with tries left WHEN Retake photo is tapped THEN it is retaken too', (t) async {
+    final (_, retakes) = await pumpMyScans(t);
+    await t.tap(find.text('Retake photo').first);
+    await t.pumpAndSettle();
+    expect(retakes, ['Paint Label']);
   });
 
   testWidgets('GIVEN no scans match WHEN searching THEN it says so', (t) async {

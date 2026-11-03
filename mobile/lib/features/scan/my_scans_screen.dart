@@ -286,7 +286,8 @@ class MyScanTile extends StatelessWidget {
     final look = ScanStatusLook.of(s.processingStatus, s.reviewStatus);
     final draft = s.reviewStatus == 'draft';
     final failed = draft && s.processingStatus == 'failed';
-    final retake = (draft && s.processingStatus == 'retake_required') || s.reviewStatus == 'rejected';
+    // Design 47, 63, 64: a failed scan can be retried while tries are left, or retaken at any time.
+    final retake = (draft && (failed || s.processingStatus == 'retake_required')) || s.reviewStatus == 'rejected';
     final left = Scan.maxAttempts - s.attemptsUsed;
     final (subtitle, red) = switch ((s.processingStatus, s.reviewStatus)) {
       (_, 'rejected') => ('${s.place} · reviewer sent it back', false),
@@ -336,7 +337,6 @@ class MyScanTile extends StatelessWidget {
                   const Expanded(
                     child: Center(child: Text('No retries left', style: TextStyle(fontSize: 12, color: Brand.hint))),
                   ),
-                // A retake is accepted once the tries are used up (contract 2.21).
                 if (retake && onRetake != null) ...[
                   const SizedBox(width: 8),
                   Expanded(child: _Action('Retake photo', onRetake, filled: true)),
