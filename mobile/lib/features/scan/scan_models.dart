@@ -119,6 +119,45 @@ class Scan {
   }
 }
 
+/// A row of My Scans (contract 3.1).
+class MyScan {
+  const MyScan({
+    required this.scanId,
+    required this.recordNo,
+    required this.equipmentTypeName,
+    required this.locationPath,
+    required this.processingStatus,
+    required this.reviewStatus,
+    required this.attemptsUsed,
+    required this.updatedAt,
+    this.rejectCategory,
+  });
+  final String scanId;
+  final String recordNo;
+  final String equipmentTypeName;
+  final String locationPath;
+  final String processingStatus;
+  final String reviewStatus;
+  final int attemptsUsed;
+  final DateTime updatedAt;
+  final String? rejectCategory;
+
+  /// Last level of the path, e.g. "Bin 07" (the API joins levels with " › ").
+  String get place => locationPath.split(' › ').last;
+
+  factory MyScan.fromJson(Map<String, dynamic> j) => MyScan(
+        scanId: j['scan_id'] as String,
+        recordNo: j['record_no'] as String,
+        equipmentTypeName: j['equipment_type_name'] as String,
+        locationPath: j['location_path'] as String,
+        processingStatus: j['processing_status'] as String,
+        reviewStatus: j['review_status'] as String,
+        attemptsUsed: j['attempts_used'] as int,
+        updatedAt: DateTime.parse(j['updated_at'] as String),
+        rejectCategory: j['reject_category'] as String?,
+      );
+}
+
 /// One page of a cursor-paged list (`page.next_cursor` is null on the last page).
 class Page<T> {
   const Page(this.items, this.nextCursor);

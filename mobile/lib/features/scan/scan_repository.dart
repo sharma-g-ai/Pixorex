@@ -84,7 +84,26 @@ class ScanRepository {
         idempotencyKey: idempotencyKey,
         body: {'fields': fields, 'submit_anyway': submitAnyway},
       );
+
+  // ---- My Scans ------------------------------------------------------------------------
+
+  /// Contract 3.1, newest change first. [tab]: `needs_action`, `in_progress`, `approved`,
+  /// or null for all. [from] filters on the capture date.
+  Future<Page<MyScan>> myScans({String? tab, DateTime? from, String? q, String? cursor, int limit = 25}) async =>
+      Page.fromJson(
+        await _api.get('/me/scans', query: {
+          'tab': tab,
+          'from': from == null ? null : _date(from),
+          'q': q,
+          'cursor': cursor,
+          'limit': '$limit',
+        }),
+        MyScan.fromJson,
+      );
 }
+
+String _date(DateTime d) =>
+    '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
 /// `sha-256=:<base64>:` (RFC 9530), checked by the API against the body.
 String contentDigest(List<int> bytes) => 'sha-256=:${base64.encode(sha256.convert(bytes).bytes)}:';

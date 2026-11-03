@@ -281,18 +281,22 @@ void main() {
       expect(rig.oidc.signIns, 0);
     });
 
-    testWidgets('a valid phone starts sign-in with an E.164 hint and lands signed in', (t) async {
-      final rig = Rig((_) async => json(meJson()));
+    testWidgets('a valid phone starts sign-in with an E.164 hint and lands on Home', (t) async {
+      final rig = Rig((r) async => json(r.url.path.endsWith('/me/scans')
+          ? {'items': [], 'page': {'next_cursor': null}}
+          : meJson()));
       await pumpApp(t, rig);
       await t.enterText(find.byType(TextField), '2165550148');
       await t.tap(find.text('Send code'));
       await t.pumpAndSettle();
       expect(rig.oidc.lastHint, '+12165550148');
-      expect(find.text('You are signed in.'), findsOneWidget);
+      expect(find.text('Welcome, Jorge'), findsOneWidget);
     });
 
     testWidgets('Email tab validates and signs in with the email', (t) async {
-      final rig = Rig((_) async => json(meJson()));
+      final rig = Rig((r) async => json(r.url.path.endsWith('/me/scans')
+          ? {'items': [], 'page': {'next_cursor': null}}
+          : meJson()));
       await pumpApp(t, rig);
       await t.tap(find.text('Email'));
       await t.pumpAndSettle();

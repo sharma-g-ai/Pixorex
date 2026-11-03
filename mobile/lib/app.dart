@@ -12,8 +12,9 @@ import 'features/auth/activation_controller.dart';
 import 'features/auth/invite_repository.dart';
 import 'features/auth/session_controller.dart';
 import 'features/auth/sign_in_screen.dart';
-import 'features/auth/signed_in_placeholder.dart';
 import 'features/auth/splash_screen.dart';
+import 'features/home/home_screen.dart';
+import 'features/scan/scan_repository.dart';
 
 /// Source of links that open the app (invite links). A seam so tests can fake it.
 abstract class LinkSource {
@@ -97,7 +98,7 @@ class _AuthGate extends StatelessWidget {
     final status = context.select<SessionController, SessionStatus>((s) => s.status);
     return switch (status) {
       SessionStatus.restoring => const SplashScreen(),
-      SessionStatus.signedIn => const SignedInPlaceholder(),
+      SessionStatus.signedIn => HomeShell(scans: ScanRepository(context.read<SessionController>().api)),
       SessionStatus.signedOut || SessionStatus.signingIn => const SignInScreen(),
     };
   }
