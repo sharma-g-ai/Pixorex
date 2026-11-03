@@ -1,7 +1,9 @@
 """BU Admin units and removal (contracts 1.16, 1.17); technicians (1.18, 1.19)."""
 
-from datetime import datetime
-from typing import Literal
+import asyncio
+import time
+from datetime import UTC, datetime, timedelta
+from typing import Any, Literal
 from uuid import UUID
 
 import httpx
@@ -19,6 +21,9 @@ from app.services.business_units import BuAdmin
 from app.services.invites import UnitRef
 
 _ROLE_TEXT = {"bu_admin": "BU Admin", "field_technician": "technician"}
+LOCK_MINUTES = 30  # realm waitIncrementSeconds 1800: 5 wrong codes lock for 30 minutes (D-08)
+LOCK_CACHE_S = 30.0
+_lock_cache: dict[str, tuple[float, datetime | None]] = {}
 
 
 class AdminUnits(BaseModel):
@@ -35,7 +40,7 @@ class Technician(BaseModel):
     full_name: str
     email: str
     status: Literal["invited", "active", "removed"]
-    # OPEN O-13: the lock lives in Keycloak; not exposed until that is decided.
+    # O-13: read from Keycloak's attack detection (docs/keycloak.md 5.3).
     sign_in_locked_until: datetime | None
     units: list[UnitRef]
     scans_this_month: int
@@ -179,8 +184,29 @@ async def remove_admin(
     return str(new.email), token
 
 
+async def _locked_until(keycloak: KeycloakAdmin, kc_id: str | None) -> datetime | None:
+    """The lock lives in Keycloak (O-13, docs/keycloak.md 5.3). Cached 30 s per user so a list
+    does not call Keycloak for every row on every refresh. Keycloak unreachable: not shown."""
+    if not kc_id:
+        return None  # never signed in
+    now = time.monotonic()
+    hit = _lock_cache.get(kc_id)
+    if hit and hit[0] > now:
+        return hit[1]
+    try:
+        status: dict[str, Any] = await keycloak.brute_force_status(kc_id)
+    except (httpx.HTTPError, RuntimeError):
+        return None
+    until = None
+    if status.get("disabled") and status.get("lastFailure"):
+        failed_at = datetime.fromtimestamp(int(status["lastFailure"]) / 1000, tz=UTC)
+        until = failed_at + timedelta(minutes=LOCK_MINUTES)
+    _lock_cache[kc_id] = (now + LOCK_CACHE_S, until)
+    return until
+
+
 async def technicians(
-    session: Session, bu_id: UUID, *, cursor: str | None, limit: int
+    session: Session, keycloak: KeycloakAdmin, bu_id: UUID, *, cursor: str | None, limit: int
 ) -> TechnicianPage:
     session.caller.require_bu_admin_of(bu_id)
     rows = await staff.technicians_page(
@@ -189,10 +215,11 @@ async def technicians(
     more = len(rows) > limit
     rows = rows[:limit]
     next_cursor = encode_cursor(rows[-1]["full_name"], rows[-1]["user_id"]) if more else None
+    locks = await asyncio.gather(*(_locked_until(keycloak, r["keycloak_user_id"]) for r in rows))
     return TechnicianPage(
         items=[
-            Technician(**{**r, "units": r["units"] or [], "sign_in_locked_until": None})
-            for r in rows
+            Technician(**{**r, "units": r["units"] or [], "sign_in_locked_until": lock})
+            for r, lock in zip(rows, locks, strict=True)
         ],
         page=PageInfo(next_cursor=next_cursor),
     )

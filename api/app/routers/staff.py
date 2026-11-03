@@ -38,9 +38,10 @@ async def remove_admin(
 
 @router.get("/business-units/{bu_id}/technicians", operation_id="listTechnicians")
 async def list_technicians(
-    bu_id: UUID, session: SignedIn, cursor: Cursor = None, limit: Limit = 25
+    bu_id: UUID, session: SignedIn, request: Request, cursor: Cursor = None, limit: Limit = 25
 ) -> staff.TechnicianPage:
-    return await staff.technicians(session, bu_id, cursor=cursor, limit=limit)
+    keycloak = request.app.state.keycloak
+    return await staff.technicians(session, keycloak, bu_id, cursor=cursor, limit=limit)
 
 
 @router.post(

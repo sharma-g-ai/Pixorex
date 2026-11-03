@@ -12,6 +12,7 @@ async def technicians_page(
     keyset = " AND (u.full_name, u.id) > (%(after_name)s, %(after_id)s::uuid)" if after else ""
     cur = await conn.execute(
         "SELECT u.id AS user_id, u.full_name, u.email, u.status, u.last_active_at,"
+        " u.keycloak_user_id,"
         " (SELECT json_agg(json_build_object('bu_id', b.id, 'name', b.name) ORDER BY b.name)"
         "    FROM user_unit_role o JOIN business_unit b ON b.id = o.bu_id"
         "   WHERE o.user_id = u.id AND o.role = 'field_technician' AND o.removed_at IS NULL"

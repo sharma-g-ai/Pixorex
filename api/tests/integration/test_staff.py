@@ -1,6 +1,7 @@
 """Contracts 1.16-1.19 against PostgreSQL under RLS: BU Admin units and removal, technicians."""
 
 import uuid
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from tests.integration.conftest import Api
@@ -170,7 +171,7 @@ def test_technicians_of_a_unit(api: Api, owner_sql: Any) -> None:
         (TARA, P04),
     )[0][0]
     assert (tara["status"], tara["scans_this_month"]) == ("active", this_month)
-    assert tara["sign_in_locked_until"] is None  # OPEN O-13
+    assert tara["sign_in_locked_until"] is None
     assert P04 in [u["bu_id"] for u in tara["units"]]
     _problem(
         api.get(f"/business-units/{P04}/technicians", ERIN), 403, "forbidden"
@@ -180,6 +181,22 @@ def test_technicians_of_a_unit(api: Api, owner_sql: Any) -> None:
     )  # runs P05, not P04
     first = api.get(f"/business-units/{P04}/technicians?limit=1", BO).json()
     assert first["page"]["next_cursor"]
+
+
+def test_a_locked_technician_shows_when_the_lock_ends(api: Api, owner_sql: Any) -> None:
+    """GIVEN Keycloak locked Theo after 5 wrong codes WHEN the BU Admin lists technicians
+    THEN Theo's row says until when (O-13: last failure + 30 minutes)."""
+    kc_id = f"kc-{uuid.uuid4()}"  # fresh id: no cached state from other tests
+    owner_sql("UPDATE app_user SET keycloak_user_id = %s WHERE id = %s", (kc_id, THEO))
+    failed_ms = 1_790_000_000_000
+    api.keycloak.lock = {"disabled": True, "numFailures": 5, "lastFailure": failed_ms}
+    try:
+        items = api.get(f"/business-units/{P04}/technicians", BO).json()["items"]
+    finally:
+        api.keycloak.lock = {"disabled": False, "numFailures": 0}
+    theo = next(t for t in items if t["user_id"] == THEO)
+    expected = datetime.fromtimestamp(failed_ms / 1000, tz=UTC) + timedelta(minutes=30)
+    assert datetime.fromisoformat(theo["sign_in_locked_until"]) == expected
 
 
 def test_removing_a_technician(api: Api) -> None:
