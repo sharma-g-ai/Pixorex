@@ -24,11 +24,31 @@ class PhotoSourceException implements Exception {
 
 /// The phone's back camera through the `camera` plugin, plus `image_picker`.
 class DevicePhotoSource implements PhotoSource {
-  DevicePhotoSource({ImagePicker? picker}) : _picker = picker ?? ImagePicker();
+  DevicePhotoSource({ImagePicker? picker}) : _picker = picker ?? ImagePicker() {
+    // Android takes the camera away while another screen is in front (the gallery, the
+    // phone's camera app, the lock screen); the preview then stays black. Let it go when
+    // the app is hidden and start it again on return, as the camera plugin asks.
+    _life = AppLifecycleListener(onInactive: _release, onResume: _restart);
+  }
   final ImagePicker _picker;
   final _ready = ValueNotifier<CameraController?>(null);
   final _problem = ValueNotifier<String?>(null);
   Future<void>? _starting;
+  late final AppLifecycleListener _life;
+  bool _wanted = false;
+  bool _closed = false;
+
+  void _release() {
+    final c = _ready.value;
+    if (c == null) return;
+    _ready.value = null;
+    _starting = null;
+    c.dispose();
+  }
+
+  void _restart() {
+    if (_wanted && !_closed && _ready.value == null) _start();
+  }
 
   Future<void> _start() => _starting ??= () async {
         try {
@@ -52,6 +72,7 @@ class DevicePhotoSource implements PhotoSource {
 
   @override
   Widget viewfinder({required String hint}) {
+    _wanted = true;
     _start();
     return ValueListenableBuilder<String?>(
       valueListenable: _problem,
@@ -102,6 +123,8 @@ class DevicePhotoSource implements PhotoSource {
 
   @override
   Future<void> dispose() async {
+    _closed = true;
+    _life.dispose();
     await _starting;
     await _ready.value?.dispose();
     _ready.value = null;
