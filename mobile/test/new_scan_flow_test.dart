@@ -88,8 +88,13 @@ void main() {
     expect(find.text('New scan'), findsOneWidget);
     expect(find.text('AC Generator Nameplate'), findsOneWidget); // type kept for the next item
 
-    final saved = await LastLocationStore(rig.mem).read('b1');
+    final saved = await LastLocationStore(rig.mem, userId: 'u1').read('b1');
     expect(saved?.nodeIds, ['Plant 04', 'Building C', 'Paint Shop', 'Bin 05', 'A']);
+
+    // It goes away by itself, so the shutter and the next photo set stay clear.
+    await t.pump(const Duration(seconds: 6));
+    await t.pumpAndSettle();
+    expect(find.text('Scan queued — extracting in background'), findsNothing);
   });
 
   testWidgets('GIVEN the connection drops WHEN Submit is pressed THEN a message, and pressing again sends once',

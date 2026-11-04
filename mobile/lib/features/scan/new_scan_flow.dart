@@ -60,10 +60,12 @@ class _NewScanFlowState extends State<NewScanFlow> {
     super.dispose();
   }
 
-  /// Floats above the camera controls so the shutter stays usable (design 46).
+  /// Floats above the camera controls so the shutter stays usable (design 46), and goes
+  /// away by itself: a snack bar with an action would otherwise stay until tapped.
   void _say(String text, {SnackBarAction? action}) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(text),
         action: action,
+        persist: false,
         behavior: SnackBarBehavior.floating,
         margin: const EdgeInsets.fromLTRB(16, 0, 16, 150),
       ));
@@ -71,6 +73,8 @@ class _NewScanFlowState extends State<NewScanFlow> {
   /// First photo from any of the three buttons; opens the photo set.
   Future<void> _start(EquipmentType type, Future<Uint8List?> Function() take) async {
     if (_busy) return;
+    // The last scan's "Scan queued" would cover the next photo set.
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
     setState(() => _busy = true);
     Uint8List? jpeg;
     try {
