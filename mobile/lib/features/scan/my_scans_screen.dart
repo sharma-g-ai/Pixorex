@@ -21,6 +21,7 @@ class MyScansScreen extends StatefulWidget {
     this.initialTab,
     this.clock = DateTime.now,
     this.searchDelay = const Duration(milliseconds: 350),
+    this.pollEvery = const Duration(seconds: 4),
   });
   final ScanRepository scans;
   final String unitName;
@@ -33,6 +34,10 @@ class MyScansScreen extends StatefulWidget {
   final DateTime Function() clock;
   final Duration searchDelay;
 
+  /// While a scan is uploading or being read the list asks again by itself (there is no
+  /// push), so "Extracting" turns into "Ready to Review" or "Extraction failed" on screen.
+  final Duration pollEvery;
+
   @override
   State<MyScansScreen> createState() => _MyScansScreenState();
 }
@@ -43,6 +48,7 @@ class _MyScansScreenState extends State<MyScansScreen> {
   late int _tab = _tabs.indexWhere((t) => t.$2 == widget.initialTab).clamp(0, _tabs.length - 1);
   String _q = '';
   Timer? _debounce;
+  Timer? _poll;
   final _items = <MyScan>[];
   String? _next;
   bool _loading = true;
@@ -59,6 +65,7 @@ class _MyScansScreenState extends State<MyScansScreen> {
   @override
   void dispose() {
     _debounce?.cancel();
+    _poll?.cancel();
     super.dispose();
   }
 
@@ -87,8 +94,37 @@ class _MyScansScreenState extends State<MyScansScreen> {
           _loading = false;
           _more = false;
         });
+        _schedulePoll();
       }
     }
+  }
+
+  bool get _working => _items.any((s) => s.reviewStatus == 'draft' && const {'uploading', 'extracting'}.contains(s.processingStatus));
+
+  /// Quietly re-reads the first page: no spinner, and the list stays as it is on a failure.
+  Future<void> _refreshQuietly() async {
+    if (_loading || _more) return;
+    try {
+      final page = await widget.scans.myScans(tab: _tabs[_tab].$2, q: _q.trim());
+      if (!mounted || _loading) return;
+      setState(() {
+        _items
+          ..clear()
+          ..addAll(page.items);
+        _next = page.nextCursor;
+      });
+    } on ApiException {
+      // Keep what is on screen; the next tick tries again.
+    }
+  }
+
+  void _schedulePoll() {
+    _poll?.cancel();
+    if (!_working) return;
+    _poll = Timer(widget.pollEvery, () async {
+      await _refreshQuietly();
+      if (mounted) _schedulePoll();
+    });
   }
 
   void _search(String q) {

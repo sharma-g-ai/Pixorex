@@ -63,6 +63,7 @@ Future<(ScansApi, List<String>)> pumpMyScans(WidgetTester t, {ScansApi? api, Str
       initialTab: tab,
       clock: () => now,
       searchDelay: const Duration(milliseconds: 10),
+      pollEvery: const Duration(seconds: 2),
       onRetake: (old) async {
         retakes.add(old.equipmentTypeName);
         return true;
@@ -130,6 +131,27 @@ void main() {
     await t.tap(find.text('Retake photo').first);
     await t.pumpAndSettle();
     expect(retakes, ['Paint Label']);
+  });
+
+  testWidgets('GIVEN a scan being read WHEN the worker finishes THEN the list updates by itself', (t) async {
+    final api = ScansApi()..items = [scanRow('Motor Nameplate', 'extracting', 'draft')];
+    await pumpMyScans(t, api: api);
+    expect(find.text('Extracting'), findsOneWidget);
+    expect(find.text('Retry (2 left)'), findsNothing);
+
+    api.items = [scanRow('Motor Nameplate', 'failed', 'draft')]; // the worker gave up
+    await t.pump(const Duration(seconds: 5));
+    await t.pumpAndSettle();
+    expect(find.text('Extraction failed'), findsOneWidget);
+    expect(find.text('Retry (2 left)'), findsOneWidget);
+  });
+
+  testWidgets('GIVEN nothing is being read WHEN time passes THEN the list is not asked again', (t) async {
+    final api = ScansApi()..items = [scanRow('Motor Nameplate', 'ready_to_review', 'approved')];
+    await pumpMyScans(t, api: api);
+    final asked = api.queries.length;
+    await t.pump(const Duration(seconds: 20));
+    expect(api.queries.length, asked);
   });
 
   testWidgets('GIVEN no scans match WHEN searching THEN it says so', (t) async {
