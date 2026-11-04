@@ -2,7 +2,7 @@
 
 Branch reviewed: `integration/combined-with-mobile` at `abb94b7` (3 Nov 2026).
 
-Status: proposal. Steps 1 and 5 are done on branch `PX-03-extraction-flow`: step 1 in `api/app/workers/` and `docker-compose.yml`, step 5 in `docs/mobile-api.md`. Nothing else is built. Step 3 waits for a decision (see "Decision needed").
+Status: proposal. Steps 1, 2, 4, and 5 are done on branch `PX-03-extraction-flow`: steps 1, 2, and 4 in `api/app/workers/`, `docker-compose.yml`, and `.env.example`, step 5 in `docs/mobile-api.md`. Step 3 is not built: it waits for a decision (see "Decision needed"). The "Existing flow" and "Flaws" sections describe `abb94b7`, before these steps.
 
 This note covers the path from a technician’s photos to an OpenAI extraction. It does not propose a new service, a second queue, new tables or columns, or a change to the scan and review model.
 
@@ -80,7 +80,7 @@ The API’s own limit of 100 requests a minute per tenant is not built. Scans ar
 - Every call in flight holds a pooled connection (the worker pool allows 2). The only way to run more calls is more containers.
 - The `running` attempt status in the contract is never written, so nothing can tell "waiting" from "being read".
 
-These effects have not been reproduced against a live database.
+The first effect, and the wait in the second, were reproduced against a real PostgreSQL on `abb94b7`: with an AI call held open, a `discard` and a repeated `upload-complete` had each not answered after 3 seconds. Both tests fail there and pass after step 4. The 409 that follows the wait, the pool size, and the unused `running` status were read in code only.
 
 **3. The extraction worker waits on the email clock.** `worker_tick_s` defaults to 15 seconds because that is how often mail is sent. When the worker is idle, a scan can sit in the outbox for that long before OpenAI is called. PRD FR-4.9 sets the target at under 15 seconds at p95 for background extraction and does not say where the clock starts. The technician feels the time from `upload-complete`, so the wait counts. Shortening the tick does not start more calls. It only makes the single worker notice the next row sooner.
 
@@ -104,19 +104,21 @@ These cases are the open decisions O-20 and P-12.
 - On SIGTERM the runner finishes up to 50 events before it checks the stop flag, and Compose sets no `stop_grace_period`. A deploy kills the worker mid-call after Docker’s default 10 seconds, and the call is paid for twice. Check the flag between events and set the grace period a little above `ai_timeout_s`.
 - The 60 second timeout is the httpx timeout for each phase, not a total deadline. Put a total deadline around the call.
 
+Done with steps 2 and 4: the total deadline around the call, the stop flag check between events, and the 90 second grace period. Not done: the shared HTTP client and the parallel photo reads.
+
 ## Proposal
 
 Keep this flow. The extraction container is already separate from email and scheduled jobs, and that split is the right boundary.
 
 Five steps. Each ships on its own and needs no new table or column. Only step 3 needs a decision. Do step 1 first: it is small, and a shorter tick makes the unhandled-error loop in flaw 1 run faster.
 
-| Step | Needs a decision | Mainly touches |
-|---|---|---|
-| 1. Harden, then wake faster | No | `workers/outbox.py`, `workers/extraction.py`, `docker-compose.yml` |
-| 2. Set concurrency, not container count | No | `workers/runner.py`, `workers/settings.py`, `docker-compose.yml` |
-| 3. Retry provider trouble instead of failing the scan | Yes (O-20, P-12) | `services/ai_proxy.py`, `workers/extraction.py`, `workers/outbox.py`, the contract |
-| 4. Do not hold the transaction during the call | No | `workers/outbox.py`, `workers/extraction.py`, `repositories/scans.py` |
-| 5. Fix the phone contract now | No | `docs/mobile-api.md` |
+| Step | Needs a decision | State | Mainly touches |
+|---|---|---|---|
+| 1. Harden, then wake faster | No | Done | `workers/outbox.py`, `workers/extraction.py`, `docker-compose.yml` |
+| 2. Set concurrency, not container count | No | Done | `workers/runner.py`, `workers/settings.py`, `docker-compose.yml` |
+| 3. Retry provider trouble instead of failing the scan | Yes (O-20, P-12) | Waits for the decision | `services/ai_proxy.py`, `workers/extraction.py`, `workers/outbox.py`, the contract |
+| 4. Do not hold the transaction during the call | No | Done | `workers/outbox.py`, `workers/extraction.py`, `workers/runner.py` |
+| 5. Fix the phone contract now | No | Done | `docs/mobile-api.md` |
 
 Steps 3 and 4 may each need two tasks to stay inside the five-file, 200-line limit. Task IDs come from `STATE.md` when the steps are scheduled. The small items under flaw 8 ride along with whichever step touches the same file.
 
@@ -134,6 +136,8 @@ Steps 3 and 4 may each need two tasks to stay inside the five-file, 200-line lim
 - Calls in flight equal containers times concurrency. Keep that at or below what the OpenAI account accepts at the same time. A second container is for failover, not for speed.
 - Sizing: calls in flight is about scans per second times seconds per call. With an assumed 8 seconds per call, 30 scans in one minute need about 4 in flight.
 - First test: GIVEN 10 due events and concurrency 3 WHEN the loops run THEN no more than 3 provider calls are in flight and no event runs twice.
+
+Done: `extraction_concurrency` in `workers/settings.py` (1 to 32, default 4). `run_claim_loops` in `workers/runner.py` starts that many `claim_loop`s in the extraction container, and the pool has concurrency plus 1 connections. Compose passes `PIXOREX_EXTRACTION_CONCURRENCY` (default 4) and now calls a second copy a failover. The other roles keep one loop. Tests: `test_the_extraction_container_makes_several_ai_calls_at_once` (10 scans, concurrency 3: never more than 3 calls open, each scan extracted once) and unit tests for the setting and the pool size.
 
 ### Step 3: Retry provider trouble instead of failing the scan
 
@@ -154,6 +158,13 @@ Needs the decision below. "Defer" means: leave the attempt `queued` and the scan
 - This applies to extraction events only. Email and export handlers keep running inside the claim transaction, which their at-least-once handling relies on.
 - Optional: write `running` when the lease is taken, and let the final write accept `queued` or `running`. The contract already declares the status.
 - First test: GIVEN a call in progress WHEN the technician discards the scan THEN the discard returns at once and the finished call writes nothing.
+
+Done, as planned except that `running` is not written:
+
+- `outbox.py`: an event type listed in `LEASED` (only `extraction.run`) is claimed in a short transaction that also sets `next_run_at` to now plus `ai_timeout_s` plus 30 seconds. `extraction.prepare` reads the attempt, the photo keys, the fields, and the types in that transaction. `extraction.call` reads the photos and asks OpenAI with no connection held, inside one deadline of `ai_timeout_s` plus 10 seconds. `extraction.finish` runs in a second short transaction: it locks the attempt again and saves the outcome only if the attempt is still `queued` and the scan is still `draft` and `extracting`.
+- A failed try is now one SQL update that adds 1 to `attempts` and only touches events that are still pending, so a slow worker cannot bring back an event that another worker finished.
+- `run_due` takes a `stop` event, so a worker told to stop takes no more events, and Compose gives the container 90 seconds (`stop_grace_period`) to finish the calls in flight. A worker that is killed anyway leaves a leased event that comes due when the lease ends.
+- Tests: a discard and a repeated `upload-complete` during a call answer at once; a worker that dies leaves a leased event with no failure counted; when a lease runs out and a second worker extracts the scan, the first call result is not saved again; a worker told to stop takes no more events.
 
 ### Step 5: Fix the phone contract now
 
@@ -232,4 +243,4 @@ WHERE status = 'succeeded' AND created_at > now() - interval '7 days';
 
 After step 1, the `queue_wait_ms` and `provider_ms` log fields split the wait from the call. The target is p95 under 15 seconds (PRD FR-4.9) at the busiest expected moment, for example a shift of phones uploading together.
 
-What this note rests on. Read in code: every statement above. Run: the one-bad-event case in flaw 1, against a fake pool with no database. Not run: the database integration tests, real timings, a live OpenAI call, or the lock effects in flaw 2. Any seconds-per-call figure is an assumption until the query above has been run on real data.
+What this note rests on. Read in code: every statement above. Run: the whole API test suite against a real PostgreSQL 18 on this branch (288 tests). That includes the lock effects in flaw 2, whose new tests fail on `abb94b7`, and the one-bad-event case in flaw 1, which was also run earlier against a fake pool. Not run: real timings, a live OpenAI call, or the Compose stack (its settings were only checked with `docker compose config`). Any seconds-per-call figure is an assumption until the query above has been run on real data.
