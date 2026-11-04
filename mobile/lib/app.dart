@@ -133,7 +133,7 @@ class _AuthGate extends StatelessWidget {
 
     NewScanFlow flow({RetakeOf? retakeOf}) => NewScanFlow(
           scans: scans,
-          lastLocations: LastLocationStore(store),
+          lastLocations: LastLocationStore(store, userId: session.me!.userId),
           photoSource: photoSource,
           buId: buId,
           unitName: unit!.name ?? '',

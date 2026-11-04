@@ -78,12 +78,15 @@ class LocationPick {
   }
 }
 
-/// Last location used in each unit, kept on the phone ("we remember it for next time").
+/// Last location each technician used in each unit, kept on the phone ("we remember it
+/// for next time"). Per technician: a shared phone must not show someone else's place as
+/// "your last scan".
 class LastLocationStore {
-  LastLocationStore(this._store);
+  LastLocationStore(this._store, {this.userId = ''});
   final SecureStore _store;
+  final String userId;
 
-  String _key(String buId) => 'last_location.$buId';
+  String _key(String buId) => 'last_location.$userId.$buId';
 
   Future<LastLocation?> read(String buId) async {
     final raw = await _store.read(_key(buId));

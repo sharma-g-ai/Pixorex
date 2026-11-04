@@ -87,7 +87,7 @@ void main() {
 
   group('LastLocationStore', () {
     test('GIVEN a saved location WHEN read THEN ids and time come back per unit', () async {
-      final store = LastLocationStore(MemorySecureStore());
+      final store = LastLocationStore(MemorySecureStore(), userId: 'u1');
       await store.save('b1', ['Plant 04', 'Bin 09'], DateTime.utc(2026, 11, 3, 9));
       final back = await store.read('b1');
       expect(back?.nodeIds, ['Plant 04', 'Bin 09']);
@@ -95,8 +95,15 @@ void main() {
       expect(await store.read('b2'), isNull);
     });
 
+    test('GIVEN two technicians on one phone WHEN one saves THEN the other has no last location', () async {
+      final mem = MemorySecureStore();
+      await LastLocationStore(mem, userId: 'tara').save('b1', ['Plant 04', 'Bin 05'], DateTime.utc(2026, 11, 4));
+      expect(await LastLocationStore(mem, userId: 'dana').read('b1'), isNull);
+      expect((await LastLocationStore(mem, userId: 'tara').read('b1'))?.nodeIds, ['Plant 04', 'Bin 05']);
+    });
+
     test('GIVEN corrupt data WHEN read THEN it is dropped, not thrown', () async {
-      final mem = MemorySecureStore()..values['last_location.b1'] = 'nope';
+      final mem = MemorySecureStore()..values['last_location..b1'] = 'nope';
       expect(await LastLocationStore(mem).read('b1'), isNull);
       expect(mem.values, isEmpty);
     });
