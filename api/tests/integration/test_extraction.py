@@ -5,6 +5,7 @@ from typing import Any
 import pytest
 
 from app.core import storage
+from app.repositories.scans import EXTRACTION_EVENT
 from app.services import ai_proxy
 from app.workers import outbox
 from app.workers.settings import WorkerSettings
@@ -167,3 +168,146 @@ async def test_a_discarded_scan_is_not_extracted(
     assert owner_sql("SELECT status FROM extraction_attempt WHERE scan_id = %s", (sid,)) == [
         ("failed",)
     ]
+
+
+def _event(owner_sql: Any, scan_id: str) -> tuple[str, int, bool]:
+    """(status, tries counted, due later) of the event for the scan's latest attempt."""
+    return owner_sql(
+        "SELECT e.status, e.attempts, e.next_run_at > now() FROM outbox_event e"
+        " JOIN extraction_attempt a ON a.id::text = e.payload->>'attempt_id'"
+        " WHERE a.scan_id = %s ORDER BY a.attempt_no DESC LIMIT 1",
+        (scan_id,),
+    )[0]
+
+
+async def _always_unexpected(config: Any, key: str) -> bytes:
+    """Photo storage failing with an error that is not on the outbox's retry list."""
+    raise ValueError("not an error the outbox knows")
+
+
+async def test_an_unexpected_error_does_not_hold_up_the_scan_behind_it(
+    api: Api,
+    owner_sql: Any,
+    unit: dict[str, str],
+    uploads: dict[str, bytes],
+    pool: Any,
+    database: dict[str, str],
+    ai: dict[str, Any],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """GIVEN a scan whose extraction hits an error the outbox does not know, and a second scan
+    WHEN the worker runs THEN the second is ready to review and the first waits for a retry
+    with one try counted; WHEN the error clears THEN the retry extracts the first."""
+    await _run(pool, owner_sql, database)  # extract what other tests left waiting
+    broken, fine = (_confirmed(api, unit)["scan_id"] for _ in range(2))
+
+    async def get(config: Any, key: str) -> bytes:
+        if broken in key:  # the object key holds the scan id
+            return await _always_unexpected(config, key)
+        return JPEG
+
+    monkeypatch.setattr(storage, "get", get)
+    await _run(pool, owner_sql, database)
+    status = "SELECT processing_status FROM scan WHERE id = %s"
+    assert owner_sql(status, (fine,)) == [("ready_to_review",)]
+    assert owner_sql(status, (broken,)) == [("extracting",)]
+    assert _event(owner_sql, broken) == ("pending", 1, True)
+
+    async def healthy(config: Any, key: str) -> bytes:
+        return JPEG
+
+    monkeypatch.setattr(storage, "get", healthy)
+    await _run(pool, owner_sql, database)
+    assert owner_sql(status, (broken,)) == [("ready_to_review",)]
+
+
+async def test_an_error_that_keeps_happening_fails_the_attempt(
+    api: Api,
+    owner_sql: Any,
+    unit: dict[str, str],
+    uploads: dict[str, bytes],
+    pool: Any,
+    database: dict[str, str],
+    ai: dict[str, Any],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """GIVEN an extraction that always hits an error the outbox does not know WHEN the worker
+    has tried as often as the outbox allows THEN the event, the attempt and the scan are failed,
+    so the technician can retry instead of waiting on an extracting scan."""
+    await _run(pool, owner_sql, database)  # extract what other tests left waiting
+    sid = _confirmed(api, unit)["scan_id"]
+    monkeypatch.setattr(storage, "get", _always_unexpected)
+    for _ in range(outbox.MAX_ATTEMPTS):
+        await _run(pool, owner_sql, database)
+    assert _event(owner_sql, sid)[:2] == ("failed", outbox.MAX_ATTEMPTS)
+    assert owner_sql("SELECT status FROM extraction_attempt WHERE scan_id = %s", (sid,)) == [
+        ("failed",)
+    ]
+    assert owner_sql("SELECT processing_status FROM scan WHERE id = %s", (sid,)) == [("failed",)]
+
+
+async def test_a_failing_clean_up_does_not_keep_the_event_alive(
+    api: Api,
+    owner_sql: Any,
+    unit: dict[str, str],
+    uploads: dict[str, bytes],
+    pool: Any,
+    database: dict[str, str],
+    ai: dict[str, Any],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """GIVEN an extraction that always errors and a clean-up that errors as well WHEN the outbox
+    gives up on the event THEN the event is failed for good and the worker carries on."""
+    await _run(pool, owner_sql, database)  # extract what other tests left waiting
+    sid = _confirmed(api, unit)["scan_id"]
+
+    async def broken_clean_up(conn: Any, event: Any) -> None:
+        raise RuntimeError("the clean-up failed too")
+
+    monkeypatch.setattr(storage, "get", _always_unexpected)
+    monkeypatch.setitem(outbox.ON_GIVE_UP, EXTRACTION_EVENT, broken_clean_up)
+    for _ in range(outbox.MAX_ATTEMPTS):
+        await _run(pool, owner_sql, database)
+    assert _event(owner_sql, sid)[:2] == ("failed", outbox.MAX_ATTEMPTS)
+
+
+@pytest.mark.parametrize(
+    ("answer", "outcome"),
+    [
+        (None, "succeeded"),
+        (TimeoutError("slow"), "timed_out"),
+        (ai_proxy.AiUnavailableError("down"), "failed"),
+    ],
+)
+async def test_each_extraction_logs_its_wait_and_its_ai_time(
+    answer: Exception | None,
+    outcome: str,
+    api: Api,
+    owner_sql: Any,
+    unit: dict[str, str],
+    uploads: dict[str, bytes],
+    pool: Any,
+    database: dict[str, str],
+    ai: dict[str, Any],
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """GIVEN a confirmed scan WHEN the worker extracts it THEN one log line gives the time the
+    scan waited and the time the AI call took, and carries nothing from the scan."""
+    await _run(pool, owner_sql, database)  # extract what other tests left waiting
+    _confirmed(api, unit)
+    ai["outcome"] = answer
+    caplog.set_level("INFO")
+    caplog.clear()
+    await _run(pool, owner_sql, database)
+    lines = [r.msg for r in caplog.records if isinstance(r.msg, dict)]  # structlog event dicts
+    [line] = [m for m in lines if m.get("event") == "extraction_timing"]
+    assert (line["outcome"], line["attempt_no"]) == (outcome, 1)
+    assert isinstance(line["queue_wait_ms"], int) and line["queue_wait_ms"] >= 0
+    assert isinstance(line["provider_ms"], int) and line["provider_ms"] >= 0
+    # every log line also gets "level" and "timestamp"; the rest is numbers and the outcome
+    assert set(line) - {"event", "level", "timestamp"} == {
+        "outcome",
+        "attempt_no",
+        "queue_wait_ms",
+        "provider_ms",
+    }

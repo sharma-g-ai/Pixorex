@@ -16,7 +16,7 @@ class WorkerSettings(BaseSettings):
     # all: every job. extraction: AI extraction of scans only. general: everything else
     # (emails, exports, scheduled jobs, Keycloak re-read).
     worker_role: Literal["all", "extraction", "general"] = "all"
-    worker_tick_s: float = 15.0  # how often due emails are sent
+    worker_tick_s: float = 15.0  # how often the outbox is checked (Compose sets 1 for extraction)
     worker_jobs_every_s: float = 60.0  # how often the scheduled jobs run
     worker_keycloak_every_s: float = 300.0  # how often Keycloak's stored events are re-read
 

@@ -2,7 +2,8 @@
 
 Events are claimed one at a time with FOR UPDATE SKIP LOCKED, so several workers never take
 the same one. A failure retries with exponential backoff (1, 2, 4... minutes, at most an
-hour); after MAX_ATTEMPTS the event is failed and stays for inspection."""
+hour); after MAX_ATTEMPTS the event is failed and stays for inspection. Any error from a
+handler counts as a failure, so one bad event never holds up the events behind it."""
 
 import smtplib
 from collections.abc import Awaitable, Callable
@@ -24,13 +25,16 @@ from app.workers.settings import WorkerSettings
 MAX_ATTEMPTS = 6
 _log = structlog.get_logger("pixorex.worker.outbox")
 Sender = Callable[..., Awaitable[None]]
+GiveUp = Callable[[Conn, dict[str, Any]], Awaitable[None]]
 
 
 async def _claim(conn: Conn, event_types: list[str]) -> dict[str, Any] | None:
     """Only events this worker can handle: others (e.g. AI extraction before its runner
-    exists) stay pending instead of failing."""
+    exists) stay pending instead of failing. waited_ms is how long the event has existed."""
     cur = await conn.execute(
-        "SELECT id, tenant_id, event_type, payload, attempts FROM outbox_event"
+        "SELECT id, tenant_id, event_type, payload, attempts,"
+        " (extract(epoch FROM now() - created_at) * 1000)::bigint AS waited_ms"
+        " FROM outbox_event"
         " WHERE status = 'pending' AND next_run_at <= now() AND event_type = ANY(%s)"
         " ORDER BY next_run_at LIMIT 1 FOR UPDATE SKIP LOCKED",
         (event_types,),
@@ -73,6 +77,8 @@ HANDLERS = {
 }
 # Runs when an event is failed for good, so nothing waits on it for ever.
 ON_GIVE_UP = {BUILD_EVENT: export_files.give_up, EXTRACTION_EVENT: extraction.give_up}
+# Failures to expect (mail, storage and network trouble) are logged as a warning. Any other
+# error is a bug: it is counted and backed off the same way, and logged with its traceback.
 RETRYABLE = (OSError, smtplib.SMTPException, LookupError, BotoCoreError, ClientError)
 # Which events each worker role takes: AI extraction runs in its own container, so a scan
 # backlog never holds up emails or exports.
@@ -81,6 +87,16 @@ EVENTS = {
     "extraction": [EXTRACTION_EVENT],
     "general": [e for e in HANDLERS if e != EXTRACTION_EVENT],
 }
+
+
+async def _clean_up(conn: Conn, event: dict[str, Any], give_up: GiveUp) -> None:
+    """Runs the clean-up of an event failed for good in a savepoint: if the clean-up fails
+    too, the event stays failed instead of being rolled back and claimed again."""
+    try:
+        async with conn.transaction():
+            await give_up(conn, event)
+    except Exception:
+        _log.exception("outbox_give_up_failed", event_type=event["event_type"])
 
 
 async def run_due(
@@ -104,9 +120,10 @@ async def run_due(
                     " WHERE id = %s",
                     (event["id"],),
                 )
-            except RETRYABLE as exc:
+            except Exception as exc:  # any error is one failed try, so the queue never stalls
                 attempts = event["attempts"] + 1
-                _log.warning(
+                log = _log.warning if isinstance(exc, RETRYABLE) else _log.exception
+                log(
                     "outbox_event_failed",
                     event_type=event["event_type"],
                     attempts=attempts,
@@ -121,6 +138,6 @@ async def run_due(
                 )
                 give_up = ON_GIVE_UP.get(event["event_type"])
                 if attempts >= MAX_ATTEMPTS and give_up is not None:
-                    await give_up(conn, event)
+                    await _clean_up(conn, event, give_up)
             handled += 1
     return handled

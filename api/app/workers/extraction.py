@@ -16,6 +16,7 @@ Flags (FR-4.7; how each applies is our reading, the PRD only names them):
 A1 (CONSTITUTION BC-03): prompt, injection defence and attempt budget need human review."""
 
 import re
+import time
 from datetime import date
 from typing import Any
 from uuid import UUID
@@ -101,6 +102,18 @@ async def _end_without_values(conn: Conn, row: dict[str, Any], status: str) -> N
         await repo.set_processing(conn, row["scan_id"], "retake_required" if done else "failed")
 
 
+def _log_timing(event: dict[str, Any], row: dict[str, Any], outcome: str, started: float) -> None:
+    """How long the scan waited for the worker and how long the AI call took (FR-4.9).
+    Numbers only: nothing from the photos or the values."""
+    _log.info(
+        "extraction_timing",
+        outcome=outcome,
+        attempt_no=row["attempt_no"],
+        queue_wait_ms=event.get("waited_ms"),
+        provider_ms=round((time.monotonic() - started) * 1000),
+    )
+
+
 async def run(conn: Conn, settings: WorkerSettings, event: dict[str, Any], _send: Any) -> None:
     await set_context(conn, tenant_id=event["tenant_id"], is_ea=True)
     row = await repo.attempt_to_run(conn, UUID(event["payload"]["attempt_id"]))
@@ -122,6 +135,7 @@ async def run(conn: Conn, settings: WorkerSettings, event: dict[str, Any], _send
     ]
     fields = await repo.contract_fields(conn, row["contract_id"])
     types = await repo.published_types(conn, row["bu_id"])
+    started = time.monotonic()
     try:
         async with httpx.AsyncClient() as http:
             result = await ai_proxy.extract(
@@ -134,12 +148,15 @@ async def run(conn: Conn, settings: WorkerSettings, event: dict[str, Any], _send
                 extra_instructions=row["prompt_instructions"],
             )
     except TimeoutError:
+        _log_timing(event, row, "timed_out", started)
         await _end_without_values(conn, row, "timed_out")
         return
     except ai_proxy.AiUnavailableError as exc:
         _log.warning("extraction_failed", reason=str(exc))
+        _log_timing(event, row, "failed", started)
         await _end_without_values(conn, row, "failed")
         return
+    _log_timing(event, row, "succeeded", started)
     for field in fields:
         item = result.fields.get(field["field_key"], {})
         value, fits = checked_value(field, item.get("value"))
