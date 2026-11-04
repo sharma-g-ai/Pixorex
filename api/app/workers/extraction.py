@@ -5,6 +5,11 @@ fields of the scan's pinned contract, and stores one ai_field_value per field (i
 Then the attempt is succeeded, failed or timed_out, and the scan moves on:
 ready_to_review on success; failed, or retake_required once all 3 attempts are used.
 
+The outbox does not hold a transaction open for the whole AI call (see outbox.Leased): prepare
+reads what the call needs while the event is claimed, call reads the photos and asks the
+provider with no database connection open, and finish saves the outcome in a second short
+transaction, after checking again that the attempt is still queued and the scan still wants it.
+
 Flags (FR-4.7; how each applies is our reading, the PRD only names them):
 - missing_required: a required field came back empty;
 - critical_not_found: a critical field came back empty;
@@ -15,8 +20,10 @@ Flags (FR-4.7; how each applies is our reading, the PRD only names them):
   free text, e.g. "UN + 4 digits").
 A1 (CONSTITUTION BC-03): prompt, injection defence and attempt budget need human review."""
 
+import asyncio
 import re
 import time
+from dataclasses import dataclass
 from datetime import date
 from typing import Any
 from uuid import UUID
@@ -102,62 +109,127 @@ async def _end_without_values(conn: Conn, row: dict[str, Any], status: str) -> N
         await repo.set_processing(conn, row["scan_id"], "retake_required" if done else "failed")
 
 
-def _log_timing(event: dict[str, Any], row: dict[str, Any], outcome: str, started: float) -> None:
+LEASE_MARGIN_S = 30.0  # the lease is the AI timeout plus this: photo reads and two short writes
+DEADLINE_MARGIN_S = 10.0  # the whole AI call may take the AI timeout plus this, at most
+
+
+def lease_s(settings: WorkerSettings) -> float:
+    """How long the outbox keeps other workers off the event while the AI call runs."""
+    return settings.ai_timeout_s + LEASE_MARGIN_S
+
+
+@dataclass(frozen=True)
+class Job:
+    """What the AI call needs, read while the event was claimed."""
+
+    attempt_id: UUID
+    attempt_no: int
+    type_name: str
+    instructions: str | None
+    fields: list[dict[str, Any]]
+    types: dict[str, UUID]
+    photo_keys: list[str]
+    config: ai_proxy.AiConfig
+    files: storage.StorageConfig
+    queue_wait_ms: int | None
+
+
+@dataclass(frozen=True)
+class Outcome:
+    """How the AI call ended: succeeded (with the result), failed, or timed_out."""
+
+    status: str
+    result: ai_proxy.Extraction | None = None
+
+
+def _log_timing(job: Job, outcome: str, started: float) -> None:
     """How long the scan waited for the worker and how long the AI call took (FR-4.9).
     Numbers only: nothing from the photos or the values."""
     _log.info(
         "extraction_timing",
         outcome=outcome,
-        attempt_no=row["attempt_no"],
-        queue_wait_ms=event.get("waited_ms"),
+        attempt_no=job.attempt_no,
+        queue_wait_ms=job.queue_wait_ms,
         provider_ms=round((time.monotonic() - started) * 1000),
     )
 
 
-async def run(conn: Conn, settings: WorkerSettings, event: dict[str, Any], _send: Any) -> None:
+async def prepare(conn: Conn, settings: WorkerSettings, event: dict[str, Any]) -> Job | None:
+    """Step 1 of 3, inside the outbox's claim transaction: what the call needs, or None when
+    there is nothing to call for."""
     await set_context(conn, tenant_id=event["tenant_id"], is_ea=True)
     row = await repo.attempt_to_run(conn, UUID(event["payload"]["attempt_id"]))
     if row is None:
-        return  # already ran
+        return None  # already ran
     if row["review_status"] != "draft" or row["processing_status"] != "extracting":
         await repo.finish_attempt(conn, row["attempt_id"], status="failed")
-        return  # discarded or closed meanwhile: nothing to extract for
+        return None  # discarded or closed meanwhile: nothing to extract for
     config, files = ai_config(settings), storage_config(settings)
     if config is None or files is None:
         # Retried with backoff by the outbox; after the last try the attempt fails.
         raise LookupError("AI or photo storage is not configured (PIXOREX_OPENAI_*, MINIO_*)")
+    return Job(
+        attempt_id=row["attempt_id"],
+        attempt_no=row["attempt_no"],
+        type_name=row["type_name"],
+        instructions=row["prompt_instructions"],
+        fields=await repo.contract_fields(conn, row["contract_id"]),
+        types=await repo.published_types(conn, row["bu_id"]),
+        photo_keys=[p["object_key"] for p in await repo.photos(conn, row["scan_id"])],
+        config=config,
+        files=files,
+        queue_wait_ms=event.get("waited_ms"),
+    )
+
+
+async def call(settings: WorkerSettings, job: Job) -> Outcome:
+    """Step 2 of 3, with no database connection open: reads the photos and asks the provider.
+    A storage error is raised (the outbox retries it); the provider's failures are an outcome."""
     photos = [
         (image, _photo_mime(image))
-        for image in [
-            await storage.get(files, p["object_key"])
-            for p in await repo.photos(conn, row["scan_id"])
-        ]
+        for image in [await storage.get(job.files, key) for key in job.photo_keys]
     ]
-    fields = await repo.contract_fields(conn, row["contract_id"])
-    types = await repo.published_types(conn, row["bu_id"])
     started = time.monotonic()
     try:
-        async with httpx.AsyncClient() as http:
+        async with (
+            asyncio.timeout(settings.ai_timeout_s + DEADLINE_MARGIN_S),  # ends before the lease
+            httpx.AsyncClient() as http,
+        ):
             result = await ai_proxy.extract(
                 http,
-                config,
+                job.config,
                 photos=photos,
-                type_name=row["type_name"],
-                fields=fields,
-                type_names=sorted(types),
-                extra_instructions=row["prompt_instructions"],
+                type_name=job.type_name,
+                fields=job.fields,
+                type_names=sorted(job.types),
+                extra_instructions=job.instructions,
             )
     except TimeoutError:
-        _log_timing(event, row, "timed_out", started)
-        await _end_without_values(conn, row, "timed_out")
-        return
+        outcome = Outcome("timed_out")
     except ai_proxy.AiUnavailableError as exc:
         _log.warning("extraction_failed", reason=str(exc))
-        _log_timing(event, row, "failed", started)
-        await _end_without_values(conn, row, "failed")
+        outcome = Outcome("failed")
+    else:
+        outcome = Outcome("succeeded", result)
+    _log_timing(job, outcome.status, started)
+    return outcome
+
+
+async def finish(conn: Conn, event: dict[str, Any], job: Job, outcome: Outcome) -> None:
+    """Step 3 of 3, in a second short transaction: locks the attempt again and saves the
+    outcome, unless someone else has finished it or the scan no longer wants it."""
+    await set_context(conn, tenant_id=event["tenant_id"], is_ea=True)
+    row = await repo.attempt_to_run(conn, job.attempt_id)
+    if row is None:
+        return  # a second worker saved its result first (this lease had run out)
+    if row["review_status"] != "draft" or row["processing_status"] != "extracting":
+        await repo.finish_attempt(conn, row["attempt_id"], status="failed")
+        return  # discarded or closed during the call: nothing to save
+    result = outcome.result
+    if result is None:
+        await _end_without_values(conn, row, outcome.status)
         return
-    _log_timing(event, row, "succeeded", started)
-    for field in fields:
+    for field in job.fields:
         item = result.fields.get(field["field_key"], {})
         value, fits = checked_value(field, item.get("value"))
         fits = fits and item.get("format_ok", True)
@@ -165,7 +237,7 @@ async def run(conn: Conn, settings: WorkerSettings, event: dict[str, Any], _send
         await repo.save_ai_value(
             conn,
             tenant_id=event["tenant_id"],
-            attempt_id=row["attempt_id"],
+            attempt_id=job.attempt_id,
             field_id=field["id"],
             value=value,
             confidence=confidence,
@@ -173,10 +245,10 @@ async def run(conn: Conn, settings: WorkerSettings, event: dict[str, Any], _send
         )
     await repo.finish_attempt(
         conn,
-        row["attempt_id"],
+        job.attempt_id,
         status="succeeded",
         detected_label=result.detected_label,
-        suggested_type_id=types.get(result.suggested_type or ""),
+        suggested_type_id=job.types.get(result.suggested_type or ""),
         suggestion_confidence=result.type_confidence,
         tokens_in=result.tokens_in,
         tokens_out=result.tokens_out,

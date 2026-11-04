@@ -1,26 +1,28 @@
 """The worker's AI extraction (FR-4.4-4.9): from upload-complete to ready_to_review."""
 
-from typing import Any
+import asyncio
+from typing import Any, Literal
 
 import pytest
 
 from app.core import storage
 from app.repositories.scans import EXTRACTION_EVENT
 from app.services import ai_proxy
-from app.workers import outbox
+from app.workers import outbox, runner
 from app.workers.settings import WorkerSettings
 from tests.integration.capture_setup import JPEG, _confirmed, _key, _problem
 from tests.integration.conftest import Api
 from tests.integration.helpers import TARA
 
 
-def _settings(database: dict[str, str], role: str = "all") -> WorkerSettings:
+def _settings(database: dict[str, str], role: str = "all", **extra: Any) -> WorkerSettings:
     return WorkerSettings(  # type: ignore[call-arg]
         worker_database_url=database["worker"],
         worker_role=role,
         minio_access_key="k",
         minio_secret_key="s",  # noqa: S106  (test value)
         openai_api_key="sk-test",
+        **extra,
     )
 
 
@@ -56,8 +58,12 @@ def ai(monkeypatch: pytest.MonkeyPatch) -> dict[str, Any]:
 
 
 async def _run(pool: Any, owner_sql: Any, database: dict[str, str], role: str = "all") -> None:
-    owner_sql(
-        "UPDATE outbox_event SET next_run_at = now() - interval '1 second' WHERE status = 'pending'"
+    # In a thread: with a worker mid-call, this UPDATE may have to wait for a row lock, and
+    # waiting on the event loop would stop that worker from ever finishing.
+    await asyncio.to_thread(
+        owner_sql,
+        "UPDATE outbox_event SET next_run_at = now() - interval '1 second'"
+        " WHERE status = 'pending'",
     )
 
     async def no_mail(settings: Any, **_: str) -> None:
@@ -311,3 +317,222 @@ async def test_each_extraction_logs_its_wait_and_its_ai_time(
         "queue_wait_ms",
         "provider_ms",
     }
+
+
+async def _no_mail(settings: Any, **_: str) -> None:
+    return None
+
+
+class Gate:
+    """A stand-in for the AI call that can be held open, and counts the calls open at once."""
+
+    def __init__(
+        self, answer: Any, hold: Literal["all", "first", "none"], delay: float = 0.0
+    ) -> None:
+        self.answer, self.hold, self.delay = answer, hold, delay  # answer: the `ai` fixture's fake
+        self.started, self.release = asyncio.Event(), asyncio.Event()
+        self.calls = self.open = self.most_open = 0
+
+    async def extract(self, http: Any, config: Any, **kwargs: Any) -> ai_proxy.Extraction:
+        self.calls += 1
+        held = self.hold == "all" or (self.hold == "first" and self.calls == 1)
+        self.open += 1
+        self.most_open = max(self.most_open, self.open)
+        self.started.set()
+        try:
+            await (self.release.wait() if held else asyncio.sleep(self.delay))
+        finally:
+            self.open -= 1
+        return await self.answer(http, config, **kwargs)  # type: ignore[no-any-return]
+
+
+_VALUES = (
+    "SELECT count(*) FROM ai_field_value v JOIN extraction_attempt a ON a.id = v.attempt_id"
+    " WHERE a.scan_id = %s"
+)
+_STATUS = "SELECT processing_status FROM scan WHERE id = %s"
+
+
+async def test_a_discard_does_not_wait_for_an_ai_call_in_progress(
+    api: Api,
+    owner_sql: Any,
+    unit: dict[str, str],
+    uploads: dict[str, bytes],
+    pool: Any,
+    database: dict[str, str],
+    ai: dict[str, Any],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """GIVEN an AI call in progress WHEN the technician discards the scan THEN the discard
+    answers at once, and when the call ends it saves no values."""
+    await _run(pool, owner_sql, database)  # extract what other tests left waiting
+    sid = _confirmed(api, unit)["scan_id"]
+    gate = Gate(ai_proxy.extract, hold="all")
+    monkeypatch.setattr(ai_proxy, "extract", gate.extract)
+    worker = asyncio.create_task(_run(pool, owner_sql, database))
+    try:
+        await asyncio.wait_for(gate.started.wait(), 5)
+        discard = asyncio.to_thread(api.post, f"/scans/{sid}/discard", TARA)
+        assert (await asyncio.wait_for(discard, 3)).status_code == 204
+    finally:
+        gate.release.set()
+        await worker
+    attempt = "SELECT status FROM extraction_attempt WHERE scan_id = %s"
+    assert owner_sql(attempt, (sid,)) == [("failed",)]
+    assert owner_sql(_VALUES, (sid,)) == [(0,)]
+
+
+async def test_a_repeated_upload_complete_is_answered_while_the_ai_call_runs(
+    api: Api,
+    owner_sql: Any,
+    unit: dict[str, str],
+    uploads: dict[str, bytes],
+    pool: Any,
+    database: dict[str, str],
+    ai: dict[str, Any],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """GIVEN an AI call in progress WHEN the phone repeats upload-complete THEN it gets the same
+    202 at once, not a wait followed by a 409."""
+    await _run(pool, owner_sql, database)  # extract what other tests left waiting
+    sid = _confirmed(api, unit)["scan_id"]
+    gate = Gate(ai_proxy.extract, hold="all")
+    monkeypatch.setattr(ai_proxy, "extract", gate.extract)
+    worker = asyncio.create_task(_run(pool, owner_sql, database))
+    try:
+        await asyncio.wait_for(gate.started.wait(), 5)
+        again = asyncio.to_thread(api.post, f"/scans/{sid}/upload-complete", TARA)
+        answer = await asyncio.wait_for(again, 3)
+        assert (answer.status_code, answer.json()["attempt_no"]) == (202, 1)
+    finally:
+        gate.release.set()
+        await worker
+    assert owner_sql(_STATUS, (sid,)) == [("ready_to_review",)]
+
+
+class _Crash(BaseException):
+    """A worker killed in the middle of an AI call: nothing after the call runs."""
+
+
+async def test_an_event_whose_worker_died_is_taken_again_when_its_lease_ends(
+    api: Api,
+    owner_sql: Any,
+    unit: dict[str, str],
+    uploads: dict[str, bytes],
+    pool: Any,
+    database: dict[str, str],
+    ai: dict[str, Any],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """GIVEN a worker that dies in the middle of an AI call WHEN its lease has not ended THEN
+    no other worker takes the event and no failure is counted; WHEN the lease has ended THEN
+    the next worker extracts the scan."""
+    await _run(pool, owner_sql, database)  # extract what other tests left waiting
+    sid = _confirmed(api, unit)["scan_id"]
+    healthy = ai_proxy.extract
+
+    async def dies(http: Any, config: Any, **kwargs: Any) -> ai_proxy.Extraction:
+        raise _Crash
+
+    monkeypatch.setattr(ai_proxy, "extract", dies)
+    with pytest.raises(_Crash):
+        await _run(pool, owner_sql, database)
+    assert _event(owner_sql, sid) == ("pending", 0, True)  # leased: due later, no try counted
+
+    monkeypatch.setattr(ai_proxy, "extract", healthy)
+    other = _settings(database, "extraction")
+    assert await outbox.run_due(pool, other, send=_no_mail, limit=1000) == 0
+    assert owner_sql(_STATUS, (sid,)) == [("extracting",)]
+
+    await _run(pool, owner_sql, database)  # makes every pending event due: the lease has ended
+    assert owner_sql(_STATUS, (sid,)) == [("ready_to_review",)]
+
+
+async def test_when_a_lease_runs_out_only_the_first_result_is_saved(
+    api: Api,
+    owner_sql: Any,
+    unit: dict[str, str],
+    uploads: dict[str, bytes],
+    pool: Any,
+    database: dict[str, str],
+    ai: dict[str, Any],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """GIVEN an AI call that outlasts its lease, and a second worker that extracts the scan
+    meanwhile WHEN the first call ends THEN its result is not saved a second time."""
+    await _run(pool, owner_sql, database)  # extract what other tests left waiting
+    sid = _confirmed(api, unit)["scan_id"]
+    gate = Gate(ai_proxy.extract, hold="first")
+    monkeypatch.setattr(ai_proxy, "extract", gate.extract)
+    first = asyncio.create_task(_run(pool, owner_sql, database))
+    try:
+        await asyncio.wait_for(gate.started.wait(), 5)
+        await asyncio.wait_for(_run(pool, owner_sql, database), 10)  # the lease has ended
+        assert owner_sql(_STATUS, (sid,)) == [("ready_to_review",)]
+    finally:
+        gate.release.set()
+        await first
+    assert owner_sql(_VALUES, (sid,)) == [(2,)]  # the type has two fields; saved once
+    assert owner_sql("SELECT status FROM extraction_attempt WHERE scan_id = %s", (sid,)) == [
+        ("succeeded",)
+    ]
+    assert gate.calls == 2
+
+
+async def test_a_worker_told_to_stop_takes_no_more_events(
+    api: Api,
+    owner_sql: Any,
+    unit: dict[str, str],
+    uploads: dict[str, bytes],
+    pool: Any,
+    database: dict[str, str],
+    ai: dict[str, Any],
+) -> None:
+    """GIVEN a scan waiting WHEN the worker is told to stop THEN it takes no more events;
+    WHEN it is not told to stop THEN it extracts the scan."""
+    await _run(pool, owner_sql, database)  # extract what other tests left waiting
+    sid = _confirmed(api, unit)["scan_id"]
+    stop = asyncio.Event()
+    stop.set()
+    worker = _settings(database, "extraction")
+    assert await outbox.run_due(pool, worker, send=_no_mail, stop=stop) == 0
+    assert owner_sql(_STATUS, (sid,)) == [("extracting",)]
+    assert await outbox.run_due(pool, worker, send=_no_mail) >= 1
+    assert owner_sql(_STATUS, (sid,)) == [("ready_to_review",)]
+
+
+async def test_the_extraction_container_makes_several_ai_calls_at_once(
+    api: Api,
+    owner_sql: Any,
+    unit: dict[str, str],
+    uploads: dict[str, bytes],
+    pool: Any,
+    database: dict[str, str],
+    ai: dict[str, Any],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """GIVEN ten scans waiting and a concurrency of 3 WHEN the claim loops run THEN no more than
+    3 AI calls are open at once, and every scan is extracted once."""
+    await _run(pool, owner_sql, database)  # extract what other tests left waiting
+    sids = [_confirmed(api, unit)["scan_id"] for _ in range(10)]
+    gate = Gate(ai_proxy.extract, hold="none", delay=0.05)
+    monkeypatch.setattr(ai_proxy, "extract", gate.extract)
+    settings = _settings(database, "extraction", extraction_concurrency=3, worker_tick_s=0.05)
+    stop = asyncio.Event()
+    loops = asyncio.create_task(runner.run_claim_loops(pool, settings, stop))
+    ready = 0
+    try:
+        for _ in range(200):
+            ready = owner_sql(
+                "SELECT count(*) FROM scan WHERE id = ANY(%s::uuid[])"
+                " AND processing_status = 'ready_to_review'",
+                (sids,),
+            )[0][0]
+            if ready == len(sids):
+                break
+            await asyncio.sleep(0.05)
+    finally:
+        stop.set()
+        await asyncio.wait_for(loops, 10)
+    assert ready == len(sids)
+    assert (gate.most_open, gate.calls) == (3, 10)

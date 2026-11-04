@@ -93,12 +93,15 @@ services:
       mailpit: { condition: service_started }
       minio: { condition: service_healthy }
 
-  extraction-worker:   # AI extraction of scans only; scale with --scale extraction-worker=3
+  extraction-worker:   # AI extraction of scans only; a second copy (--scale) is for failover
     build: ./api
     command: ["python", "-m", "app.workers.runner"]
+    stop_grace_period: 90s   # lets AI calls in flight finish: they end after 60 s plus a margin
     environment:
       PIXOREX_WORKER_ROLE: extraction
       PIXOREX_WORKER_TICK_S: 1   # looks for a new scan every second; the general worker keeps 15
+      # AI calls open at once in this container. Copies times this must fit what OpenAI allows.
+      PIXOREX_EXTRACTION_CONCURRENCY: ${PIXOREX_EXTRACTION_CONCURRENCY:-4}
       PIXOREX_WORKER_DATABASE_URL: postgresql://pixorex_worker:local-only@postgres:5432/pixorex
       PIXOREX_MINIO_URL: http://minio:9000   # reads scan photos
       PIXOREX_MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-pixorex-local}
