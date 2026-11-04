@@ -261,7 +261,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
             ? const Text('Scan')
             : Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text(s.equipmentTypeName, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
-                Text('${s.locationPath.split(' › ').last} · ${_statusLabel(s)}',
+                Text('${shortPlace(s.locationPath)} · ${_statusLabel(s)}',
                     style: const TextStyle(fontSize: 11, color: Colors.white70)),
               ]),
         actions: [

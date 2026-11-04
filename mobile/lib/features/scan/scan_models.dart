@@ -148,8 +148,7 @@ class MyScan {
   final DateTime updatedAt;
   final String? rejectCategory;
 
-  /// Last level of the path, e.g. "Bin 07" (the API joins levels with " › ").
-  String get place => locationPath.split(' › ').last;
+  String get place => shortPlace(locationPath);
 
   factory MyScan.fromJson(Map<String, dynamic> j) => MyScan(
         scanId: j['scan_id'] as String,
@@ -162,6 +161,13 @@ class MyScan {
         updatedAt: DateTime.parse(j['updated_at'] as String),
         rejectCategory: j['reject_category'] as String?,
       );
+}
+
+/// Where a scan is, short enough for a list row: "Bin 07", or "Bin 07 · B" when the path
+/// goes below the bin (design 41: "Bin 07 · Sub-bin B"). The API joins levels with " › ".
+String shortPlace(String locationPath) {
+  final parts = locationPath.split(' › ');
+  return parts.length >= 4 ? parts.sublist(parts.length - 2).join(' · ') : parts.last;
 }
 
 /// One page of a cursor-paged list (`page.next_cursor` is null on the last page).

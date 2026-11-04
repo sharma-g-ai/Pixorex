@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:pixorex_mobile/features/auth/session_controller.dart';
 import 'package:pixorex_mobile/features/home/home_screen.dart';
+import 'package:pixorex_mobile/features/scan/scan_models.dart' show shortPlace;
 import 'package:pixorex_mobile/features/scan/scan_repository.dart';
 import 'package:pixorex_mobile/features/scan/scan_status.dart';
 import 'package:provider/provider.dart';
@@ -60,6 +61,11 @@ void main() {
       expect(ago(now.subtract(const Duration(minutes: 4)), now), '4 min ago');
       expect(ago(now.subtract(const Duration(minutes: 70)), now), '1 hr ago');
       expect(ago(now.subtract(const Duration(days: 3)), now), '3 days ago');
+    });
+    test('shortPlace keeps the bin when the scan sits in a sub-bin', () {
+      expect(shortPlace('Plant 04 › Building C › Bin 05'), 'Bin 05');
+      expect(shortPlace('Plant 04 › Building C › Bin 05 › A'), 'Bin 05 · A');
+      expect(shortPlace('Plant 04'), 'Plant 04');
     });
     test('dayLabel and initials', () {
       expect(dayLabel(now), 'Thu 1 Oct');
