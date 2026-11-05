@@ -92,10 +92,9 @@ rules when changing data:
   behave as if it does not exist.
 - Vessels and crew have no portal accounts. They sign in on the tablet.
 
-**Screen state.** `?tab=` and `?dn=<number>` follow the URL. `?vessel=<id>` is only a starting value:
-`useScopeFilter` reads it once into local state, so later URL changes are ignored and picking a
-vessel does not update the URL. Other filters are local state. The compact screens are merged from
-the 17-screen version, so each one holds what used to be several pages behind tabs and query
+**Screen state.** `?tab=`, `?dn=<number>`, `?customer=<id>` and `?vessel=<id>` live in the URL. A link
+without a filter clears it, and a value outside the user's scope is ignored. Other filters are local
+state. The compact screens are merged from the 17-screen version, so each one holds what used to be several pages behind tabs and query
 parameters. Admin routes share `features/admin/TabbedPage.tsx`, and `docs/screens.md` records what
 each screen took over.
 
@@ -128,7 +127,6 @@ Naming differs from the web sample data: contracts use `ppg_admin` and snake_cas
 
 `web/` is the source of truth: two roles, BRD v1.3. These still lag behind it:
 
-- The top-level `README.md` cites BRD v1.2.
 - `docs/help/` (`steps.mjs`, `content.py`, the built help) and `docs/role-demos/` (`README.md`,
   `pack.py`) still describe a third **Ship Admin** role, which has been removed. They use `u12`,
   which is now an invited Customer Admin who cannot sign in, so those steps and that demo need
