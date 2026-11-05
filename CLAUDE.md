@@ -15,7 +15,7 @@ static portal POC (`client_portal_poc/`), Supabase setup and the delivery note h
 A 17-screen version lives in `C:\atg\ppg-seastock` (port 5180). It is reference only; the team is
 comparing the two.
 
-The BRD (now v1.3) and SeaStock Data Models V2 are not in the repo. `web/` follows V2; `contracts/` still follows V1 (18 tables). Their IDs are used
+The BRD (now v1.3) and SeaStock Data Models V2 are not in the repo. `web/` and `contracts/` both follow V2. Their IDs are used
 throughout the code and docs: `FR-nn` requirements, `A-nn` assumptions, `D-nn` decisions, and `SD-n`
 contract decisions pending. `docs/screens.md` maps screens to the BRD and lists the open questions
 for PPG.
@@ -43,7 +43,7 @@ on 38 files, including data-heavy code such as `src/data/store.ts`, which is wri
 Do not run `npm run format` across the repo; it would rewrite unrelated files. Format only what you
 touched, and leave those dense data lines as they are.
 
-Contracts, from the repo root (needs PyYAML, despite the README's "no install"):
+Contracts, from the repo root (needs PyYAML):
 
 ```
 python contracts/check.py                                  # refs, labels, path params, unique operationIds

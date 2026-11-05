@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: SeaStock MVP API - Shared basics
-  version: 0.1.0
+  version: 0.2.0
   contact:
     name: SeaStock backend team (Amzur)
   summary: Auth, errors, paging, idempotency, IDs and shared types used by every SeaStock contract file.
@@ -9,7 +9,7 @@ info:
     Every SeaStock contract file references this file. Change it only with agreement of all contract
     owners (Backend Lead, Flutter developers, portal developers).
 
-    Sources: BRD v1.3 (21 Oct 2026), SeaStock Data Models (18 tables, 30 Oct 2026), Jira PIX-58.
+    Sources: BRD v1.3 (21 Oct 2026), SeaStock Data Models V2 (16 tables, with the review of 2 Nov 2026), Jira PIX-58.
 
     Rules for every endpoint:
     - Base path /api/v1. IDs are UUIDs. Times are UTC (RFC 3339); dates are YYYY-MM-DD.
@@ -20,13 +20,13 @@ info:
         vessel_device_assignment, never a value sent by the tablet or read from paper.
     - Out-of-scope rows are invisible: a portal user asking for another customer's vessel gets 404.
     - Errors use RFC 9457 Problem Details (application/problem+json). The type URI is the stable
-      error code, e.g. /problems/article-not-active.
+      error code, e.g. /problems/reason-required.
     - Retried creates carry Idempotency-Key (portal) or a client-made ID in the body (tablet:
       client_sync_id, client_event_id, client_dn_id, client_txn_id, client_scan_id). The same ID
       again returns the first result and changes nothing.
     - The stock ledger is insert-only: a mistake is corrected by a new adjustment, never by an edit.
     - Every operation lists x-roles, x-brd (BRD v1.3 requirement IDs), x-ticket and x-sprint. Open
-      points are marked x-decision-pending (SD-1 to SD-10 in README.md) and are not guessed.
+      points are marked x-decision-pending (SD-1 to SD-20 in README.md) and are not guessed.
 servers:
 - url: /api/v1
 tags:
@@ -37,6 +37,7 @@ paths:
       tags: [Operations]
       operationId: getHealth
       summary: Liveness probe (process is up); no auth, no data
+      description: Used by deployment checks and monitoring.
       x-roles: [public]
       x-brd: [none]
       x-ticket: PIX-58
@@ -135,6 +136,34 @@ components:
       required: false
       schema:
         $ref: '#/components/schemas/ComponentType'
+    Search:
+      name: q
+      in: query
+      required: false
+      description: Case-insensitive text search.
+      schema:
+        type: string
+    DryRun:
+      name: dry_run
+      in: query
+      required: false
+      description: True checks the file and returns what it would change, without loading it.
+      schema:
+        type: boolean
+        default: false
+  requestBodies:
+    ImportFile:
+      required: true
+      content:
+        multipart/form-data:
+          schema:
+            type: object
+            required: [file]
+            properties:
+              file:
+                type: string
+                format: binary
+                description: Excel (.xlsx) or CSV. Columns are provisional until the PPG files are in hand (SD-8).
   schemas:
     Uuid:
       type: string
@@ -218,7 +247,7 @@ components:
           $ref: '#/components/schemas/CustomerRef'
     ArticleRef:
       type: object
-      required: [id, article_number, product_name, shade, product_type, component_type, pack_size, unit_volume_liters, status]
+      required: [id, article_number, product_name, shade, product_type, component_type, pack_size, unit_volume_liters]
       properties:
         id:
           $ref: '#/components/schemas/Uuid'
@@ -244,10 +273,6 @@ components:
           type: number
           exclusiveMinimum: 0
           examples: [20]
-        status:
-          type: string
-          description: A retired article still matches scans.
-          enum: [active, retired]
     DeviceRef:
       type: object
       required: [id, platform, model]
@@ -271,6 +296,28 @@ components:
           examples: [Dana Whitfield]
         role:
           $ref: '#/components/schemas/Role'
+    ImportResult:
+      type: object
+      description: What a file loaded, or with dry_run would load.
+      required: [dry_run, added, updated, skipped]
+      properties:
+        dry_run:
+          type: boolean
+        added:
+          type: integer
+        updated:
+          type: integer
+        skipped:
+          type: array
+          description: Rows left out. Always empty for an all-or-nothing import, which is refused instead.
+          items:
+            type: object
+            required: [row, message]
+            properties:
+              row:
+                type: integer
+              message:
+                type: string
     Problem:
       type: object
       description: RFC 9457 Problem Details.
@@ -331,6 +378,14 @@ components:
             $ref: '#/components/schemas/Problem'
     NotFound:
       description: Not found, or not in the caller's scope (never reveals other customers' data).
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    ImportRefused:
+      description: |
+        All-or-nothing import: one bad row refuses the whole file and nothing is loaded
+        (/problems/import-refused). errors names each row, e.g. field "row 5".
       content:
         application/problem+json:
           schema:

@@ -1,0 +1,212 @@
+openapi: 3.1.0
+info:
+  title: SeaStock MVP API - Article master
+  version: 0.2.0
+  contact:
+    name: SeaStock backend team (Amzur)
+  summary: The master item list, its bulk load, and the tablet's download.
+  description: |
+    BRD v1.3 FR-25 and section 8. Data model: Domain 3 article.
+
+    The article number is the one identifier that ties a can label to a delivery note line. The
+    master list only grows: articles are never retired or deleted. The label schema is deferred past
+    the pilot, so it has no endpoints here. Editing an article is not here (SD-13).
+servers:
+- url: /api/v1
+security:
+- portalBearer: []
+tags:
+- name: Articles
+- name: Tablet
+paths:
+  /articles:
+    get:
+      tags: [Articles]
+      operationId: listArticles
+      summary: The master item list
+      description: Screens - Products; the article pickers in Adjust stock and Match to article.
+      x-roles: [ppg_admin, customer_admin]
+      x-brd: [FR-25]
+      x-ticket: PIX-62
+      x-sprint: To confirm
+      security:
+      - portalBearer: []
+      parameters:
+      - $ref: ./common.yaml#/components/parameters/ComponentTypeFilter
+      - $ref: ./common.yaml#/components/parameters/Search
+      - $ref: ./common.yaml#/components/parameters/Cursor
+      - $ref: ./common.yaml#/components/parameters/Limit
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArticlePage'
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+    post:
+      tags: [Articles]
+      operationId: createArticle
+      summary: Add an article
+      description: |
+        article_number is exactly 6 digits and unique. A 1K product is a 1K component; a 2K product
+        is a base or hardener (D-10). shade is null for hardeners and thinners. Writes an audit row.
+      x-roles: [ppg_admin]
+      x-brd: [FR-25]
+      x-ticket: PIX-70
+      x-sprint: To confirm
+      security:
+      - portalBearer: []
+      parameters:
+      - $ref: ./common.yaml#/components/parameters/IdempotencyKey
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [article_number, product_name, product_type, component_type, pack_size, unit_volume_liters]
+              additionalProperties: false
+              properties:
+                article_number:
+                  $ref: ./common.yaml#/components/schemas/ArticleNumber
+                product_name:
+                  type: string
+                  minLength: 1
+                shade:
+                  type: [string, 'null']
+                product_type:
+                  type: string
+                  enum: [1K, 2K]
+                component_type:
+                  $ref: ./common.yaml#/components/schemas/ComponentType
+                pack_size:
+                  type: string
+                  minLength: 1
+                unit_volume_liters:
+                  type: number
+                  exclusiveMinimum: 0
+            examples:
+              base:
+                value:
+                  article_number: '179061'
+                  product_name: SIGMACOVER 350
+                  shade: Grey 5177
+                  product_type: 2K
+                  component_type: base
+                  pack_size: 20 L
+                  unit_volume_liters: 20
+      responses:
+        '201':
+          description: Added
+          content:
+            application/json:
+              schema:
+                $ref: ./common.yaml#/components/schemas/ArticleRef
+        '400':
+          description: 'Invalid input. Problem types: /problems/validation, /problems/component-type-mismatch.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./common.yaml#/components/schemas/Problem
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '403':
+          $ref: ./common.yaml#/components/responses/Forbidden
+        '409':
+          description: 'Article number already used. Problem types: /problems/article-number-in-use.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./common.yaml#/components/schemas/Problem
+  /articles/import:
+    post:
+      tags: [Articles]
+      operationId: importArticles
+      summary: Bulk load articles from PPG's Excel file
+      description: |
+        Valid rows load; invalid and duplicate rows are reported in skipped, with the row number.
+        Articles already on the list are left as they are. Articles missing from the file stay on
+        the list. Use dry_run=true to preview. Writes an audit row. Columns follow the PPG file.
+      x-roles: [ppg_admin]
+      x-brd: [FR-25]
+      x-ticket: PIX-70
+      x-sprint: To confirm
+      x-decision-pending: 'SD-8: columns and the 6-digit rule, to confirm against the PPG Excel. SD-16: load the good rows or refuse the file; whether an existing article is updated.'
+      security:
+      - portalBearer: []
+      parameters:
+      - $ref: ./common.yaml#/components/parameters/DryRun
+      requestBody:
+        $ref: ./common.yaml#/components/requestBodies/ImportFile
+      responses:
+        '200':
+          description: Loaded, or with dry_run the preview
+          content:
+            application/json:
+              schema:
+                $ref: ./common.yaml#/components/schemas/ImportResult
+              examples:
+                partial:
+                  value:
+                    dry_run: false
+                    added: 6
+                    updated: 0
+                    skipped:
+                    - {row: 14, message: A 2K product needs component type base or hardener.}
+        '400':
+          $ref: ./common.yaml#/components/responses/BadRequest
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '403':
+          $ref: ./common.yaml#/components/responses/Forbidden
+  /tablet/articles:
+    get:
+      tags: [Tablet]
+      operationId: listTabletArticles
+      summary: Download the master item list to the tablet
+      description: |
+        First sync and later refreshes, so the tablet can match article numbers offline. changed_since
+        returns only articles added or changed after that time.
+      x-roles: [tablet]
+      x-brd: [FR-02, FR-09, FR-25]
+      x-ticket: PIX-58
+      x-sprint: To confirm
+      x-decision-pending: 'SD-5: whether this download belongs in PIX-58 or in the sync story.'
+      security:
+      - tabletBearer: []
+      parameters:
+      - name: changed_since
+        in: query
+        required: false
+        schema:
+          $ref: ./common.yaml#/components/schemas/Timestamp
+      - $ref: ./common.yaml#/components/parameters/Cursor
+      - $ref: ./common.yaml#/components/parameters/Limit
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArticlePage'
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+components:
+  securitySchemes:
+    portalBearer:
+      $ref: ./common.yaml#/components/securitySchemes/portalBearer
+    tabletBearer:
+      $ref: ./common.yaml#/components/securitySchemes/tabletBearer
+  schemas:
+    ArticlePage:
+      type: object
+      required: [items, page]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: ./common.yaml#/components/schemas/ArticleRef
+        page:
+          $ref: ./common.yaml#/components/schemas/PageInfo

@@ -1,0 +1,472 @@
+openapi: 3.1.0
+info:
+  title: SeaStock MVP API - Tablets and enrolment
+  version: 0.2.0
+  contact:
+    name: SeaStock backend team (Amzur)
+  summary: Enrolment codes, the tablet list, retiring and revoking tablets, and how a tablet enrols.
+  description: |
+    Data model: Domain 2 device, device_enrolment_code and vessel_device_assignment. BRD A-06, A-14.
+
+    A tablet is enrolled once. A vessel has one active tablet: enrolling a second fails. To replace a
+    working tablet, an admin prepares the old one to retire; it uploads what it holds at its next
+    sync and that sync retires it, and only then can the new tablet enrol. A broken or lost tablet
+    is retired at once, and anything still on it is not uploaded. Retired and revoked are final.
+
+    Only the hash of an enrolment code is stored, so the code is returned once, when issued. The QR
+    and the typed code are the same code. Issuing a new code cancels the open one.
+servers:
+- url: /api/v1
+security:
+- portalBearer: []
+tags:
+- name: Tablets
+- name: Enrolment
+paths:
+  /devices:
+    get:
+      tags: [Tablets]
+      operationId: listDevices
+      summary: Tablets enrolled to vessels in the caller's scope
+      description: Screen - Customers & vessels > Tablets. Includes retired and revoked tablets.
+      x-roles: [ppg_admin, customer_admin]
+      x-brd: [A-14]
+      x-ticket: PIX-57
+      x-sprint: To confirm
+      security:
+      - portalBearer: []
+      parameters:
+      - name: status
+        in: query
+        required: false
+        schema:
+          type: string
+          enum: [active, retiring, retired, revoked]
+      - $ref: ./common.yaml#/components/parameters/VesselFilter
+      - $ref: ./common.yaml#/components/parameters/Cursor
+      - $ref: ./common.yaml#/components/parameters/Limit
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, page]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Device'
+                  page:
+                    $ref: ./common.yaml#/components/schemas/PageInfo
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+  /devices/{deviceId}/request-retirement:
+    post:
+      tags: [Tablets]
+      operationId: requestDeviceRetirement
+      summary: Prepare a working tablet to retire after its next sync
+      description: request_device_retirement(). It stays active until a sync succeeds. Set once. Writes an audit row.
+      x-roles: [ppg_admin, customer_admin]
+      x-brd: [A-14]
+      x-ticket: PIX-57
+      x-sprint: To confirm
+      security:
+      - portalBearer: []
+      parameters:
+      - $ref: '#/components/parameters/DeviceId'
+      responses:
+        '200':
+          description: Prepared
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Device'
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '403':
+          $ref: ./common.yaml#/components/responses/Forbidden
+        '404':
+          $ref: ./common.yaml#/components/responses/NotFound
+        '409':
+          description: 'Not active, or already prepared. Problem types: /problems/device-not-active, /problems/device-already-retiring.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./common.yaml#/components/schemas/Problem
+  /devices/{deviceId}/retire:
+    post:
+      tags: [Tablets]
+      operationId: retireDevice
+      summary: Retire a broken or lost tablet at once
+      description: |
+        retire_device(). The assignment ends (device_retired) and any open sync session closes.
+        Anything still on the tablet is not uploaded. Writes an audit row.
+      x-roles: [ppg_admin, customer_admin]
+      x-brd: [A-14]
+      x-ticket: PIX-57
+      x-sprint: To confirm
+      x-decision-pending: 'SD-18: whether a tablet retired this way may still upload if it later comes online (today it is refused).'
+      security:
+      - portalBearer: []
+      parameters:
+      - $ref: '#/components/parameters/DeviceId'
+      responses:
+        '200':
+          description: Retired
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Device'
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '403':
+          $ref: ./common.yaml#/components/responses/Forbidden
+        '404':
+          $ref: ./common.yaml#/components/responses/NotFound
+        '409':
+          description: 'Already retired or revoked. Problem types: /problems/device-not-active.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./common.yaml#/components/schemas/Problem
+  /devices/{deviceId}/revoke:
+    post:
+      tags: [Tablets]
+      operationId: revokeDevice
+      summary: Revoke a tablet, which stops it syncing
+      description: The assignment ends (device_revoked). Anything not yet uploaded stays on the tablet. Writes an audit row.
+      x-roles: [ppg_admin, customer_admin]
+      x-brd: [A-14]
+      x-ticket: PIX-57
+      x-sprint: To confirm
+      security:
+      - portalBearer: []
+      parameters:
+      - $ref: '#/components/parameters/DeviceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              additionalProperties: false
+              properties:
+                reason:
+                  type: string
+                  minLength: 1
+                  maxLength: 500
+            examples:
+              lost:
+                value:
+                  reason: Tablet lost overboard
+      responses:
+        '200':
+          description: Revoked
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Device'
+        '400':
+          $ref: ./common.yaml#/components/responses/BadRequest
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '403':
+          $ref: ./common.yaml#/components/responses/Forbidden
+        '404':
+          $ref: ./common.yaml#/components/responses/NotFound
+        '409':
+          description: 'Already retired or revoked. Problem types: /problems/device-not-active.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./common.yaml#/components/schemas/Problem
+  /vessels/{vesselId}/enrolment-codes:
+    post:
+      tags: [Tablets]
+      operationId: issueEnrolmentCode
+      summary: Issue a one-time code to pair a tablet with a vessel
+      description: |
+        issue_enrolment_code(). Valid 72 hours. Cancels the vessel's open code. The vessel must be
+        active. A code can be issued while the old tablet is still active, but it only works once
+        that tablet has retired. The response is the only time the code is shown. Writes an audit row.
+      x-roles: [ppg_admin, customer_admin]
+      x-brd: [A-14]
+      x-ticket: PIX-57
+      x-sprint: To confirm
+      security:
+      - portalBearer: []
+      parameters:
+      - $ref: ./common.yaml#/components/parameters/VesselId
+      - $ref: ./common.yaml#/components/parameters/IdempotencyKey
+      responses:
+        '201':
+          description: Issued
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/EnrolmentCode'
+                - type: object
+                  required: [code]
+                  properties:
+                    code:
+                      type: string
+                      description: Shown once, as text and as a QR. Both are this value.
+                      examples: [K7QM-4XPD]
+              examples:
+                issued:
+                  value:
+                    id: 2e9a3c54-5e77-4b60-8f2d-8b4c0d3e1a23
+                    code: K7QM-4XPD
+                    issued_by: {id: 3f1c9a52-7d2e-4b8a-9c11-0a6e5b2f4d10, full_name: Dana Whitfield, role: ppg_admin}
+                    issued_at: '2026-10-20T09:00:00Z'
+                    expires_at: '2026-10-23T09:00:00Z'
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '403':
+          $ref: ./common.yaml#/components/responses/Forbidden
+        '404':
+          $ref: ./common.yaml#/components/responses/NotFound
+        '409':
+          description: 'The vessel is inactive. Problem types: /problems/vessel-inactive.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./common.yaml#/components/schemas/Problem
+  /enrolment-codes/{codeId}/cancel:
+    post:
+      tags: [Tablets]
+      operationId: cancelEnrolmentCode
+      summary: Cancel an open code
+      description: A cancelled code is final. Writes an audit row.
+      x-roles: [ppg_admin, customer_admin]
+      x-brd: [A-14]
+      x-ticket: PIX-57
+      x-sprint: To confirm
+      security:
+      - portalBearer: []
+      parameters:
+      - name: codeId
+        in: path
+        required: true
+        schema:
+          $ref: ./common.yaml#/components/schemas/Uuid
+      responses:
+        '204':
+          description: Cancelled
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '403':
+          $ref: ./common.yaml#/components/responses/Forbidden
+        '404':
+          $ref: ./common.yaml#/components/responses/NotFound
+        '409':
+          description: 'Already used or cancelled. Problem types: /problems/code-not-open.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./common.yaml#/components/schemas/Problem
+  /tablet/enrolment/check:
+    post:
+      tags: [Enrolment]
+      operationId: checkEnrolmentCode
+      summary: Check a code before the crew confirms the vessel
+      description: |
+        check_enrolment_code(). Needs a network connection. Always 200 with a result. The vessel
+        is returned only when the code is valid, so the crew can confirm it; cancelling then binds
+        nothing.
+      x-roles: [public]
+      x-brd: [A-14]
+      x-ticket: PIX-57
+      x-sprint: To confirm
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code]
+              additionalProperties: false
+              properties:
+                code:
+                  type: string
+                  minLength: 1
+            examples:
+              typed:
+                value:
+                  code: K7QM-4XPD
+      responses:
+        '200':
+          description: The result of the check
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [result, vessel]
+                properties:
+                  result:
+                    type: string
+                    enum: [ok, code_unknown, code_used, code_cancelled, code_expired, vessel_inactive, vessel_has_active_tablet, vessel_tablet_retiring]
+                  vessel:
+                    description: Only when result is ok.
+                    oneOf:
+                    - $ref: ./common.yaml#/components/schemas/VesselRef
+                    - type: 'null'
+              examples:
+                retiring:
+                  value:
+                    result: vessel_tablet_retiring
+                    vessel: null
+        '400':
+          $ref: ./common.yaml#/components/responses/BadRequest
+  /tablet/enrolment:
+    post:
+      tags: [Enrolment]
+      operationId: enrolDevice
+      summary: Bind this tablet to the confirmed vessel
+      description: |
+        enrol_device(). Repeats the checks under a lock and is retry-safe: the same tablet confirming
+        again gets its device back. Unlisted models get model_supported false: a warning, not a block
+        (SD-20). Returns the tablet's credential once; only its hash is stored.
+      x-roles: [public]
+      x-brd: [A-06, A-14]
+      x-ticket: PIX-57
+      x-sprint: To confirm
+      x-decision-pending: 'SD-1: credential format and whether requests are also signed with the device key. SD-20: warn or block an unlisted tablet.'
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code, install_id, public_key, platform, model, os_version, app_version]
+              additionalProperties: false
+              properties:
+                code:
+                  type: string
+                  minLength: 1
+                install_id:
+                  type: string
+                  description: Random, made by the app. No IMEI.
+                public_key:
+                  type: string
+                  description: The private key stays in Android Keystore or iOS Secure Enclave.
+                platform:
+                  type: string
+                  enum: [android, ios]
+                model:
+                  type: string
+                os_version:
+                  type: string
+                app_version:
+                  type: string
+            examples:
+              android:
+                value:
+                  code: K7QM-4XPD
+                  install_id: 0f3c1a7e-52ab-4d9c-8e11-6b2f7c9d1e30
+                  public_key: MCowBQYDK2VwAyEA...
+                  platform: android
+                  model: Samsung Galaxy Tab Active5
+                  os_version: '14'
+                  app_version: 1.0.3
+      responses:
+        '201':
+          description: Enrolled
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [device, vessel, credential]
+                properties:
+                  device:
+                    $ref: '#/components/schemas/Device'
+                  vessel:
+                    $ref: ./common.yaml#/components/schemas/VesselRef
+                  credential:
+                    type: string
+                    description: Used as tabletBearer. Returned once.
+        '400':
+          $ref: ./common.yaml#/components/responses/BadRequest
+        '409':
+          description: 'The code or vessel failed the checks. Problem types: /problems/code-unknown, /problems/code-used, /problems/code-cancelled, /problems/code-expired, /problems/vessel-inactive, /problems/vessel-has-active-tablet, /problems/vessel-tablet-retiring.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./common.yaml#/components/schemas/Problem
+components:
+  securitySchemes:
+    portalBearer:
+      $ref: ./common.yaml#/components/securitySchemes/portalBearer
+    tabletBearer:
+      $ref: ./common.yaml#/components/securitySchemes/tabletBearer
+  parameters:
+    DeviceId:
+      name: deviceId
+      in: path
+      required: true
+      schema:
+        $ref: ./common.yaml#/components/schemas/Uuid
+  schemas:
+    EnrolmentCode:
+      type: object
+      required: [id, issued_by, issued_at, expires_at]
+      properties:
+        id:
+          $ref: ./common.yaml#/components/schemas/Uuid
+        issued_by:
+          $ref: ./common.yaml#/components/schemas/UserRef
+        issued_at:
+          $ref: ./common.yaml#/components/schemas/Timestamp
+        expires_at:
+          $ref: ./common.yaml#/components/schemas/Timestamp
+    Device:
+      allOf:
+      - $ref: ./common.yaml#/components/schemas/DeviceRef
+      - type: object
+        required: [status, model_supported, os_version, app_version, vessel, paired, enrolled_at, first_synced_at, retire_requested_at, retired_at, revoked_at, revoke_reason]
+        properties:
+          status:
+            type: string
+            description: retiring = active, and prepared to retire after its next sync.
+            enum: [active, retiring, retired, revoked]
+          model_supported:
+            type: boolean
+            description: One of the guaranteed tablets. An unlisted model is a warning, not a block.
+          os_version:
+            type: string
+          app_version:
+            type: string
+          vessel:
+            description: The vessel it was enrolled to, current or not.
+            oneOf:
+            - $ref: ./common.yaml#/components/schemas/VesselRef
+            - type: 'null'
+          paired:
+            type: boolean
+            description: False once it has retired or been revoked.
+          enrolled_at:
+            $ref: ./common.yaml#/components/schemas/Timestamp
+          first_synced_at:
+            oneOf:
+            - $ref: ./common.yaml#/components/schemas/Timestamp
+            - type: 'null'
+          retire_requested_at:
+            oneOf:
+            - $ref: ./common.yaml#/components/schemas/Timestamp
+            - type: 'null'
+          retired_at:
+            oneOf:
+            - $ref: ./common.yaml#/components/schemas/Timestamp
+            - type: 'null'
+          revoked_at:
+            oneOf:
+            - $ref: ./common.yaml#/components/schemas/Timestamp
+            - type: 'null'
+          revoke_reason:
+            type: [string, 'null']

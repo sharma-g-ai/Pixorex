@@ -1,0 +1,134 @@
+openapi: 3.1.0
+info:
+  title: SeaStock MVP API - Audit log
+  version: 0.2.0
+  contact:
+    name: SeaStock backend team (Amzur)
+  summary: Reading who did what, when, from which account or tablet.
+  description: |
+    BRD v1.3 FR-12. Data model: Domain 6 audit_log, insert-only. Rows are written by the other
+    endpoints and by sync; there is no endpoint that writes or changes one. A tablet row names the
+    tablet and vessel, never a person.
+servers:
+- url: /api/v1
+security:
+- portalBearer: []
+tags:
+- name: Audit
+paths:
+  /audit-log:
+    get:
+      tags: [Audit]
+      operationId: listAuditLog
+      summary: Audit entries in the caller's scope
+      description: |
+        Screen - Activity > Audit log. Newest first. Accept: text/csv returns the same rows as CSV,
+        unpaged. A customer_admin sees only entries about their own customer (to confirm).
+      x-roles: [ppg_admin, customer_admin]
+      x-brd: [FR-12]
+      x-ticket: PIX-90
+      x-sprint: To confirm
+      x-decision-pending: 'SD-17: what a Customer Admin may see of the audit log.'
+      security:
+      - portalBearer: []
+      parameters:
+      - $ref: ./common.yaml#/components/parameters/CustomerFilter
+      - $ref: ./common.yaml#/components/parameters/VesselFilter
+      - $ref: ./common.yaml#/components/parameters/From
+      - $ref: ./common.yaml#/components/parameters/To
+      - name: category
+        in: query
+        required: false
+        schema:
+          $ref: '#/components/schemas/AuditCategory'
+      - $ref: ./common.yaml#/components/parameters/Cursor
+      - $ref: ./common.yaml#/components/parameters/Limit
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, page]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AuditEntry'
+                  page:
+                    $ref: ./common.yaml#/components/schemas/PageInfo
+              examples:
+                one:
+                  value:
+                    items:
+                    - id: 9b2f4d1e-7a6c-4e3b-8f1a-2c5d6e7f8a90
+                      occurred_at: '2026-10-20T11:00:00Z'
+                      actor_type: user
+                      actor: {id: 3f1c9a52-7d2e-4b8a-9c11-0a6e5b2f4d10, full_name: Ingrid Solberg, role: customer_admin}
+                      device: null
+                      vessel: null
+                      category: inventory
+                      action: stock_adjusted
+                      entity_type: inventory_transaction
+                      entity_id: 2e9a3c54-5e77-4b60-8f2d-8b4c0d3e1a23
+                      summary: 'Ingrid Solberg adjusted Nordhavn Borealis: +1 can of 184103.'
+                    page:
+                      next_cursor: null
+            text/csv:
+              schema:
+                type: string
+        '400':
+          $ref: ./common.yaml#/components/responses/BadRequest
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '403':
+          $ref: ./common.yaml#/components/responses/Forbidden
+components:
+  securitySchemes:
+    portalBearer:
+      $ref: ./common.yaml#/components/securitySchemes/portalBearer
+    tabletBearer:
+      $ref: ./common.yaml#/components/securitySchemes/tabletBearer
+  schemas:
+    AuditCategory:
+      type: string
+      enum: [users, customers_vessels, devices, articles, delivery_notes, inventory, sync]
+    AuditEntry:
+      type: object
+      required: [id, occurred_at, actor_type, actor, device, vessel, category, action, entity_type, entity_id, summary]
+      properties:
+        id:
+          $ref: ./common.yaml#/components/schemas/Uuid
+        occurred_at:
+          $ref: ./common.yaml#/components/schemas/Timestamp
+        actor_type:
+          type: string
+          enum: [user, device, system]
+        actor:
+          description: The person, for actor_type user.
+          oneOf:
+          - $ref: ./common.yaml#/components/schemas/UserRef
+          - type: 'null'
+        device:
+          description: The tablet, for actor_type device.
+          oneOf:
+          - $ref: ./common.yaml#/components/schemas/DeviceRef
+          - type: 'null'
+        vessel:
+          oneOf:
+          - $ref: ./common.yaml#/components/schemas/VesselRef
+          - type: 'null'
+        category:
+          $ref: '#/components/schemas/AuditCategory'
+        action:
+          type: string
+          description: Machine code.
+          examples: [device_enrolled]
+        entity_type:
+          type: [string, 'null']
+        entity_id:
+          type: [string, 'null']
+        summary:
+          type: string
+          description: One readable sentence, frozen at insert.

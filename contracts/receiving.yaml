@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: SeaStock MVP API - Receiving (delivery notes)
-  version: 0.1.0
+  version: 0.2.0
   contact:
     name: SeaStock backend team (Amzur)
   summary: Confirmed delivery notes and their tally, for the portal.
@@ -25,13 +25,14 @@ paths:
       operationId: listDeliveryNotes
       summary: Delivery notes received (portal)
       description: |
-        Screen: Activity > Delivery notes. Newest first (confirmed_at). Notes whose IMO read from
-        the paper does not match the vessel are listed for review with imo_check=mismatch (Overview).
+        Screen: Activity > Delivery notes. Newest first (confirmed_at). Notes whose IMO check is not a
+        match (a mismatch, or the IMO was not read) are listed for review with imo_review=true (Overview).
         Accept: text/csv returns the same rows as CSV, unpaged.
       x-roles: [ppg_admin, customer_admin]
       x-brd: [FR-01, FR-04, FR-05, FR-24]
       x-ticket: PIX-58
       x-sprint: SeaStock Sprint 3
+      x-decision-pending: 'SD-19: a wrong IMO is accepted and flagged today; the review proposed stopping the note on the server.'
       parameters:
       - $ref: ./common.yaml#/components/parameters/CustomerFilter
       - $ref: ./common.yaml#/components/parameters/VesselFilter
@@ -48,6 +49,13 @@ paths:
         required: false
         schema:
           $ref: '#/components/schemas/ImoCheck'
+      - name: imo_review
+        in: query
+        required: false
+        description: Only notes whose imo_check is not match.
+        schema:
+          type: boolean
+          default: false
       - name: q
         in: query
         required: false
@@ -131,6 +139,11 @@ paths:
         '404':
           $ref: ./common.yaml#/components/responses/NotFound
 components:
+  securitySchemes:
+    portalBearer:
+      $ref: ./common.yaml#/components/securitySchemes/portalBearer
+    tabletBearer:
+      $ref: ./common.yaml#/components/securitySchemes/tabletBearer
   schemas:
     ImoCheck:
       type: string

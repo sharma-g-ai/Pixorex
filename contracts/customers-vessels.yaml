@@ -1,0 +1,524 @@
+openapi: 3.1.0
+info:
+  title: SeaStock MVP API - Customers and vessels
+  version: 0.2.0
+  contact:
+    name: SeaStock backend team (Amzur)
+  summary: Maintaining customers and vessels, Excel imports, and the vessel password reset.
+  description: |
+    BRD v1.3 FR-21 and section 8. Data model: Domain 1 customer and vessel.
+
+    The customer ID is customer_code. The IMO number is the vessel ID: 7 digits with a valid check
+    digit, unique. A vessel's IMO and customer cannot change in the MVP. A customer_admin sees only
+    their own customer.
+
+    Imports are all-or-nothing and safe to re-run, keyed on customer_code and IMO number: a bad row
+    refuses the whole file and names the row. Use dry_run=true to preview.
+servers:
+- url: /api/v1
+security:
+- portalBearer: []
+tags:
+- name: Customers
+- name: Vessels
+paths:
+  /customers:
+    get:
+      tags: [Customers]
+      operationId: listCustomers
+      summary: Customers in the caller's scope
+      description: Screens - Customers & vessels; the customer filters. A customer_admin gets only their own.
+      x-roles: [ppg_admin, customer_admin]
+      x-brd: [FR-21]
+      x-ticket: PIX-86
+      x-sprint: To confirm
+      security:
+      - portalBearer: []
+      parameters:
+      - name: status
+        in: query
+        required: false
+        schema:
+          $ref: '#/components/schemas/ActiveStatus'
+      - $ref: ./common.yaml#/components/parameters/Search
+      - $ref: ./common.yaml#/components/parameters/Cursor
+      - $ref: ./common.yaml#/components/parameters/Limit
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, page]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Customer'
+                  page:
+                    $ref: ./common.yaml#/components/schemas/PageInfo
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+    post:
+      tags: [Customers]
+      operationId: createCustomer
+      summary: Add a customer
+      description: customer_code must be unique and not blank. Writes an audit row.
+      x-roles: [ppg_admin]
+      x-brd: [FR-21]
+      x-ticket: PIX-86
+      x-sprint: To confirm
+      security:
+      - portalBearer: []
+      parameters:
+      - $ref: ./common.yaml#/components/parameters/IdempotencyKey
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [customer_code, name]
+              additionalProperties: false
+              properties:
+                customer_code:
+                  type: string
+                  minLength: 1
+                name:
+                  type: string
+                  minLength: 1
+            examples:
+              alpha:
+                value:
+                  customer_code: C-1001
+                  name: Alpha Shipping
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Customer'
+        '400':
+          $ref: ./common.yaml#/components/responses/BadRequest
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '403':
+          $ref: ./common.yaml#/components/responses/Forbidden
+        '409':
+          description: 'Customer ID already used. Problem types: /problems/customer-code-in-use.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./common.yaml#/components/schemas/Problem
+  /customers/import:
+    post:
+      tags: [Customers]
+      operationId: importCustomers
+      summary: Load customers from an Excel file (all-or-nothing)
+      description: import_customers(). Keyed on customer_code; an existing customer has its name updated. Writes an audit row.
+      x-roles: [ppg_admin]
+      x-brd: [FR-21]
+      x-ticket: PIX-86
+      x-sprint: To confirm
+      security:
+      - portalBearer: []
+      parameters:
+      - $ref: ./common.yaml#/components/parameters/DryRun
+      requestBody:
+        $ref: ./common.yaml#/components/requestBodies/ImportFile
+      responses:
+        '200':
+          description: Loaded, or with dry_run the preview
+          content:
+            application/json:
+              schema:
+                $ref: ./common.yaml#/components/schemas/ImportResult
+              examples:
+                loaded:
+                  value: {dry_run: false, added: 2, updated: 3, skipped: []}
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '403':
+          $ref: ./common.yaml#/components/responses/Forbidden
+        '422':
+          $ref: ./common.yaml#/components/responses/ImportRefused
+  /customers/{customerId}:
+    patch:
+      tags: [Customers]
+      operationId: updateCustomer
+      summary: Edit a customer
+      description: Only the fields sent change. Writes an audit row.
+      x-roles: [ppg_admin]
+      x-brd: [FR-21]
+      x-ticket: PIX-86
+      x-sprint: To confirm
+      security:
+      - portalBearer: []
+      parameters:
+      - name: customerId
+        in: path
+        required: true
+        schema:
+          $ref: ./common.yaml#/components/schemas/Uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              minProperties: 1
+              properties:
+                customer_code:
+                  type: string
+                  minLength: 1
+                name:
+                  type: string
+                  minLength: 1
+                status:
+                  $ref: '#/components/schemas/ActiveStatus'
+            examples:
+              inactive:
+                value:
+                  status: inactive
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Customer'
+        '400':
+          $ref: ./common.yaml#/components/responses/BadRequest
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '403':
+          $ref: ./common.yaml#/components/responses/Forbidden
+        '404':
+          $ref: ./common.yaml#/components/responses/NotFound
+        '409':
+          description: 'Customer ID already used. Problem types: /problems/customer-code-in-use.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./common.yaml#/components/schemas/Problem
+  /vessels:
+    get:
+      tags: [Vessels]
+      operationId: listVessels
+      summary: Vessels in the caller's scope
+      description: Screens - Customers & vessels > Vessels; the vessel filters.
+      x-roles: [ppg_admin, customer_admin]
+      x-brd: [FR-21]
+      x-ticket: PIX-87
+      x-sprint: To confirm
+      security:
+      - portalBearer: []
+      parameters:
+      - $ref: ./common.yaml#/components/parameters/CustomerFilter
+      - name: status
+        in: query
+        required: false
+        schema:
+          $ref: '#/components/schemas/ActiveStatus'
+      - $ref: ./common.yaml#/components/parameters/Search
+      - $ref: ./common.yaml#/components/parameters/Cursor
+      - $ref: ./common.yaml#/components/parameters/Limit
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, page]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Vessel'
+                  page:
+                    $ref: ./common.yaml#/components/schemas/PageInfo
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '403':
+          $ref: ./common.yaml#/components/responses/Forbidden
+    post:
+      tags: [Vessels]
+      operationId: createVessel
+      summary: Add a vessel
+      description: The IMO must have a valid check digit and be unique. Writes an audit row.
+      x-roles: [ppg_admin]
+      x-brd: [FR-21]
+      x-ticket: PIX-87
+      x-sprint: To confirm
+      security:
+      - portalBearer: []
+      parameters:
+      - $ref: ./common.yaml#/components/parameters/IdempotencyKey
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [imo_number, name, customer_id]
+              additionalProperties: false
+              properties:
+                imo_number:
+                  $ref: ./common.yaml#/components/schemas/ImoNumber
+                name:
+                  type: string
+                  minLength: 1
+                customer_id:
+                  $ref: ./common.yaml#/components/schemas/Uuid
+                receiving_mode:
+                  $ref: '#/components/schemas/ReceivingMode'
+            examples:
+              alphaOne:
+                value:
+                  imo_number: '9074729'
+                  name: MV Alpha One
+                  customer_id: 8a2b4c6d-1e3f-4a5b-8c7d-9e0f1a2b3c4d
+                  receiving_mode: scan
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Vessel'
+        '400':
+          description: 'Invalid input. Problem types: /problems/validation, /problems/imo-check-digit.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./common.yaml#/components/schemas/Problem
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '403':
+          $ref: ./common.yaml#/components/responses/Forbidden
+        '409':
+          description: 'IMO already used. Problem types: /problems/imo-in-use.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./common.yaml#/components/schemas/Problem
+  /vessels/import:
+    post:
+      tags: [Vessels]
+      operationId: importVessels
+      summary: Load vessels from an Excel file (all-or-nothing)
+      description: |
+        import_vessels(). Keyed on IMO number; an existing vessel has its name updated. A bad check
+        digit, an IMO that belongs to another customer, or for a customer_admin a row for another
+        customer refuses the whole file and names the row. Writes an audit row.
+      x-roles: [ppg_admin, customer_admin]
+      x-brd: [FR-21]
+      x-ticket: PIX-87
+      x-sprint: To confirm
+      security:
+      - portalBearer: []
+      parameters:
+      - $ref: ./common.yaml#/components/parameters/DryRun
+      requestBody:
+        $ref: ./common.yaml#/components/requestBodies/ImportFile
+      responses:
+        '200':
+          description: Loaded, or with dry_run the preview
+          content:
+            application/json:
+              schema:
+                $ref: ./common.yaml#/components/schemas/ImportResult
+              examples:
+                preview:
+                  value: {dry_run: true, added: 2, updated: 2, skipped: []}
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '403':
+          $ref: ./common.yaml#/components/responses/Forbidden
+        '422':
+          $ref: ./common.yaml#/components/responses/ImportRefused
+  /vessels/{vesselId}:
+    get:
+      tags: [Vessels]
+      operationId: getVessel
+      summary: One vessel
+      description: Screen - Sea Stock with one vessel picked.
+      x-roles: [ppg_admin, customer_admin]
+      x-brd: [FR-20, FR-21]
+      x-ticket: PIX-87
+      x-sprint: To confirm
+      security:
+      - portalBearer: []
+      parameters:
+      - $ref: ./common.yaml#/components/parameters/VesselId
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Vessel'
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '404':
+          $ref: ./common.yaml#/components/responses/NotFound
+    patch:
+      tags: [Vessels]
+      operationId: updateVessel
+      summary: Edit a vessel
+      description: Name, receiving mode and status only. The IMO and customer cannot change in the MVP. Writes an audit row.
+      x-roles: [ppg_admin]
+      x-brd: [FR-21]
+      x-ticket: PIX-87
+      x-sprint: To confirm
+      security:
+      - portalBearer: []
+      parameters:
+      - $ref: ./common.yaml#/components/parameters/VesselId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              minProperties: 1
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                receiving_mode:
+                  $ref: '#/components/schemas/ReceivingMode'
+                status:
+                  $ref: '#/components/schemas/ActiveStatus'
+            examples:
+              manual:
+                value:
+                  receiving_mode: manual
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Vessel'
+        '400':
+          $ref: ./common.yaml#/components/responses/BadRequest
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '403':
+          $ref: ./common.yaml#/components/responses/Forbidden
+        '404':
+          $ref: ./common.yaml#/components/responses/NotFound
+  /vessels/{vesselId}/password-reset:
+    post:
+      tags: [Vessels]
+      operationId: recordVesselPasswordReset
+      summary: Reset the vessel's sign-in password, e.g. at crew change
+      description: |
+        record_vessel_password_reset(): sets vessel.password_changed_at and writes an audit row. The
+        new password goes to the identity provider and is never stored or logged here.
+      x-roles: [ppg_admin, customer_admin]
+      x-brd: [FR-21]
+      x-ticket: PIX-57
+      x-sprint: To confirm
+      x-decision-pending: 'SD-1: whether the vessel password stays. SD-15: the password rule (12 characters proposed) and who hands it to the crew.'
+      security:
+      - portalBearer: []
+      parameters:
+      - $ref: ./common.yaml#/components/parameters/VesselId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [new_password]
+              additionalProperties: false
+              properties:
+                new_password:
+                  type: string
+                  format: password
+                  minLength: 12
+      responses:
+        '204':
+          description: Reset
+        '400':
+          $ref: ./common.yaml#/components/responses/BadRequest
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '403':
+          $ref: ./common.yaml#/components/responses/Forbidden
+        '404':
+          $ref: ./common.yaml#/components/responses/NotFound
+components:
+  securitySchemes:
+    portalBearer:
+      $ref: ./common.yaml#/components/securitySchemes/portalBearer
+    tabletBearer:
+      $ref: ./common.yaml#/components/securitySchemes/tabletBearer
+  schemas:
+    ActiveStatus:
+      type: string
+      enum: [active, inactive]
+    ReceivingMode:
+      type: string
+      description: Sent to the tablet at sync.
+      enum: [scan, manual]
+      default: scan
+    Customer:
+      allOf:
+      - $ref: ./common.yaml#/components/schemas/CustomerRef
+      - type: object
+        required: [status, vessels, customer_admins, created_at]
+        properties:
+          status:
+            $ref: '#/components/schemas/ActiveStatus'
+          vessels:
+            type: integer
+            description: Number of vessels.
+          customer_admins:
+            type: integer
+            description: Number of Customer Admins.
+          created_at:
+            $ref: ./common.yaml#/components/schemas/Timestamp
+    Vessel:
+      allOf:
+      - $ref: ./common.yaml#/components/schemas/VesselRef
+      - type: object
+        required: [status, receiving_mode, baseline_captured_at, last_synced_at, password_changed_at, last_sign_in_at, active_device, open_enrolment_code]
+        properties:
+          status:
+            $ref: '#/components/schemas/ActiveStatus'
+          receiving_mode:
+            $ref: '#/components/schemas/ReceivingMode'
+          baseline_captured_at:
+            oneOf:
+            - $ref: ./common.yaml#/components/schemas/Timestamp
+            - type: 'null'
+          last_synced_at:
+            oneOf:
+            - $ref: ./common.yaml#/components/schemas/Timestamp
+            - type: 'null'
+          password_changed_at:
+            oneOf:
+            - $ref: ./common.yaml#/components/schemas/Timestamp
+            - type: 'null'
+          last_sign_in_at:
+            oneOf:
+            - $ref: ./common.yaml#/components/schemas/Timestamp
+            - type: 'null'
+          active_device:
+            description: The vessel's active tablet, or null when none is paired.
+            oneOf:
+            - $ref: ./inventory.yaml#/components/schemas/ActiveDevice
+            - type: 'null'
+          open_enrolment_code:
+            description: The unused, unexpired code, without the code itself (only its hash is stored).
+            oneOf:
+            - $ref: ./devices.yaml#/components/schemas/EnrolmentCode
+            - type: 'null'

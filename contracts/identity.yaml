@@ -1,0 +1,378 @@
+openapi: 3.1.0
+info:
+  title: SeaStock MVP API - Identity (who am I, users and invites)
+  version: 0.2.0
+  contact:
+    name: SeaStock backend team (Amzur)
+  summary: The signed-in portal user, and the users and invites a PPG Admin or Customer Admin manages.
+  description: |
+    BRD v1.3 FR-22 and FR-23. Data model: Domain 1 app_user and invite.
+
+    app_user holds people only. A ppg_admin has no customer and sees all customers; a customer_admin
+    has exactly one customer. The vessel is the tablet's user, so there are no vessel or crew users.
+    Passwords live in the identity provider, never here.
+
+    A ppg_admin manages everyone. A customer_admin manages only the customer_admins of their own
+    customer (SD-17). Accepting an invite and setting a password are not here (SD-11).
+    Importing users from Excel is not here (SD-12).
+servers:
+- url: /api/v1
+security:
+- portalBearer: []
+tags:
+- name: Me
+- name: Users
+paths:
+  /me:
+    get:
+      tags: [Me]
+      operationId: getMe
+      summary: The signed-in user, their role, customer and permissions
+      description: Every portal screen. The portal builds its menu from permissions; the API still checks each call.
+      x-roles: [ppg_admin, customer_admin]
+      x-brd: [FR-22, FR-23]
+      x-ticket: PIX-59
+      x-sprint: To confirm
+      security:
+      - portalBearer: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Me'
+              examples:
+                customerAdmin:
+                  value:
+                    id: 3f1c9a52-7d2e-4b8a-9c11-0a6e5b2f4d10
+                    full_name: Ingrid Solberg
+                    email: ingrid.solberg@nordhavn.example
+                    role: customer_admin
+                    customer: {id: 8a2b4c6d-1e3f-4a5b-8c7d-9e0f1a2b3c4d, customer_code: C-1001, name: Alpha Shipping}
+                    permissions: [view-stock, export, view-review, adjust-stock, import-vessels, manage-tablets, reset-vessel-password, manage-users, view-audit]
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+  /users:
+    get:
+      tags: [Users]
+      operationId: listUsers
+      summary: Users the caller manages
+      description: Screen - Users.
+      x-roles: [ppg_admin, customer_admin]
+      x-brd: [FR-22]
+      x-ticket: PIX-88
+      x-sprint: To confirm
+      security:
+      - portalBearer: []
+      parameters:
+      - name: role
+        in: query
+        required: false
+        schema:
+          $ref: ./common.yaml#/components/schemas/Role
+      - name: status
+        in: query
+        required: false
+        schema:
+          $ref: '#/components/schemas/UserStatus'
+      - $ref: ./common.yaml#/components/parameters/CustomerFilter
+      - $ref: ./common.yaml#/components/parameters/Search
+      - $ref: ./common.yaml#/components/parameters/Cursor
+      - $ref: ./common.yaml#/components/parameters/Limit
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, page]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/User'
+                  page:
+                    $ref: ./common.yaml#/components/schemas/PageInfo
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '403':
+          $ref: ./common.yaml#/components/responses/Forbidden
+    post:
+      tags: [Users]
+      operationId: inviteUser
+      summary: Create a user and e-mail an invite
+      description: |
+        Status starts as invited. email is stored in lower case and must be unique. A customer_admin
+        needs customer_id; a ppg_admin must not have one. A customer_admin caller may only invite
+        for their own customer. Only token_hash of the invite is stored. Writes an audit row.
+      x-roles: [ppg_admin, customer_admin]
+      x-brd: [FR-22]
+      x-ticket: PIX-88
+      x-sprint: To confirm
+      x-decision-pending: 'SD-14: the invite period is not stated; 7 days is proposed. SD-17: Customer Admins inviting their own colleagues is to confirm.'
+      security:
+      - portalBearer: []
+      parameters:
+      - $ref: ./common.yaml#/components/parameters/IdempotencyKey
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, full_name, role]
+              additionalProperties: false
+              properties:
+                email:
+                  type: string
+                  format: email
+                full_name:
+                  type: string
+                  minLength: 1
+                job_title:
+                  type: [string, 'null']
+                role:
+                  $ref: ./common.yaml#/components/schemas/Role
+                customer_id:
+                  description: Required for customer_admin; not allowed for ppg_admin.
+                  oneOf:
+                  - $ref: ./common.yaml#/components/schemas/Uuid
+                  - type: 'null'
+            examples:
+              customerAdmin:
+                value:
+                  email: nur.aisyah@straits.example
+                  full_name: Nur Aisyah
+                  job_title: Procurement
+                  role: customer_admin
+                  customer_id: 8a2b4c6d-1e3f-4a5b-8c7d-9e0f1a2b3c4d
+      responses:
+        '201':
+          description: Created, invite sent
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          $ref: ./common.yaml#/components/responses/BadRequest
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '403':
+          $ref: ./common.yaml#/components/responses/Forbidden
+        '409':
+          description: 'E-mail already used. Problem types: /problems/email-in-use, /problems/idempotency-conflict.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./common.yaml#/components/schemas/Problem
+  /users/{userId}:
+    patch:
+      tags: [Users]
+      operationId: updateUser
+      summary: Edit a user
+      description: |
+        Only the fields sent change. E-mail cannot change. Status moves between active and disabled;
+        an invited user stays invited until they accept. A caller cannot change their own role or
+        status, and only a ppg_admin changes a role or customer. Writes an audit row.
+      x-roles: [ppg_admin, customer_admin]
+      x-brd: [FR-22]
+      x-ticket: PIX-88
+      x-sprint: To confirm
+      security:
+      - portalBearer: []
+      parameters:
+      - $ref: '#/components/parameters/UserId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              minProperties: 1
+              properties:
+                full_name:
+                  type: string
+                  minLength: 1
+                job_title:
+                  type: [string, 'null']
+                role:
+                  $ref: ./common.yaml#/components/schemas/Role
+                customer_id:
+                  oneOf:
+                  - $ref: ./common.yaml#/components/schemas/Uuid
+                  - type: 'null'
+                status:
+                  type: string
+                  enum: [active, disabled]
+            examples:
+              disable:
+                value:
+                  status: disabled
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          $ref: ./common.yaml#/components/responses/BadRequest
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '403':
+          $ref: ./common.yaml#/components/responses/Forbidden
+        '404':
+          $ref: ./common.yaml#/components/responses/NotFound
+        '409':
+          description: 'Not allowed in this state. Problem types: /problems/invite-not-accepted.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./common.yaml#/components/schemas/Problem
+  /users/{userId}/invite:
+    post:
+      tags: [Users]
+      operationId: resendInvite
+      summary: Send a new invite
+      description: Only for an invited user. Replaces any pending invite, because one pending invite per user is allowed. Writes an audit row.
+      x-roles: [ppg_admin, customer_admin]
+      x-brd: [FR-22]
+      x-ticket: PIX-88
+      x-sprint: To confirm
+      security:
+      - portalBearer: []
+      parameters:
+      - $ref: '#/components/parameters/UserId'
+      - $ref: ./common.yaml#/components/parameters/IdempotencyKey
+      responses:
+        '201':
+          description: Sent
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Invite'
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '403':
+          $ref: ./common.yaml#/components/responses/Forbidden
+        '404':
+          $ref: ./common.yaml#/components/responses/NotFound
+        '409':
+          description: 'The user has already accepted. Problem types: /problems/invite-already-accepted.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./common.yaml#/components/schemas/Problem
+    delete:
+      tags: [Users]
+      operationId: cancelInvite
+      summary: Cancel the pending invite
+      description: Writes an audit row. A cancelled invite stays on record.
+      x-roles: [ppg_admin, customer_admin]
+      x-brd: [FR-22]
+      x-ticket: PIX-88
+      x-sprint: To confirm
+      security:
+      - portalBearer: []
+      parameters:
+      - $ref: '#/components/parameters/UserId'
+      responses:
+        '204':
+          description: Cancelled
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '403':
+          $ref: ./common.yaml#/components/responses/Forbidden
+        '404':
+          $ref: ./common.yaml#/components/responses/NotFound
+        '409':
+          description: 'No pending invite. Problem types: /problems/no-pending-invite.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./common.yaml#/components/schemas/Problem
+components:
+  securitySchemes:
+    portalBearer:
+      $ref: ./common.yaml#/components/securitySchemes/portalBearer
+    tabletBearer:
+      $ref: ./common.yaml#/components/securitySchemes/tabletBearer
+  parameters:
+    UserId:
+      name: userId
+      in: path
+      required: true
+      schema:
+        $ref: ./common.yaml#/components/schemas/Uuid
+  schemas:
+    UserStatus:
+      type: string
+      enum: [invited, active, disabled]
+    Me:
+      type: object
+      required: [id, full_name, email, role, customer, permissions]
+      properties:
+        id:
+          $ref: ./common.yaml#/components/schemas/Uuid
+        full_name:
+          type: string
+        email:
+          type: string
+          format: email
+        role:
+          $ref: ./common.yaml#/components/schemas/Role
+        customer:
+          description: Null for a ppg_admin.
+          oneOf:
+          - $ref: ./common.yaml#/components/schemas/CustomerRef
+          - type: 'null'
+        permissions:
+          type: array
+          description: What this role may do. The same list the portal's Roles & permissions tab shows.
+          items:
+            type: string
+    Invite:
+      type: object
+      required: [status, sent_at, expires_at]
+      properties:
+        status:
+          type: string
+          enum: [pending, accepted, expired, cancelled]
+        sent_at:
+          $ref: ./common.yaml#/components/schemas/Timestamp
+        expires_at:
+          $ref: ./common.yaml#/components/schemas/Timestamp
+    User:
+      type: object
+      required: [id, email, full_name, job_title, role, customer, status, last_sign_in_at, invite]
+      properties:
+        id:
+          $ref: ./common.yaml#/components/schemas/Uuid
+        email:
+          type: string
+          format: email
+        full_name:
+          type: string
+        job_title:
+          type: [string, 'null']
+        role:
+          $ref: ./common.yaml#/components/schemas/Role
+        customer:
+          description: Null for a ppg_admin.
+          oneOf:
+          - $ref: ./common.yaml#/components/schemas/CustomerRef
+          - type: 'null'
+        status:
+          $ref: '#/components/schemas/UserStatus'
+        last_sign_in_at:
+          oneOf:
+          - $ref: ./common.yaml#/components/schemas/Timestamp
+          - type: 'null'
+        invite:
+          description: The latest invite.
+          oneOf:
+          - $ref: '#/components/schemas/Invite'
+          - type: 'null'

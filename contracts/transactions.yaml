@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: SeaStock MVP API - Transactions (stock ledger, consumption, review)
-  version: 0.1.0
+  version: 0.2.0
   contact:
     name: SeaStock backend team (Amzur)
   summary: Stock movements - history, consumption roll-ups, portal adjustments, and the items held for review.
@@ -91,6 +91,7 @@ paths:
       tags: [Transactions]
       operationId: getTransaction
       summary: One stock movement (portal)
+      description: Screen - Activity. One row of the ledger, with who recorded it, the tablet and the source.
       x-roles: [ppg_admin, customer_admin]
       x-brd: [FR-12]
       x-ticket: PIX-58
@@ -117,8 +118,8 @@ paths:
       summary: Correct a vessel's stock from the portal
       description: |
         Posts one adjustment (origin portal, source manual_adjustment, recorded_by the caller) and
-        writes an audit row. Either sign; reason required. Allowed on a retired article (stock of
-        it may still be on board). Negative results are allowed and shown for review.
+        writes an audit row. Either sign; reason required. Negative results are allowed and shown
+        for review.
       x-roles: [ppg_admin, customer_admin]
       x-brd: [FR-13]
       x-ticket: PIX-58
@@ -194,6 +195,8 @@ paths:
       description: |
         Screen: Consumption (by product, by vessel, by customer; Export summary). Sums consumption
         transactions in the period as positive cans and liters. group_by=customer is ppg_admin only.
+        Each vessel row carries its last sync and each customer row the oldest of its vessels'
+        (FR-20); oldest_synced_at covers the vessels behind the figures, for the by-product view.
         For Export detail use GET /transactions?txn_type=consumption with Accept: text/csv.
       x-roles: [ppg_admin, customer_admin]
       x-brd: [FR-07, FR-20, FR-24]
@@ -221,6 +224,7 @@ paths:
       - $ref: ./common.yaml#/components/parameters/CustomerFilter
       - $ref: ./common.yaml#/components/parameters/VesselFilter
       - $ref: ./common.yaml#/components/parameters/ComponentTypeFilter
+      - $ref: ./common.yaml#/components/parameters/Search
       responses:
         '200':
           description: Rows ordered by liters, largest first, with totals.
@@ -292,7 +296,7 @@ paths:
       description: |
         match_unrecognised_scan(): posts the held item as one transaction (origin portal, source
         review_match, recorded_by the caller, dated at the original scan), marks the scan matched
-        and writes an audit row. Only onto an active article. A matched scan is final.
+        and writes an audit row. Onto any article in the master list. A matched scan is final.
         Product and shade are not used to suggest an article (fallback deferred, FR-02).
       x-roles: [ppg_admin]
       x-brd: [FR-02]
@@ -330,7 +334,7 @@ paths:
         '404':
           $ref: ./common.yaml#/components/responses/NotFound
         '409':
-          description: 'Already matched, or the article is retired. Problem types: /problems/already-matched, /problems/article-not-active.'
+          description: 'Already matched. Problem types: /problems/already-matched.'
           content:
             application/problem+json:
               schema:
@@ -486,6 +490,11 @@ paths:
               schema:
                 $ref: ./common.yaml#/components/schemas/Problem
 components:
+  securitySchemes:
+    portalBearer:
+      $ref: ./common.yaml#/components/securitySchemes/portalBearer
+    tabletBearer:
+      $ref: ./common.yaml#/components/securitySchemes/tabletBearer
   parameters:
     TransactionId:
       name: transactionId
@@ -573,6 +582,11 @@ components:
           $ref: ./common.yaml#/components/schemas/Date
         to:
           $ref: ./common.yaml#/components/schemas/Date
+        oldest_synced_at:
+          description: The oldest last sync of the vessels behind these figures; null when there are none.
+          oneOf:
+          - $ref: ./common.yaml#/components/schemas/Timestamp
+          - type: 'null'
         totals:
           type: object
           required: [scans, cans, liters]
@@ -595,6 +609,11 @@ components:
                 $ref: ./common.yaml#/components/schemas/VesselRef
               customer:
                 $ref: ./common.yaml#/components/schemas/CustomerRef
+              last_synced_at:
+                description: Vessel rows - the vessel's last sync; customer rows - the oldest of its vessels'.
+                oneOf:
+                - $ref: ./common.yaml#/components/schemas/Timestamp
+                - type: 'null'
               scans:
                 type: integer
                 description: Consumption transactions counted (one scan can cover several cans).
@@ -659,7 +678,7 @@ components:
           - type: 'null'
     QuarantinedEvent:
       type: object
-      required: [id, event_type, vessel, device, payload, error_code, status, received_at]
+      required: [id, event_type, vessel, device, summary, payload, error_code, status, received_at]
       properties:
         id:
           $ref: ./common.yaml#/components/schemas/Uuid
@@ -670,6 +689,10 @@ components:
           $ref: ./common.yaml#/components/schemas/VesselRef
         device:
           $ref: ./common.yaml#/components/schemas/DeviceRef
+        summary:
+          type: string
+          description: One readable line made by the server from the payload.
+          examples: [Delivery note 5324650871, 3 lines, 18 cans]
         payload:
           type: object
           description: The event exactly as the tablet sent it.

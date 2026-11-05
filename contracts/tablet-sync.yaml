@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: SeaStock MVP API - Tablet sync (receiving and stock movements upload)
-  version: 0.1.0
+  version: 0.2.0
   contact:
     name: SeaStock backend team (Amzur)
   summary: How a tablet uploads what the crew recorded offline - delivery notes, consumption, baseline and adjustments.
@@ -49,7 +49,7 @@ paths:
         Creates a sync_session for the tablet's active assignment. client_sync_id is unique per
         tablet: the same ID again returns the existing session (200) and inserts nothing.
         Starting a new session fails any open session of the same tablet.
-        A tablet marked for retirement may start one final session.
+        A tablet prepared for retirement stays active, so it syncs as usual; that sync is its last.
       x-roles: [tablet]
       x-brd: [FR-10, FR-11]
       x-ticket: PIX-58
@@ -221,7 +221,7 @@ paths:
         The tablet says how many events it sent. The session succeeds only when the server
         received that many, none was rejected, and applied + duplicate + quarantined = received.
         A succeeded session sets vessel.last_synced_at (and device.first_synced_at the first time),
-        and retires a tablet that was marked for retirement. Completing a finished session again
+        and retires a tablet that was prepared for retirement. Completing a finished session again
         returns it unchanged.
       x-roles: [tablet]
       x-brd: [FR-11, FR-20]
@@ -267,6 +267,11 @@ paths:
         '404':
           $ref: ./common.yaml#/components/responses/NotFound
 components:
+  securitySchemes:
+    portalBearer:
+      $ref: ./common.yaml#/components/securitySchemes/portalBearer
+    tabletBearer:
+      $ref: ./common.yaml#/components/securitySchemes/tabletBearer
   parameters:
     SessionId:
       name: sessionId

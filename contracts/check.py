@@ -8,7 +8,8 @@ import sys
 import yaml
 
 HERE = pathlib.Path(__file__).parent
-FILES = ['common.yaml', 'tablet-sync.yaml', 'receiving.yaml', 'inventory.yaml', 'transactions.yaml']
+FILES = ['common.yaml', 'tablet-sync.yaml', 'receiving.yaml', 'inventory.yaml', 'transactions.yaml',
+         'identity.yaml', 'customers-vessels.yaml', 'devices.yaml', 'articles.yaml', 'audit.yaml']
 docs = {f: yaml.safe_load((HERE / f).read_text(encoding='utf-8')) for f in FILES}
 errors = []
 
