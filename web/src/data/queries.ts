@@ -43,7 +43,7 @@ export function activeDevice(vesselId: string): Device | undefined {
   return a ? deviceById(a.device) : undefined
 }
 
-/** The vessel a tablet serves now, or undefined. */
+/** The vessel a tablet serves now, or undefined once it has retired or been revoked. */
 export function vesselOfDevice(deviceId: string): Vessel | undefined {
   const a = assignments.find((x) => x.device === deviceId && x.unassignedAt === null)
   return a ? vesselById(a.vessel) : undefined
@@ -76,20 +76,17 @@ export function visibleVessels(user: User): Vessel[] {
   return vessels.filter((v) => ids.has(v.customer))
 }
 
-/** Tablets a user may manage: any for a PPG Admin; for a Customer Admin, those last paired to their vessels. */
+/** The vessel a tablet was enrolled to, current or not (a tablet is enrolled once). */
+export function enrolledVesselOfDevice(deviceId: string): Vessel | undefined {
+  const a = assignments.find((x) => x.device === deviceId)
+  return a ? vesselById(a.vessel) : undefined
+}
+
+/** Tablets a user may manage: any for a PPG Admin; for a Customer Admin, those enrolled to their vessels. */
 export function visibleDevices(user: User): Device[] {
   if (user.scope.kind === 'all') return devices
   const ids = new Set(visibleVessels(user).map((v) => v.id))
-  return devices.filter((d) => {
-    const last = assignments.filter((a) => a.device === d.id).sort((a, b) => b.assignedAt.localeCompare(a.assignedAt))[0]
-    return last !== undefined && ids.has(last.vessel)
-  })
-}
-
-/** The vessel a tablet was last paired to, current or not. */
-export function lastVesselOfDevice(deviceId: string): Vessel | undefined {
-  const last = assignments.filter((a) => a.device === deviceId).sort((a, b) => b.assignedAt.localeCompare(a.assignedAt))[0]
-  return last ? vesselById(last.vessel) : undefined
+  return devices.filter((d) => ids.has(enrolledVesselOfDevice(d.id)?.id ?? ''))
 }
 
 export function scopeLabel(user: User): string {
@@ -196,9 +193,15 @@ export function negativeStock(vesselIds: string[]): StockLine[] {
   return stockLines(vesselIds).filter((l) => l.cans < 0)
 }
 
+/** Scans still held for a PPG Admin. */
 export function unrecognisedFor(vesselIds: string[]) {
   const wanted = new Set(vesselIds)
-  return unrecognisedScans.filter((s) => wanted.has(s.vessel))
+  return unrecognisedScans.filter((s) => wanted.has(s.vessel) && s.status === 'open')
+}
+
+/** The held scan a delivery note line posted, open or matched, if its article was not in the master list. */
+export function scanForLine(dnNumber: string, articleNo: string) {
+  return unrecognisedScans.find((s) => s.dn === dnNumber && s.rawArticleNo === articleNo)
 }
 
 export function openHeldEventsFor(vesselIds: string[]) {
@@ -206,10 +209,10 @@ export function openHeldEventsFor(vesselIds: string[]) {
   return quarantinedEvents.filter((e) => wanted.has(e.vessel) && e.status === 'open')
 }
 
-/** Delivery notes whose IMO read from the paper does not match the vessel. */
-export function imoMismatchesFor(vesselIds: string[]) {
+/** Delivery notes listed for review: the IMO on the paper does not match the vessel, or was not read. */
+export function imoReviewFor(vesselIds: string[]) {
   const wanted = new Set(vesselIds)
-  return deliveryNotes.filter((d) => wanted.has(d.vessel) && d.imoCheck === 'mismatch')
+  return deliveryNotes.filter((d) => wanted.has(d.vessel) && d.imoCheck !== 'match')
 }
 
 // ---- Time ----

@@ -1,7 +1,8 @@
+import { QRCodeSVG } from 'qrcode.react'
 import { useState } from 'react'
+import { Link } from 'react-router'
 import { useViewer } from '../../app/viewer'
 import { Button } from '../../components/Button'
-import { CheckboxList } from '../../components/CheckboxList'
 import { Dialog } from '../../components/Dialog'
 import { Mono, Note } from '../../components/Page'
 import { TextField } from '../../components/TextField'
@@ -12,16 +13,15 @@ import { formatDateTime } from '../../lib/format'
 
 /**
  * Pair a tablet to a vessel with a one-time enrolment code, valid 72 hours (data model Domain 2).
- * The vessel signs in on the new tablet and enters the code; issuing a new code cancels the open one.
+ * Issuing a new code cancels the open one. The code is shown once, as a QR and as text: both are the same code. A vessel has one active tablet, so
+ * a code only works once the old tablet has retired; there is no replacing a tablet at enrolment.
  */
 export function PairTabletDialog({ vessel, onClose }: { vessel: Vessel; onClose: () => void }) {
   useStore()
   const { user } = useViewer()
   const current = activeDevice(vessel.id)
   const open = openEnrolmentCode(vessel.id)
-  const [replace, setReplace] = useState<'replace'[]>([])
   const [issued, setIssued] = useState<string | null>(null)
-  const ready = !current || replace.length > 0
   return (
     <Dialog
       title={`Pair a tablet · ${vessel.name}`}
@@ -32,7 +32,7 @@ export function PairTabletDialog({ vessel, onClose }: { vessel: Vessel; onClose:
             {issued ? 'Done' : 'Cancel'}
           </Button>
           {!issued && (
-            <Button disabled={!ready} onClick={() => setIssued(issueEnrolmentCode(vessel.id, replace.length > 0, user))}>
+            <Button onClick={() => setIssued(issueEnrolmentCode(vessel.id, user))}>
               {open ? 'Issue a new code' : 'Issue code'}
             </Button>
           )}
@@ -42,12 +42,19 @@ export function PairTabletDialog({ vessel, onClose }: { vessel: Vessel; onClose:
       <div className="flex flex-col gap-4">
         {issued ? (
           <>
-            <p>Enter this code on the new tablet after signing in as the vessel:</p>
+            <p>
+              Scan this QR code or enter the code on the new tablet, then confirm the vessel there. The tablet needs
+              a network connection.
+            </p>
+            <div className="flex justify-center">
+              <QRCodeSVG value={issued} size={180} marginSize={4} title="Enrolment QR code" />
+            </div>
             <p className="text-center text-2xl font-bold tracking-widest">
               <Mono>{issued}</Mono>
             </p>
             <p className="text-small">
-              It works once and expires in 72 hours. Share it with the vessel only.
+              This is the only time the code is shown. It works once and expires in 72 hours. Share it with the
+              vessel only.
             </p>
           </>
         ) : (
@@ -65,8 +72,8 @@ export function PairTabletDialog({ vessel, onClose }: { vessel: Vessel; onClose:
               <Note tone="warning">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <span>
-                    Code <Mono>{open.code}</Mono> is open, issued by {userById(open.issuedBy)?.name ?? 'an admin'};
-                    expires {formatDateTime(open.expiresAt)}. A new code cancels it.
+                    A code is open, issued by {userById(open.issuedBy)?.name ?? 'an admin'}; it expires{' '}
+                    {formatDateTime(open.expiresAt)}. A new code cancels it.
                   </span>
                   <Button variant="danger-link" onClick={() => cancelEnrolmentCode(open.id, user)}>
                     Cancel this code
@@ -75,19 +82,24 @@ export function PairTabletDialog({ vessel, onClose }: { vessel: Vessel; onClose:
               </Note>
             )}
             {current && (
-              <CheckboxList
-                label="Replacing the tablet"
-                value={replace}
-                onChange={setReplace}
-                options={[
-                  {
-                    value: 'replace',
-                    label: `The new tablet replaces ${current.id}; it is unpaired once the new one enrols`,
-                  },
-                ]}
-              />
+              <Note tone="warning">
+                {current.retireRequestedAt ? (
+                  <>
+                    <Mono>{current.id}</Mono> is waiting for its final sync. A code cannot be used until it has retired.
+                  </>
+                ) : (
+                  <>
+                    <Mono>{current.id}</Mono> is still active. A vessel has one tablet at a time, so a code cannot be
+                    used until it has retired: prepare it to retire, or retire it now if it is broken or lost, on the{' '}
+                    <Link to="/admin/customers?tab=tablets" className="font-semibold text-brand hover:underline">
+                      Tablets tab
+                    </Link>
+                    .
+                  </>
+                )}
+              </Note>
             )}
-            <p className="text-small">One tablet per vessel (D-12). The code is valid for 72 hours and works once.</p>
+            <p className="text-small">One tablet per vessel. The code is valid for 72 hours and works once.</p>
           </>
         )}
       </div>

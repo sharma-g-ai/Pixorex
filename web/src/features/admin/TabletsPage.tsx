@@ -11,8 +11,8 @@ import { FilterBar } from '../../components/ScopeFilters'
 import { SelectField } from '../../components/SelectField'
 import { TextAreaField } from '../../components/TextAreaField'
 import type { Device } from '../../data/model'
-import { lastVesselOfDevice, vesselOfDevice, visibleDevices } from '../../data/queries'
-import { retireDevice, revokeDevice, useStore } from '../../data/store'
+import { enrolledVesselOfDevice, vesselOfDevice, visibleDevices } from '../../data/queries'
+import { requestDeviceRetirement, retireDevice, revokeDevice, useStore } from '../../data/store'
 import { formatDateTime } from '../../lib/format'
 
 type Shown = 'active' | 'retiring' | 'retired' | 'revoked'
@@ -29,13 +29,15 @@ const looks: Record<Shown, { label: string; tone: BadgeTone }> = {
 }
 
 /**
- * The tablets enrolled to vessels (data model Domain 2). Retire one that is being replaced, after
- * its last sync; revoke one that is lost or stolen, which stops it syncing at once.
+ * The tablets enrolled to vessels (data model Domain 2). Prepare a working tablet that is being
+ * replaced, so it retires after its final sync; retire a broken or lost one at once; revoke one to
+ * stop it syncing. Retired and revoked are final.
  */
 export function TabletsPage() {
   useStore()
   const { user } = useViewer()
   const [status, setStatus] = useState<Shown | ''>('')
+  const [retiring, setRetiring] = useState<Device | null>(null)
   const [revoking, setRevoking] = useState<Device | null>(null)
   const rows = visibleDevices(user).filter((d) => !status || shownStatus(d) === status)
 
@@ -77,7 +79,7 @@ export function TabletsPage() {
                 width: 1.3,
                 cell: (d) => {
                   const now = vesselOfDevice(d.id)
-                  const last = now ?? lastVesselOfDevice(d.id)
+                  const last = now ?? enrolledVesselOfDevice(d.id)
                   return last ? (
                     <div>
                       <Link to={`/sea-stock?vessel=${last.id}`} className="font-semibold text-brand hover:underline">
@@ -123,16 +125,19 @@ export function TabletsPage() {
               },
               {
                 header: '',
-                width: 1,
+                width: 1.5,
                 align: 'right',
                 cell: (d) =>
                   d.status === 'active' && (
-                    <div className="flex justify-end gap-x-3">
+                    <div className="flex flex-wrap justify-end gap-x-3">
                       {!d.retireRequestedAt && (
-                        <Button variant="link" onClick={() => retireDevice(d.id, user)}>
-                          Retire
+                        <Button variant="link" onClick={() => requestDeviceRetirement(d.id, user)}>
+                          Prepare to retire
                         </Button>
                       )}
+                      <Button variant="danger-link" onClick={() => setRetiring(d)}>
+                        Retire now
+                      </Button>
                       <Button variant="danger-link" onClick={() => setRevoking(d)}>
                         Revoke
                       </Button>
@@ -144,11 +149,44 @@ export function TabletsPage() {
         </div>
       </Card>
       <Note>
-        Retire: the tablet uploads what it holds at its next sync, then stops. Revoke: it can no longer sync,
-        so anything not yet uploaded stays on it.
+        Prepare to retire: for a working tablet being replaced. It uploads what it holds at its next sync and
+        then retires; only then can the new tablet enrol. Retire now: for a broken or lost tablet that cannot
+        sync again; anything still on it is not uploaded. Revoke: it can no longer sync, so anything not yet
+        uploaded stays on it.
       </Note>
+      {retiring && <RetireNowDialog device={retiring} onClose={() => setRetiring(null)} />}
       {revoking && <RevokeDialog device={revoking} onClose={() => setRevoking(null)} />}
     </>
+  )
+}
+
+function RetireNowDialog({ device, onClose }: { device: Device; onClose: () => void }) {
+  const { user } = useViewer()
+  return (
+    <Dialog
+      title={`Retire ${device.id} now?`}
+      onClose={onClose}
+      footer={
+        <>
+          <Button variant="secondary" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button
+            variant="danger"
+            onClick={() => {
+              retireDevice(device.id, user)
+              onClose()
+            }}
+          >
+            Retire now
+          </Button>
+        </>
+      }
+    >
+      For a broken or lost tablet that cannot sync again. It retires at once and is unpaired from{' '}
+      {vesselOfDevice(device.id)?.name ?? 'its vessel'}. Anything still on it will not reach Sea Stock, and this
+      cannot be undone. For a working tablet, use Prepare to retire instead.
+    </Dialog>
   )
 }
 

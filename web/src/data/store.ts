@@ -5,7 +5,7 @@
  * Static screens only: there is no API behind this (see contracts/).
  */
 import { useSyncExternalStore } from 'react'
-import type { AuditEntry, Customer, Item, LabelField, Transaction, UnrecognisedScan, User, Vessel } from './model'
+import type { Assignment, AuditEntry, Customer, Item, Transaction, UnrecognisedScan, User, Vessel } from './model'
 import {
   assignments,
   auditLog,
@@ -14,7 +14,6 @@ import {
   devices,
   enrolmentCodes,
   items,
-  labelSchema,
   NOW,
   quarantinedEvents,
   transactions,
@@ -23,12 +22,12 @@ import {
   vessels,
 } from './sample'
 
-const KEY = 'seastock.data.v2'
+const KEY = 'seastock.data.v3'
 
 function snapshot() {
   return {
     customers, vessels, devices, assignments, enrolmentCodes, users, items, transactions,
-    unrecognisedScans, quarantinedEvents, deliveryNotes, auditLog, labelSchema: { ...labelSchema },
+    unrecognisedScans, quarantinedEvents, deliveryNotes, auditLog,
   }
 }
 
@@ -51,10 +50,6 @@ function load(data: Snapshot) {
   fill(quarantinedEvents, data.quarantinedEvents)
   fill(deliveryNotes, data.deliveryNotes)
   fill(auditLog, data.auditLog)
-  labelSchema.version = data.labelSchema.version
-  labelSchema.publishedOn = data.labelSchema.publishedOn
-  labelSchema.publishedBy = data.labelSchema.publishedBy
-  fill(labelSchema.fields, data.labelSchema.fields)
 }
 
 try {
@@ -163,15 +158,18 @@ function code(): string {
   return `${Array.from({ length: 4 }, pick).join('')}-${Array.from({ length: 4 }, pick).join('')}`
 }
 
-/** One open code per vessel: issuing a new one cancels the open one. Valid 72 hours. */
-export function issueEnrolmentCode(vesselId: string, allowsReplacement: boolean, by: User): string {
+/**
+ * One open code per vessel: issuing a new one cancels the open one. Valid 72 hours. Only the hash
+ * is stored, so the code is returned here once and never read back.
+ */
+export function issueEnrolmentCode(vesselId: string, by: User): string {
   for (const c of enrolmentCodes) if (c.vessel === vesselId && c.status === 'issued') c.status = 'cancelled'
   const value = code()
   const expires = new Date(`${NOW}:00Z`)
   expires.setUTCHours(expires.getUTCHours() + 72)
-  enrolmentCodes.push({ id: newId('ec'), vessel: vesselId, code: value, issuedBy: by.id, issuedAt: NOW, expiresAt: expires.toISOString().slice(0, 16), allowsReplacement, status: 'issued' })
+  enrolmentCodes.push({ id: newId('ec'), vessel: vesselId, issuedBy: by.id, issuedAt: NOW, expiresAt: expires.toISOString().slice(0, 16), status: 'issued' })
   const v = vessels.find((x) => x.id === vesselId)
-  audit(by, 'devices', `issued an enrolment code for ${v?.name ?? vesselId}${allowsReplacement ? ' (replaces the current tablet)' : ''}.`, vesselId)
+  audit(by, 'devices', `issued an enrolment code for ${v?.name ?? vesselId}.`, vesselId)
   changed()
   return value
 }
@@ -184,13 +182,35 @@ export function cancelEnrolmentCode(codeId: string, by: User) {
   changed()
 }
 
-/** The tablet retires after its next succeeded sync. */
+function endAssignment(deviceId: string, reason: NonNullable<Assignment['unassignReason']>) {
+  const a = assignments.find((x) => x.device === deviceId && x.unassignedAt === null)
+  if (!a) return null
+  a.unassignedAt = NOW
+  a.unassignReason = reason
+  return a
+}
+
+/**
+ * request_device_retirement(): a working tablet being replaced stays active, uploads what it holds
+ * at its next sync, and that sync retires it. Only then can a new tablet enrol. Set once.
+ */
+export function requestDeviceRetirement(deviceId: string, by: User) {
+  const d = devices.find((x) => x.id === deviceId)
+  if (!d || d.status !== 'active' || d.retireRequestedAt) return
+  d.retireRequestedAt = NOW
+  const a = assignments.find((x) => x.device === deviceId && x.unassignedAt === null)
+  audit(by, 'devices', `prepared tablet ${d.id} for retirement after its next sync.`, a?.vessel ?? null)
+  changed()
+}
+
+/** retire_device(): one click for a broken or lost tablet. Anything still on it is not uploaded. */
 export function retireDevice(deviceId: string, by: User) {
   const d = devices.find((x) => x.id === deviceId)
   if (!d || d.status !== 'active') return
-  d.retireRequestedAt = NOW
-  const a = assignments.find((x) => x.device === deviceId && x.unassignedAt === null)
-  audit(by, 'devices', `marked tablet ${d.id} to retire after its next sync.`, a?.vessel ?? null)
+  d.status = 'retired'
+  d.retiredAt = NOW
+  const a = endAssignment(d.id, 'device_retired')
+  audit(by, 'devices', `retired tablet ${d.id} at once.`, a?.vessel ?? null)
   changed()
 }
 
@@ -201,11 +221,7 @@ export function revokeDevice(deviceId: string, reason: string, by: User) {
   d.status = 'revoked'
   d.revokedAt = NOW
   d.revokeReason = reason
-  const a = assignments.find((x) => x.device === deviceId && x.unassignedAt === null)
-  if (a) {
-    a.unassignedAt = NOW
-    a.unassignReason = `Revoked: ${reason}`
-  }
+  const a = endAssignment(d.id, 'device_revoked')
   audit(by, 'devices', `revoked tablet ${d.id}: ${reason}`, a?.vessel ?? null)
   changed()
 }
@@ -245,23 +261,6 @@ export function addItems(newItems: Item[], by: User) {
   changed()
 }
 
-export function setItemStatus(articleNo: string, status: Item['status'], by: User) {
-  const item = items.find((i) => i.articleNo === articleNo)
-  if (!item) return
-  item.status = status
-  audit(by, 'articles', `${status === 'retired' ? 'retired' : 'restored'} article ${articleNo}.`)
-  changed()
-}
-
-export function publishLabelSchema(fields: LabelField[], by: User) {
-  labelSchema.fields.splice(0, labelSchema.fields.length, ...structuredClone(fields))
-  labelSchema.version += 1
-  labelSchema.publishedOn = NOW
-  labelSchema.publishedBy = by.id
-  audit(by, 'label_schema', `published label schema version ${labelSchema.version}.`)
-  changed()
-}
-
 // ---- Stock ----
 
 function post(t: Omit<Transaction, 'id'>) {
@@ -279,15 +278,18 @@ export function adjustStock(vesselId: string, articleNo: string, cans: number, r
 }
 
 /**
- * match_unrecognised_scan(): a PPG Admin matches a held scan to an active article. It posts as
- * one transaction (origin portal, source review match, dated at the original scan).
+ * match_unrecognised_scan(): a PPG Admin matches a held scan to an article in the master list. It
+ * posts as one transaction (origin portal, source review match, dated at the original scan) and
+ * the scan stays, marked matched. A matched scan is final.
  */
 export function matchScan(scan: UnrecognisedScan, articleNo: string, by: User) {
-  const i = unrecognisedScans.findIndex((s) => s.id === scan.id)
-  if (i < 0) return
-  unrecognisedScans.splice(i, 1)
-  const type = scan.kind === 'consumption' ? 'consumption' : scan.kind
-  post({ type, vessel: scan.vessel, articleNo, cans: scan.kind === 'consumption' ? -scan.cans : scan.cans, origin: 'portal', device: null, recordedBy: by.id, recordedAt: scan.recordedAt, receivedAt: NOW, source: 'Review match', reason: `Label read "${scan.rawArticleNo}"; matched to ${articleNo}.`, dn: scan.dn })
+  const held = unrecognisedScans.find((s) => s.id === scan.id && s.status === 'open')
+  if (!held) return
+  held.status = 'matched'
+  held.matchedArticle = articleNo
+  held.matchedBy = by.id
+  held.matchedAt = NOW
+  post({ type: scan.kind, vessel: scan.vessel, articleNo, cans: scan.kind === 'consumption' ? -scan.cans : scan.cans, origin: 'portal', device: null, recordedBy: by.id, recordedAt: scan.recordedAt, receivedAt: NOW, source: 'Review match', reason: `Label read "${scan.rawArticleNo}"; matched to ${articleNo}.`, dn: scan.dn })
   audit(by, 'inventory', `matched a held scan ("${scan.rawArticleNo}") to article ${articleNo}.`, scan.vessel)
   changed()
 }

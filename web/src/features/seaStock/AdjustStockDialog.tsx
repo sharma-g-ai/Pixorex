@@ -57,7 +57,7 @@ export function AdjustStockDialog({ vessel, onClose }: { vessel: Vessel; onClose
             { value: '', label: 'Choose a product…' },
             ...items.map((i) => ({
               value: i.articleNo,
-              label: `${i.articleNo} · ${i.product} ${i.shade || i.componentType} · ${i.packSize}${i.status === 'retired' ? ' (retired)' : ''}`,
+              label: `${i.articleNo} · ${i.product} ${i.shade || i.componentType} · ${i.packSize}`,
             })),
           ]}
         />

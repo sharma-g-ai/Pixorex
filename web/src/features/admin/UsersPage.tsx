@@ -225,7 +225,7 @@ function UserDialog({
               onSave({
                 id: user?.id ?? `u-${Date.now()}`,
                 name: name.trim(),
-                email: email.trim(),
+                email: email.trim().toLowerCase(),
                 title: title.trim(),
                 role,
                 scope,
@@ -292,7 +292,7 @@ function UserDialog({
             ]}
           />
         )}
-        {!user && <p className="text-small">They get an e-mail to set a password. The invite lasts 7 days.</p>}
+        {!user && <p className="text-small">They get an e-mail to set a password. The invite lasts 7 days (to confirm).</p>}
       </div>
     </Dialog>
   )

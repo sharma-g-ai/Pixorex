@@ -6,7 +6,7 @@ Pixorex Scanning Product Repo
 The 8-screen web portal. This is the main version; a 17-screen version is kept for reference only.
 
 Inventory and consumption tracking for PPG paint and thinners on board vessels.
-Basis: *PPG Sea Stock — MVP Business Requirements*, v1.3, and the SeaStock Data Models document.
+Basis: *PPG Sea Stock — MVP Business Requirements*, v1.3, and SeaStock Data Models V2.
 
 | Folder | What |
 |---|---|
@@ -49,14 +49,15 @@ The BRD does not set the sign-in method (D-11); e-mail and password follow the P
 ## Sample data
 
 Changes made in the screens (add, edit or import customers, vessels, users and products; pair,
-retire or revoke tablets; adjust stock; match unrecognised scans; close held sync events;
-publish the label schema) are written to the audit log,
+prepare, retire or revoke tablets; adjust stock; match unrecognised scans; close held sync events)
+are written to the audit log,
 show on every screen and are kept until the browser tab is closed. **Reset sample data** on
 the sign-in page brings everything back to the start, e.g. before a demo.
 
 All names, IDs and e-mail addresses are made up (`.example` domains). Product names and
 article numbers follow the BRD examples and are placeholders until PPG provides the master
-item list (D-02). Sea Stock is worked out from the transactions (opening count + receipts −
+item list (D-02). Imports ignore the file picked and show a sample; a file with "error" in its
+name shows a refused customer or vessel file. Sea Stock is worked out from the transactions (opening count + receipts −
 consumption ± adjustments), so totals always add up. Times are UTC; "now" is 21 Oct 2026, 16:00.
 
 See [docs/screens.md](docs/screens.md).

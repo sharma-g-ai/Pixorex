@@ -4,7 +4,7 @@ import { Dialog } from '../../components/Dialog'
 import { Card, Detail, Mono, Muted } from '../../components/Page'
 import { ComponentBadge, ImoCheckBadge, LineResultBadge } from '../../components/StockBadges'
 import type { DeliveryNote, DeliveryNoteLine } from '../../data/model'
-import { customerById, imoLabel, itemByArticle, liters, vesselById } from '../../data/queries'
+import { customerById, imoLabel, itemByArticle, scanForLine, vesselById } from '../../data/queries'
 import { formatDate, formatDateTime, formatLiters } from '../../lib/format'
 import { differences, receivedCans } from './DeliveryNotesTable'
 
@@ -12,6 +12,11 @@ import { differences, receivedCans } from './DeliveryNotesTable'
 export function DeliveryNoteDialog({ dn, onClose }: { dn: DeliveryNote; onClose: () => void }) {
   const vessel = vesselById(dn.vessel)
   const customer = vessel && customerById(vessel.customer)
+  // A line not in the master list stays as scanned; it shows an article only once a PPG Admin matches it.
+  const itemOf = (l: DeliveryNoteLine) => {
+    const scan = scanForLine(dn.dnNumber, l.articleNo)
+    return itemByArticle(scan ? (scan.matchedArticle ?? '') : l.articleNo)
+  }
 
   return (
     <Dialog
@@ -58,7 +63,7 @@ export function DeliveryNoteDialog({ dn, onClose }: { dn: DeliveryNote; onClose:
             <DataTable<DeliveryNoteLine>
               label="Tally"
               rows={dn.lines}
-              rowKey={(l) => l.articleNo}
+              rowKey={(l) => String(dn.lines.indexOf(l))}
               empty="No lines"
               columns={[
                 { header: 'Article no.', width: 0.8, cell: (l) => <Mono>{l.articleNo}</Mono> },
@@ -66,16 +71,18 @@ export function DeliveryNoteDialog({ dn, onClose }: { dn: DeliveryNote; onClose:
                   header: 'Item',
                   width: 1.9,
                   cell: (l) => {
-                    const item = itemByArticle(l.articleNo)
+                    const item = itemOf(l)
+                    if (!item) return <Muted>Not in the master list; held for a PPG Admin</Muted>
                     return (
                       <div className="flex min-w-0 items-center gap-2">
                         <div className="min-w-0">
-                          <div className="truncate font-semibold">{item?.product}</div>
+                          <div className="truncate font-semibold">{item.product}</div>
                           <Muted>
-                            {item?.shade || 'No shade'} · {item?.packSize}
+                            {item.shade || 'No shade'} · {item.packSize}
+                            {item.articleNo !== l.articleNo && ` · matched to ${item.articleNo}`}
                           </Muted>
                         </div>
-                        {item && <ComponentBadge type={item.componentType} />}
+                        <ComponentBadge type={item.componentType} />
                       </div>
                     )
                   },
@@ -109,11 +116,14 @@ export function DeliveryNoteDialog({ dn, onClose }: { dn: DeliveryNote; onClose:
                   header: 'Liters in',
                   width: 0.7,
                   align: 'right',
-                  cell: (l) => formatLiters(liters(l.articleNo, l.receivedCans)),
+                  cell: (l) => {
+                    const item = itemOf(l)
+                    return item ? formatLiters(l.receivedCans * item.unitVolume) : '—'
+                  },
                 },
                 {
                   header: 'Result',
-                  width: 0.9,
+                  width: 1.3,
                   cell: (l) => <LineResultBadge result={l.result} />,
                 },
                 {

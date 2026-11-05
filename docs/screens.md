@@ -1,6 +1,6 @@
 # Web portal screens — compact version
 
-Static screens for the web portal (BRD v1.3 §7, FR-20 – FR-26), in 8 screens, following the SeaStock Data Models document (30 Oct). The 17-screen version is in `C:\atg\ppg-seastock` (reference only).
+Static screens for the web portal (BRD v1.3 §7, FR-20 – FR-26), in 8 screens, following SeaStock Data Models V2 (16 tables, with the data model review of 2 Nov). The 17-screen version is in `C:\atg\ppg-seastock` (reference only).
 
 ## Screens (compact: 8)
 
@@ -11,9 +11,9 @@ Static screens for the web portal (BRD v1.3 §7, FR-20 – FR-26), in 8 screens,
 | 3 | **Sea Stock**: by product, vessel or customer; pick one vessel to see its details (IMO, customer, tablet, receiving mode, opening stock, sign-in, last sync) and *Adjust stock*; export summary or detail | `/sea-stock`, `?vessel=<id>` | FR-09, FR-13, FR-20, FR-24 | Sea Stock, Vessel page, Reports (stock) |
 | 4 | **Consumption**: by product, vessel or customer, any period; export summary or detail | `/consumption` | FR-07, FR-20, FR-24 | Consumption, Vessel page (consumption), Reports (consumption) |
 | 5 | **Activity**: tabs *Transactions*, *Delivery notes* (with IMO check), *Audit log*; a note's header and tally open in a panel | `/activity`, `?tab=notes\|audit`, `?dn=<number>` | FR-01 – FR-05, FR-12, FR-13 | Activity, Receipts, Delivery note, Vessel page (receipts, activity), Reports (receipts) |
-| 6 | **Customers & vessels**: tabs *Customers* (add, edit, import), *Vessels* (add, edit, import, pair tablet, reset password), *Tablets* (retire, revoke) | `/admin/customers?tab=` | FR-21 | Customers, Vessels |
+| 6 | **Customers & vessels**: tabs *Customers* (add, edit, import), *Vessels* (add, edit, import, pair tablet, reset password), *Tablets* (prepare to retire, retire now, revoke) | `/admin/customers?tab=` | FR-21 | Customers, Vessels |
 | 7 | **Users**: tabs *Users* (invite, resend, cancel, edit), *Roles & permissions* | `/admin/users?tab=` | FR-22, FR-23 | Users, Roles & permissions |
-| 8 | **Products**: tabs *Master item list*, *Label schema* | `/admin/products?tab=` | FR-25, FR-26 | Master item list, Label schema |
+| 8 | **Products**: the master item list | `/admin/products` | FR-25 | Master item list |
 
 Both roles land on the Overview. Vessels sign in on their tablet, not in the portal.
 
@@ -22,9 +22,14 @@ Both roles land on the Overview. Vessels sign in on their tablet, not in the por
 - **No geography.** Regions are gone; roll-up is vessel → customer → PPG (FR-24).
 - **Two portal roles.** The vessel is the tablet's user, so there is no vessel account in the portal.
 - **The IMO is the vessel ID**, checked with its check digit. The customer ID is the customer code.
-- **Tablets** are paired with a one-time enrolment code (72 hours), and can be retired or revoked.
+- **Tablets** are paired with a one-time enrolment code (72 hours), shown once as a QR and as text; both are the same code. A vessel has one active tablet: to replace a working one, prepare it to retire, it uploads at its next sync and retires, and only then can the new tablet enrol. A broken or lost tablet is retired at once. Replacing a tablet at enrolment is gone.
+- **Customer and vessel imports** are all-or-nothing: one bad row refuses the whole file and names the row.
+- **A vessel's customer** cannot be changed in the MVP.
+- **Articles are never retired or deleted**: the master list only grows, and a scan can be matched to any article on it.
+- **The label schema is deferred past the pilot** (FR-26): the tablet reads labels by article number only.
 - **Held sync events** (uploads the server could not apply) are listed for an admin to close.
 - **Unrecognised scans** are matched by a PPG Admin to an active article; no product + shade fallback (FR-02).
+- **Delivery notes to check**: every note whose IMO is not a match, so a mismatch or an IMO not read.
 - **Portal stock adjustment** with a required reason (FR-13); never edits an earlier row.
 - **Audit log** of every admin and tablet action.
 
@@ -35,7 +40,7 @@ Both roles land on the Overview. Vessels sign in on their tablet, not in the por
 | PPG Admin | Sea Stock admin; sales team | Every customer and vessel |
 | Customer Admin | Fleet Manager; Procurement | Own customer's vessels |
 
-Only a PPG Admin manages customers, adds or edits vessels, matches unrecognised scans, closes held events and maintains products and the label schema.
+Only a PPG Admin manages customers, adds or edits vessels, matches unrecognised scans, closes held events and maintains products.
 A Customer Admin imports their own vessels, pairs and revokes their tablets, resets vessel passwords, adjusts stock and invites their own customer's Customer Admins.
 
 ## Left out on purpose (BRD §10)
@@ -57,3 +62,8 @@ These are shown on the screens as proposals. Please confirm or correct.
 5. **Pack size vs unit volume** (§8 lists both). Do they ever differ?
 6. **Sign-in method:** PPG SSO, e-mail and password, or both (D-11)?
 7. **Late sync.** Overview lists a vessel as late after 3 days without sync (A-07: every 1–3 days). Confirm the threshold.
+8. **BRD v1.4.** Data Models V2 says articles are no longer retired (FR-25 says "additions and retirements") and the label schema is deferred (FR-26). The screens follow V2; both should be recorded in the BRD.
+9. **Wrong IMO on a delivery note.** The review proposed stopping the note on the server and showing it to the Customer Admin. Today it is accepted and flagged; the handling is to be decided.
+10. **Invite expiry.** No period is stated; the screens propose 7 days.
+11. **Editing an article.** The master list is maintained (FR-25) but no document says what can be edited, so the screens offer add and bulk load only.
+12. **Inactive vessels and customers.** Should an inactive vessel stay in Late or no sync (it does), and should an inactive customer's admin still sign in (they can)?

@@ -198,12 +198,13 @@ function ImportCustomersDialog({ onClose }: { onClose: () => void }) {
   return (
     <ImportDialog
       title="Import customers"
-      intro="Upload PPG’s customer list as Excel (.xlsx) or CSV with the columns: customer ID, customer name. A row whose customer ID is already here updates that customer’s name."
+      intro="Upload PPG’s customer list as Excel (.xlsx) or CSV with the columns: customer ID, customer name. A row whose customer ID is already here updates that customer’s name. All-or-nothing: one bad row refuses the whole file and names the row."
       counts={[
         { label: 'New customers', count: fresh.length, tone: 'success' },
         { label: 'Already here — name updated', count: known.length, tone: 'neutral' },
       ]}
       problems={['Row 7: the customer ID is empty.']}
+      allOrNothing
       toLoad={fresh.length + known.length}
       noun="customers"
       onLoad={() => importCustomers([...known, ...fresh], user)}

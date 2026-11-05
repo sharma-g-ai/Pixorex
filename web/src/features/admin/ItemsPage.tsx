@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { useViewer } from '../../app/viewer'
 import { Button } from '../../components/Button'
-import { StatusBadge } from '../../components/StatusBadge'
 import { DataTable } from '../../components/DataTable'
 import { Dialog } from '../../components/Dialog'
 import { Icon } from '../../components/icons'
@@ -14,24 +13,21 @@ import { ComponentBadge } from '../../components/StockBadges'
 import { TextField } from '../../components/TextField'
 import type { ComponentType, Item } from '../../data/model'
 import { items } from '../../data/sample'
-import { addItems, setItemStatus, useStore } from '../../data/store'
+import { addItems, useStore } from '../../data/store'
 import { formatLiters } from '../../lib/format'
 
-/** FR-25: the master item list, with additions, retirements and bulk load. */
+/** FR-25: the master item list, with additions and bulk load. It only grows: articles are never retired. */
 export function ItemsPage() {
   useStore()
   const { user } = useViewer()
   const rows = items
   const [component, setComponent] = useState('')
-  const [status, setStatus] = useState('active')
   const [search, setSearch] = useState('')
   const [adding, setAdding] = useState(false)
   const [bulk, setBulk] = useState(false)
-  const [retiring, setRetiring] = useState<Item | null>(null)
   const shown = rows.filter(
     (i) =>
       (!component || i.componentType === component) &&
-      (!status || i.status === status) &&
       `${i.articleNo} ${i.product} ${i.shade}`.toLowerCase().includes(search.trim().toLowerCase()),
   )
 
@@ -63,17 +59,6 @@ export function ItemsPage() {
               { value: 'Base', label: 'Base' },
               { value: 'Hardener', label: 'Hardener' },
               { value: '1K', label: '1K' },
-            ]}
-          />
-          <SelectField
-            label="Status"
-            className="w-36"
-            value={status}
-            onChange={(e) => setStatus(e.target.value)}
-            options={[
-              { value: 'active', label: 'Active' },
-              { value: 'retired', label: 'Retired' },
-              { value: '', label: 'All' },
             ]}
           />
           <TextField
@@ -112,34 +97,13 @@ export function ItemsPage() {
                   align: 'right',
                   cell: (i) => formatLiters(i.unitVolume),
                 },
-                {
-                  header: 'Status',
-                  width: 0.7,
-                  cell: (i) => <StatusBadge status={i.status} />,
-                },
-                {
-                  header: '',
-                  width: 0.6,
-                  align: 'right',
-                  cell: (i) =>
-                    i.status === 'active' ? (
-                      <Button variant="danger-link" onClick={() => setRetiring(i)}>
-                        Retire
-                      </Button>
-                    ) : (
-                      <Button variant="link" onClick={() => setItemStatus(i.articleNo, 'active', user)}>
-                        Restore
-                      </Button>
-                    ),
-                },
               ]}
             />
           </div>
         </Card>
         <Note>
-          Retired items stay on the list so past transactions keep their product details, and a
-          scan of a retired article is still recognised. Pack size is as printed; unit volume is the liters per
-          can used for inventory (to confirm with PPG whether the two ever differ).
+          The master list only grows: articles are never retired or deleted. Pack size is as printed; unit
+          volume is the liters per can used for inventory (to confirm with PPG whether the two ever differ).
         </Note>
       </>
 
@@ -154,31 +118,6 @@ export function ItemsPage() {
         />
       )}
       {bulk && <BulkLoadDialog onClose={() => setBulk(false)} />}
-      {retiring && (
-        <Dialog
-          title={`Retire ${retiring.articleNo}?`}
-          onClose={() => setRetiring(null)}
-          footer={
-            <>
-              <Button variant="secondary" onClick={() => setRetiring(null)}>
-                Cancel
-              </Button>
-              <Button
-                variant="danger"
-                onClick={() => {
-                  setItemStatus(retiring.articleNo, 'retired', user)
-                  setRetiring(null)
-                }}
-              >
-                Retire item
-              </Button>
-            </>
-          }
-        >
-          {retiring.product} {retiring.shade || retiring.componentType}, {retiring.packSize}. Stock
-          already on board stays in Sea Stock, and scans of this article are still recognised. Retired items are not offered when matching unrecognised scans.
-        </Dialog>
-      )}
     </>
   )
 }
@@ -224,7 +163,6 @@ function ItemDialog({
                 componentType,
                 packSize: `${volume} L`,
                 unitVolume: volume,
-                status: 'active',
               })
             }
           >
@@ -311,7 +249,6 @@ const bulkSample: Item[] = [
     componentType: 'Base',
     packSize: '20 L',
     unitVolume: 20,
-    status: 'active',
   },
   {
     articleNo: '189956',
@@ -321,7 +258,6 @@ const bulkSample: Item[] = [
     componentType: 'Hardener',
     packSize: '5 L',
     unitVolume: 5,
-    status: 'active',
   },
   {
     articleNo: '184520',
@@ -331,7 +267,6 @@ const bulkSample: Item[] = [
     componentType: 'Base',
     packSize: '20 L',
     unitVolume: 20,
-    status: 'active',
   },
   {
     articleNo: '184521',
@@ -341,7 +276,6 @@ const bulkSample: Item[] = [
     componentType: 'Hardener',
     packSize: '5 L',
     unitVolume: 5,
-    status: 'active',
   },
   {
     articleNo: '181205',
@@ -351,7 +285,6 @@ const bulkSample: Item[] = [
     componentType: 'Base',
     packSize: '20 L',
     unitVolume: 20,
-    status: 'active',
   },
   {
     articleNo: '100294',
@@ -361,7 +294,6 @@ const bulkSample: Item[] = [
     componentType: '1K',
     packSize: '5 L',
     unitVolume: 5,
-    status: 'active',
   },
 ]
 
@@ -373,7 +305,7 @@ function BulkLoadDialog({ onClose }: { onClose: () => void }) {
   return (
     <ImportDialog
       title="Bulk load items"
-      intro="Upload PPG’s item list as Excel (.xlsx) or CSV with the columns: article number, product, shade, product type, component type, pack size, unit volume. Items missing from the file are not retired automatically."
+      intro="Upload PPG’s item list as Excel (.xlsx) or CSV with the columns: article number, product, shade, product type, component type, pack size, unit volume. Items missing from the file stay on the list."
       counts={[
         { label: 'New items', count: fresh.length, tone: 'success' },
         { label: 'Already on the list', count: fileRows.length - fresh.length, tone: 'neutral' },

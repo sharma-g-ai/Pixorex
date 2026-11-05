@@ -261,6 +261,7 @@ function VesselDialog({
         <SelectField
           label="Customer"
           value={customer}
+          disabled={vessel !== null}
           onChange={(e) => setCustomer(e.target.value)}
           options={[
             { value: '', label: 'Choose a customer…' },
@@ -291,7 +292,7 @@ function VesselDialog({
         </div>
         <p className="text-small">
           {vessel
-            ? 'The IMO cannot be changed: it ties the vessel to its stock and history.'
+            ? 'The IMO and the customer cannot be changed: the IMO ties the vessel to its stock and history, and a vessel cannot move to another customer in the MVP.'
             : 'The IMO read from a delivery note is checked against this number.'}{' '}
           The receiving setting reaches the tablet at its next sync.
         </p>
@@ -327,16 +328,19 @@ function ImportVesselsDialog({ onClose }: { onClose: () => void }) {
   const toAdd = fresh.filter((r) => !vessels.some((v) => v.imo === r.imo))
   const known = visibleVessels(user).slice(0, 2)
   const problems = ['Row 5: IMO 9812345 fails the check digit.']
-  if (user.scope.kind === 'customer') problems.push('Row 6: customer ID C-104530 is not your customer.')
+  const other = vessels.find((v) => v.customer !== target?.id)
+  if (other) problems.push(`Row 6: IMO ${other.imo} belongs to another customer.`)
+  if (user.scope.kind === 'customer') problems.push('Row 7: customer ID C-104530 is not your customer.')
   return (
     <ImportDialog
       title="Import vessels"
-      intro="Upload the vessel list as Excel (.xlsx) or CSV with the columns: IMO number, vessel name, customer ID. A row whose IMO is already here updates that vessel’s name."
+      intro="Upload the vessel list as Excel (.xlsx) or CSV with the columns: IMO number, vessel name, customer ID. A row whose IMO is already here updates that vessel’s name. All-or-nothing: a bad check digit, or an IMO that belongs to another customer, refuses the whole file and names the row."
       counts={[
         { label: 'New vessels', count: toAdd.length, tone: 'success' },
         { label: 'Already here — name updated', count: known.length, tone: 'neutral' },
       ]}
       problems={problems}
+      allOrNothing
       toLoad={toAdd.length + known.length}
       noun="vessels"
       onLoad={() => importVessels([...known, ...toAdd], user)}

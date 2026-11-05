@@ -12,7 +12,6 @@ import type {
   Device,
   EnrolmentCode,
   Item,
-  LabelField,
   QuarantinedEvent,
   Transaction,
   UnrecognisedScan,
@@ -85,28 +84,28 @@ export const assignments: Assignment[] = [
     unassignedAt: null,
     unassignReason: null,
   })),
-  { id: 'as-old', vessel: 'v01', device: 'TAB-0099', assignedAt: '2026-09-25T07:00', unassignedAt: '2026-09-30T07:00', unassignReason: 'Replaced by TAB-0101' },
+  { id: 'as-old', vessel: 'v01', device: 'TAB-0099', assignedAt: '2026-09-25T07:00', unassignedAt: '2026-09-30T06:00', unassignReason: 'device_retired' },
 ]
 
 export const enrolmentCodes: EnrolmentCode[] = [
-  { id: 'ec1', vessel: 'v12', code: 'K7QM-4XPD', issuedBy: 'u02', issuedAt: '2026-10-20T09:00', expiresAt: '2026-10-23T09:00', allowsReplacement: false, status: 'issued' },
+  { id: 'ec1', vessel: 'v12', issuedBy: 'u02', issuedAt: '2026-10-20T09:00', expiresAt: '2026-10-23T09:00', status: 'issued' },
 ]
 
 export const items: Item[] = [
-  { articleNo: '179061', product: 'SIGMACOVER 350', shade: 'Grey 5177', productType: '2K', componentType: 'Base', packSize: '20 L', unitVolume: 20, status: 'active' },
-  { articleNo: '179063', product: 'SIGMACOVER 350', shade: 'Red brown 6179', productType: '2K', componentType: 'Base', packSize: '20 L', unitVolume: 20, status: 'active' },
-  { articleNo: '179062', product: 'SIGMACOVER 350', shade: '', productType: '2K', componentType: 'Hardener', packSize: '5 L', unitVolume: 5, status: 'active' },
-  { articleNo: '184102', product: 'SIGMADUR 550', shade: 'White 7000', productType: '2K', componentType: 'Base', packSize: '20 L', unitVolume: 20, status: 'active' },
-  { articleNo: '184105', product: 'SIGMADUR 550', shade: 'Signal red 3000', productType: '2K', componentType: 'Base', packSize: '5 L', unitVolume: 5, status: 'active' },
-  { articleNo: '184103', product: 'SIGMADUR 550', shade: '', productType: '2K', componentType: 'Hardener', packSize: '2.5 L', unitVolume: 2.5, status: 'active' },
-  { articleNo: '181201', product: 'SIGMAPRIME 200', shade: 'Yellow green', productType: '2K', componentType: 'Base', packSize: '20 L', unitVolume: 20, status: 'active' },
-  { articleNo: '181202', product: 'SIGMAPRIME 200', shade: '', productType: '2K', componentType: 'Hardener', packSize: '5 L', unitVolume: 5, status: 'active' },
-  { articleNo: '187401', product: 'SIGMAGUARD CSF 585', shade: 'Off-white', productType: '2K', componentType: 'Base', packSize: '20 L', unitVolume: 20, status: 'active' },
-  { articleNo: '187402', product: 'SIGMAGUARD CSF 585', shade: '', productType: '2K', componentType: 'Hardener', packSize: '5 L', unitVolume: 5, status: 'active' },
-  { articleNo: '100292', product: 'PPG THINNER 91-92', shade: '', productType: '1K', componentType: '1K', packSize: '20 L', unitVolume: 20, status: 'active' },
-  { articleNo: '100293', product: 'PPG THINNER 21-06', shade: '', productType: '1K', componentType: '1K', packSize: '20 L', unitVolume: 20, status: 'active' },
-  { articleNo: '175510', product: 'SIGMACOVER 280', shade: 'Grey 5177', productType: '2K', componentType: 'Base', packSize: '20 L', unitVolume: 20, status: 'retired' },
-  { articleNo: '175511', product: 'SIGMACOVER 280', shade: '', productType: '2K', componentType: 'Hardener', packSize: '5 L', unitVolume: 5, status: 'retired' },
+  { articleNo: '179061', product: 'SIGMACOVER 350', shade: 'Grey 5177', productType: '2K', componentType: 'Base', packSize: '20 L', unitVolume: 20 },
+  { articleNo: '179063', product: 'SIGMACOVER 350', shade: 'Red brown 6179', productType: '2K', componentType: 'Base', packSize: '20 L', unitVolume: 20 },
+  { articleNo: '179062', product: 'SIGMACOVER 350', shade: '', productType: '2K', componentType: 'Hardener', packSize: '5 L', unitVolume: 5 },
+  { articleNo: '184102', product: 'SIGMADUR 550', shade: 'White 7000', productType: '2K', componentType: 'Base', packSize: '20 L', unitVolume: 20 },
+  { articleNo: '184105', product: 'SIGMADUR 550', shade: 'Signal red 3000', productType: '2K', componentType: 'Base', packSize: '5 L', unitVolume: 5 },
+  { articleNo: '184103', product: 'SIGMADUR 550', shade: '', productType: '2K', componentType: 'Hardener', packSize: '2.5 L', unitVolume: 2.5 },
+  { articleNo: '181201', product: 'SIGMAPRIME 200', shade: 'Yellow green', productType: '2K', componentType: 'Base', packSize: '20 L', unitVolume: 20 },
+  { articleNo: '181202', product: 'SIGMAPRIME 200', shade: '', productType: '2K', componentType: 'Hardener', packSize: '5 L', unitVolume: 5 },
+  { articleNo: '187401', product: 'SIGMAGUARD CSF 585', shade: 'Off-white', productType: '2K', componentType: 'Base', packSize: '20 L', unitVolume: 20 },
+  { articleNo: '187402', product: 'SIGMAGUARD CSF 585', shade: '', productType: '2K', componentType: 'Hardener', packSize: '5 L', unitVolume: 5 },
+  { articleNo: '100292', product: 'PPG THINNER 91-92', shade: '', productType: '1K', componentType: '1K', packSize: '20 L', unitVolume: 20 },
+  { articleNo: '100293', product: 'PPG THINNER 21-06', shade: '', productType: '1K', componentType: '1K', packSize: '20 L', unitVolume: 20 },
+  { articleNo: '175510', product: 'SIGMACOVER 280', shade: 'Grey 5177', productType: '2K', componentType: 'Base', packSize: '20 L', unitVolume: 20 },
+  { articleNo: '175511', product: 'SIGMACOVER 280', shade: '', productType: '2K', componentType: 'Hardener', packSize: '5 L', unitVolume: 5 },
 ]
 
 const accepted = (sentAt: string) => ({ status: 'accepted' as const, sentAt, expiresAt: sentAt })
@@ -308,9 +307,9 @@ export const transactions: Transaction[] = buildTransactions()
 
 /** Not in Sea Stock until a PPG Admin matches them to an article (no product-and-shade guessing). */
 export const unrecognisedScans: UnrecognisedScan[] = [
-  { id: 'us1', vessel: 'v07', device: 'TAB-0301', kind: 'receipt', rawArticleNo: '189955', rawLabel: { product: 'SIGMASHIELD 1200', shade: 'Grey' }, cans: 2, recordedAt: '2026-10-11T02:05', receivedAt: '2026-10-12T04:30', dn: '5324655402' },
-  { id: 'us2', vessel: 'v10', device: 'TAB-0501', kind: 'consumption', rawArticleNo: '18452O', rawLabel: { product: 'SIGMADUR 520', shade: 'Black 9000' }, cans: 1, recordedAt: '2026-10-18T15:25', receivedAt: '2026-10-19T11:25' },
-  { id: 'us3', vessel: 'v01', device: 'TAB-0101', kind: 'consumption', rawArticleNo: '17906l', rawLabel: { product: 'SIGMACOVER 350', shade: 'Grey 5177' }, cans: 1, recordedAt: '2026-10-20T07:58', receivedAt: '2026-10-21T03:58' },
+  { id: 'us1', vessel: 'v07', device: 'TAB-0301', kind: 'receipt', rawArticleNo: '189955', rawLabel: { product: 'SIGMASHIELD 1200', shade: 'Grey' }, cans: 2, recordedAt: '2026-10-11T02:05', receivedAt: '2026-10-12T04:30', dn: '5324655402', status: 'open', matchedArticle: null, matchedBy: null, matchedAt: null },
+  { id: 'us2', vessel: 'v10', device: 'TAB-0501', kind: 'consumption', rawArticleNo: '18452O', rawLabel: { product: 'SIGMADUR 520', shade: 'Black 9000' }, cans: 1, recordedAt: '2026-10-18T15:25', receivedAt: '2026-10-19T11:25', status: 'open', matchedArticle: null, matchedBy: null, matchedAt: null },
+  { id: 'us3', vessel: 'v01', device: 'TAB-0101', kind: 'consumption', rawArticleNo: '17906l', rawLabel: { product: 'SIGMACOVER 350', shade: 'Grey 5177' }, cans: 1, recordedAt: '2026-10-20T07:58', receivedAt: '2026-10-21T03:58', status: 'open', matchedArticle: null, matchedBy: null, matchedAt: null },
 ]
 
 /** Uploaded events the server could not apply, held for an admin. */
@@ -329,27 +328,7 @@ export const auditLog: AuditEntry[] = [
   { id: 'a06', at: '2026-10-20T04:00', actorType: 'user', actor: 'u01', vessel: null, customer: 'c4', category: 'users', summary: 'Dana Whitfield invited Nur Aisyah as Customer Admin of Straits Offshore Services.' },
   { id: 'a07', at: '2026-10-16T09:00', actorType: 'user', actor: 'u01', vessel: 'v02', customer: 'c1', category: 'sync', summary: 'Dana Whitfield dismissed a held event from Nordhavn Borealis: empty scan by mistake.' },
   { id: 'a08', at: '2026-10-15T08:00', actorType: 'user', actor: 'u01', vessel: null, customer: 'c4', category: 'customers_vessels', summary: 'Dana Whitfield added customer Straits Offshore Services (C-208190).' },
-  { id: 'a09', at: '2026-10-14T09:30', actorType: 'user', actor: 'u01', vessel: null, customer: null, category: 'label_schema', summary: 'Dana Whitfield published label schema version 3.' },
   { id: 'a10', at: '2026-10-12T09:00', actorType: 'user', actor: 'u06', vessel: 'v04', customer: 'c1', category: 'customers_vessels', summary: 'Ingrid Solberg recorded a password reset for Nordhavn Skagen (crew change).' },
   { id: 'a11', at: '2026-10-02T06:30', actorType: 'device', actor: 'TAB-0104', vessel: 'v04', customer: 'c1', category: 'devices', summary: 'Tablet TAB-0104 enrolled on Nordhavn Skagen.' },
   { id: 'a12', at: '2026-09-30T06:00', actorType: 'system', actor: null, vessel: 'v01', customer: 'c1', category: 'devices', summary: 'Tablet TAB-0099 retired after its final sync.' },
 ]
-
-/** Domain 3 label schema: the published version the tablets use. */
-export const labelSchema = {
-  version: 3,
-  publishedOn: '2026-10-14T09:30',
-  publishedBy: 'u01',
-  fields: [
-    { key: 'article_no', label: 'Article number', required: 'Always', purpose: 'Matches the can to the delivery-note line and the master item list', rule: '6 digits' },
-    { key: 'product', label: 'Product', required: 'Always', purpose: 'Shown to the crew to check the scan', rule: 'As printed' },
-    { key: 'shade', label: 'Shade / colour', required: 'Where present', purpose: 'Shown to the crew to check the scan', rule: 'Free text as printed, e.g. "Grey 5177"' },
-    { key: 'component_type', label: 'Component type', required: 'Always', purpose: 'Base, Hardener or 1K', rule: 'See component rules below' },
-    { key: 'pack_volume', label: 'Pack volume', required: 'Always', purpose: 'Checked against the article', rule: 'Number and unit, e.g. "20 L"' },
-    { key: 'batch_no', label: 'Batch number', required: 'Where present', purpose: 'Kept with the transaction', rule: 'Letters and digits as printed' },
-  ] as LabelField[],
-  componentRules: [
-    { when: 'Product is one component (1K), including thinners', then: 'Component type = 1K' },
-    { when: 'Product is two components (2K)', then: 'Component type = Base or Hardener, as printed on the label' },
-  ],
-}

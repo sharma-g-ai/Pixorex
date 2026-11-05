@@ -7,7 +7,7 @@ import {
   consumedTotals,
   consumptionLines,
   daysAgo,
-  imoMismatchesFor,
+  imoReviewFor,
   negativeStock,
   openHeldEventsFor,
   scopeLabel,
@@ -44,7 +44,7 @@ export function OverviewPage() {
     ? negativeStock(ids).length +
       unrecognisedFor(ids).length +
       openHeldEventsFor(ids).length +
-      imoMismatchesFor(ids).length
+      imoReviewFor(ids).length
     : null
 
   return (

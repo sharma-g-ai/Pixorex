@@ -79,7 +79,7 @@ export function DeliveryNotesTable({
           cell: (dn) => <ImoCheckBadge check={dn.imoCheck} />,
         },
         {
-          header: 'Received',
+          header: 'Confirmed',
           width: 1.3,
           cell: (dn) => (
             <div>

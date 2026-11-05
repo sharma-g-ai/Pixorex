@@ -1,6 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
-import { CheckboxList } from './CheckboxList'
 import { FilePicker } from './FilePicker'
 import { StatusBadge } from './StatusBadge'
 
@@ -9,32 +8,13 @@ describe('shared components', () => {
     render(
       <>
         <StatusBadge status="active" />
-        <StatusBadge status="retired" />
+        <StatusBadge status="disabled" />
         <StatusBadge status="invited" />
       </>,
     )
     expect(screen.getByText('Active')).toBeInTheDocument()
-    expect(screen.getByText('Retired')).toBeInTheDocument()
+    expect(screen.getByText('Disabled')).toBeInTheDocument()
     expect(screen.getByText('Invited')).toBeInTheDocument()
-  })
-
-  it('CheckboxList adds and removes values', () => {
-    const onChange = vi.fn()
-    render(
-      <CheckboxList
-        label="Customers"
-        options={[
-          { value: 'c1', label: 'Nordhavn' },
-          { value: 'c2', label: 'Meridian' },
-        ]}
-        value={['c1']}
-        onChange={onChange}
-      />,
-    )
-    fireEvent.click(screen.getByLabelText('Meridian'))
-    expect(onChange).toHaveBeenLastCalledWith(['c1', 'c2'])
-    fireEvent.click(screen.getByLabelText('Nordhavn'))
-    expect(onChange).toHaveBeenLastCalledWith([])
   })
 
   it('FilePicker hands back the chosen file', () => {

@@ -9,7 +9,6 @@ export const auditCategories: Record<AuditEntry['category'], string> = {
   customers_vessels: 'Customers & vessels',
   devices: 'Tablets',
   articles: 'Products',
-  label_schema: 'Label schema',
   delivery_notes: 'Delivery notes',
   inventory: 'Stock',
   sync: 'Sync',

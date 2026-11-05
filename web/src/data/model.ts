@@ -1,6 +1,6 @@
 /**
- * The Sea Stock data model: BRD v1.3 (21 Oct 2026) and the SeaStock Data Models (30 Oct 2026,
- * 18 tables). Domain numbers point to the data model.
+ * The Sea Stock data model: BRD v1.3 (21 Oct 2026) and SeaStock Data Models V2 (16 tables, with the
+ * data model review of 2 Nov 2026). Domain numbers point to the data model.
  * Static screens only: this is sample data, not the API (see contracts/).
  */
 
@@ -45,14 +45,14 @@ export interface Device {
   status: 'active' | 'retired' | 'revoked'
   enrolledAt: string
   firstSyncedAt: string | null
-  /** Retires after its next succeeded sync. */
+  /** An admin prepared it for retirement: it retires after its next succeeded sync. */
   retireRequestedAt: string | null
   retiredAt: string | null
   revokedAt: string | null
   revokeReason: string | null
 }
 
-/** Domain 2: which tablet served which vessel, and when. One active row per vessel and per tablet. */
+/** Domain 2: the one-off enrolment of a tablet to a vessel. A tablet is enrolled once; one active row per vessel. */
 export interface Assignment {
   id: string
   vessel: string
@@ -60,28 +60,27 @@ export interface Assignment {
   assignedAt: string
   /** Null = active. */
   unassignedAt: string | null
-  unassignReason: string | null
+  unassignReason: 'device_retired' | 'device_revoked' | null
 }
 
-/** Domain 2: one-time code that binds a tablet to one vessel (QR or typed). */
+/**
+ * Domain 2: one-time code that binds a tablet to one vessel (QR or typed). Only its hash is stored,
+ * so the code itself is shown once, to the admin who issues it, and is never read back.
+ */
 export interface EnrolmentCode {
   id: string
   vessel: string
-  /** Shown once to the admin who issues it; only its hash is stored. */
-  code: string
   issuedBy: string
   issuedAt: string
   /** 72 hours by default. */
   expiresAt: string
-  /** The admin allowed replacing the vessel's active tablet. */
-  allowsReplacement: boolean
   status: 'issued' | 'used' | 'cancelled'
 }
 
 /** One component (1K) or two components (2K: Base or Hardener) (D-10). */
 export type ComponentType = 'Base' | 'Hardener' | '1K'
 
-/** Domain 3: one PPG product as sold. */
+/** Domain 3: one PPG product as sold. The master list only grows: articles are never retired or deleted. */
 export interface Item {
   articleNo: string
   product: string
@@ -93,8 +92,6 @@ export interface Item {
   packSize: string
   /** Liters per can, used to turn cans into liters. */
   unitVolume: number
-  /** A retired article still matches scans. */
-  status: 'active' | 'retired'
 }
 
 /** Domain 5 transaction types. */
@@ -198,6 +195,11 @@ export interface UnrecognisedScan {
   recordedAt: string
   receivedAt: string
   dn?: string
+  /** A matched scan is final and is kept, with who matched it. */
+  status: 'open' | 'matched'
+  matchedArticle: string | null
+  matchedBy: string | null
+  matchedAt: string | null
 }
 
 /** Domain 2: an uploaded event the server could not apply, held for an admin. */
@@ -233,18 +235,8 @@ export interface AuditEntry {
     | 'customers_vessels'
     | 'devices'
     | 'articles'
-    | 'label_schema'
     | 'delivery_notes'
     | 'inventory'
     | 'sync'
   summary: string
-}
-
-/** Domain 3: one field the tablet reads from a can label. */
-export interface LabelField {
-  key: string
-  label: string
-  required: 'Always' | 'Where present' | 'Base and 1K only'
-  purpose: string
-  rule: string
 }

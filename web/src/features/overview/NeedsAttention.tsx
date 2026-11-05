@@ -13,7 +13,7 @@ import {
   activeDevice,
   customerById,
   daysSince,
-  imoMismatchesFor,
+  imoReviewFor,
   negativeStock,
   openHeldEventsFor,
   unrecognisedFor,
@@ -55,7 +55,7 @@ const kindToType = { receipt: 'receipt', consumption: 'consumption', baseline: '
 /**
  * What needs someone's attention: late syncs, negative stock, scans whose article number is not
  * in the master list, uploads the server could not apply, and delivery notes whose IMO does not
- * match the vessel (BRD §13; data model Domains 2, 4, 5).
+ * match the vessel or was not read (BRD §13; data model Domains 2, 4, 5).
  */
 export function NeedsAttention() {
   useStore()
@@ -65,7 +65,7 @@ export function NeedsAttention() {
   const negative = negativeStock(ids)
   const unrecognised = unrecognisedFor(ids)
   const held = openHeldEventsFor(ids)
-  const mismatches = imoMismatchesFor(ids)
+  const toCheck = imoReviewFor(ids)
   const [matching, setMatching] = useState<UnrecognisedScan | null>(null)
   const [closing, setClosing] = useState<QuarantinedEvent | null>(null)
 
@@ -206,13 +206,13 @@ export function NeedsAttention() {
         </div>
       </Card>
 
-      <Card title="Delivery notes with an IMO mismatch" subtitle="The IMO read from the paper is not this vessel’s. The receipt is still on the tablet’s vessel; check the note." flush>
+      <Card title="Delivery notes to check" subtitle="The IMO on the paper is not this vessel’s, or could not be read. The receipt is still on the tablet’s vessel; check the note." flush>
         <div className="p-4">
           <DataTable
-            label="IMO mismatches"
-            rows={mismatches}
+            label="Delivery notes to check"
+            rows={toCheck}
             rowKey={(d) => d.dnNumber}
-            empty="No mismatches"
+            empty="No delivery notes to check"
             columns={[
               { header: 'Vessel', width: 1.3, cell: (d) => <VesselCell vesselId={d.vessel} /> },
               {
@@ -241,7 +241,7 @@ export function NeedsAttention() {
                   </div>
                 ),
               },
-              { header: 'Received', width: 1, cell: (d) => formatDateTime(d.confirmedAt) },
+              { header: 'Confirmed', width: 1, cell: (d) => formatDateTime(d.confirmedAt) },
             ]}
           />
         </div>
@@ -289,9 +289,7 @@ function MatchDialog({ scan, onClose }: { scan: UnrecognisedScan; onClose: () =>
           onChange={(e) => setArticle(e.target.value)}
           options={[
             { value: '', label: 'Choose an article…' },
-            ...items
-              .filter((i) => i.status === 'active')
-              .map((i) => ({ value: i.articleNo, label: `${i.articleNo} · ${i.product} ${i.shade || i.componentType} · ${i.packSize}` })),
+            ...items.map((i) => ({ value: i.articleNo, label: `${i.articleNo} · ${i.product} ${i.shade || i.componentType} · ${i.packSize}` })),
           ]}
         />
         <Note>

@@ -12,6 +12,7 @@ import { Tabs } from '../../components/Tabs'
 import { TextField } from '../../components/TextField'
 import type { ComponentType, Item, Vessel } from '../../data/model'
 import { customerById, stockByProduct, stockLines, totals, vesselById } from '../../data/queries'
+import { useStore } from '../../data/store'
 import { downloadCsv } from '../../lib/csv'
 import { formatLiters } from '../../lib/format'
 import { groupOfVessel, rollUpLabels, rollUpsFor, type RollUp } from '../../lib/rollUp'
@@ -36,10 +37,10 @@ interface GroupRow {
 
 /**
  * FR-20 Sea Stock for any vessel in scope, rolled up by product, vessel or customer
- * (FR-25), with CSV export. Picking one vessel shows its details: this is also the vessel page
- * and the Chief Officer's home.
+ * (FR-24), with CSV export. Picking one vessel shows its details: this is also the vessel page.
  */
 export function SeaStockPage() {
+  useStore()
   const { user } = useViewer()
   const scope = useScopeFilter()
   const rollUps = rollUpsFor[user.role]

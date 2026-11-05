@@ -71,7 +71,7 @@ const sections: NavSection[] = [
         path: '/admin/products',
         label: 'Products',
         icon: 'list',
-        brd: 'FR-25, FR-26',
+        brd: 'FR-25',
         needs: ['manage-items'],
       },
     ],

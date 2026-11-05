@@ -38,7 +38,6 @@ export type Permission =
   | 'reset-vessel-password'
   | 'manage-users'
   | 'manage-items'
-  | 'manage-label-schema'
   | 'view-audit'
 
 export const permissionLabels: { key: Permission; label: string; note?: string }[] = [
@@ -52,11 +51,10 @@ export const permissionLabels: { key: Permission; label: string; note?: string }
   { key: 'import-customers', label: 'Import customers from Excel' },
   { key: 'manage-vessels', label: 'Add and edit vessels' },
   { key: 'import-vessels', label: 'Import vessels from Excel', note: 'Customer Admin: own customer only' },
-  { key: 'manage-tablets', label: 'Pair tablets (enrolment code), retire and revoke tablets', note: 'Customer Admin: own vessels only' },
+  { key: 'manage-tablets', label: 'Pair tablets (enrolment code); prepare to retire, retire now or revoke a tablet', note: 'Customer Admin: own vessels only' },
   { key: 'reset-vessel-password', label: 'Reset a vessel’s sign-in password, e.g. at crew change', note: 'Customer Admin: own vessels only' },
   { key: 'manage-users', label: 'Invite and edit users', note: 'Customer Admin: Customer Admins of their own customer only (to confirm)' },
   { key: 'manage-items', label: 'Maintain the master item list' },
-  { key: 'manage-label-schema', label: 'Maintain the label schema' },
   { key: 'view-audit', label: 'See the audit log', note: 'Customer Admin: own customer only (to confirm)' },
 ]
 
@@ -64,7 +62,7 @@ const grants: Record<RoleKey, Permission[]> = {
   'ppg-admin': [
     'view-stock', 'export', 'view-review', 'adjust-stock', 'match-scans', 'close-held-events',
     'manage-customers', 'import-customers', 'manage-vessels', 'import-vessels', 'manage-tablets',
-    'reset-vessel-password', 'manage-users', 'manage-items', 'manage-label-schema', 'view-audit',
+    'reset-vessel-password', 'manage-users', 'manage-items', 'view-audit',
   ],
   'customer-admin': [
     'view-stock', 'export', 'view-review', 'adjust-stock', 'import-vessels', 'manage-tablets',

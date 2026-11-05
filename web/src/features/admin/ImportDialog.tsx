@@ -13,13 +13,15 @@ export interface ImportCount {
 
 /**
  * Load rows from PPG's Excel file (D-02, D-03): pick a file, see what it would change, then load.
- * Static screens: whatever file is picked, the preview is the sample the caller passes in.
+ * Static screens: whatever file is picked, the preview is the sample the caller passes in. With
+ * allOrNothing, one bad row refuses the whole file; a file with "error" in its name shows that case.
  */
 export function ImportDialog({
   title,
   intro,
   counts,
   problems,
+  allOrNothing = false,
   toLoad,
   noun,
   onLoad,
@@ -28,8 +30,9 @@ export function ImportDialog({
   title: string
   intro: ReactNode
   counts: ImportCount[]
-  /** Rows skipped, one line each. */
+  /** Bad rows, one line each: skipped, or with allOrNothing they refuse the file. */
   problems: string[]
+  allOrNothing?: boolean
   toLoad: number
   /** Plural, e.g. "items". */
   noun: string
@@ -37,6 +40,8 @@ export function ImportDialog({
   onClose: () => void
 }) {
   const [file, setFile] = useState<string | null>(null)
+  const shown = allOrNothing && !/error/i.test(file ?? '') ? [] : problems
+  const refused = allOrNothing && shown.length > 0
   return (
     <Dialog
       title={title}
@@ -47,13 +52,13 @@ export function ImportDialog({
             Cancel
           </Button>
           <Button
-            disabled={!file || toLoad === 0}
+            disabled={!file || toLoad === 0 || refused}
             onClick={() => {
               onLoad()
               onClose()
             }}
           >
-            {toLoad === 0 ? 'Nothing to load' : `Load ${toLoad} ${noun}`}
+            {refused ? 'File refused' : toLoad === 0 ? 'Nothing to load' : `Load ${toLoad} ${noun}`}
           </Button>
         </>
       }
@@ -63,19 +68,20 @@ export function ImportDialog({
         <FilePicker accept=".xlsx,.csv" hint=".xlsx or .csv" fileName={file} onPick={(f) => setFile(f.name)} />
         {file && (
           <div className="flex flex-col gap-2">
-            {counts.map((c) => (
-              <div key={c.label} className="flex items-center justify-between">
-                <span>{c.label}</span>
-                <Badge tone={c.tone}>{c.count}</Badge>
-              </div>
-            ))}
-            {problems.length > 0 && (
+            {!refused &&
+              counts.map((c) => (
+                <div key={c.label} className="flex items-center justify-between">
+                  <span>{c.label}</span>
+                  <Badge tone={c.tone}>{c.count}</Badge>
+                </div>
+              ))}
+            {shown.length > 0 && (
               <div className="flex items-center justify-between">
-                <span>Rows with errors — skipped</span>
-                <Badge tone="danger">{problems.length}</Badge>
+                <span>{refused ? 'File refused — nothing was loaded' : 'Rows with errors — skipped'}</span>
+                <Badge tone="danger">{shown.length}</Badge>
               </div>
             )}
-            {problems.map((p) => (
+            {shown.map((p) => (
               <Note key={p} tone="warning">
                 {p}
               </Note>

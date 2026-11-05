@@ -11,7 +11,6 @@ const paths = [
   '/admin/customers?tab=vessels',
   '/admin/customers?tab=tablets',
   '/admin/users?tab=roles',
-  '/admin/products?tab=label-schema',
   '/overview',
   '/sea-stock',
 
@@ -75,7 +74,9 @@ describe('merged screens keep what they took over', () => {
     )
     expect(screen.getByRole('table', { name: 'Unrecognised scans' })).toHaveTextContent('17906l')
     expect(screen.getByRole('table', { name: 'Held sync events' })).toHaveTextContent('Pacific Crest')
-    expect(screen.getByRole('table', { name: 'IMO mismatches' })).toHaveTextContent('5324664017')
+    const toCheck = screen.getByRole('table', { name: 'Delivery notes to check' })
+    expect(toCheck).toHaveTextContent('5324664017') // IMO mismatch
+    expect(toCheck).toHaveTextContent('5324655402') // IMO not read
   })
 
   it('only a PPG Admin matches unrecognised scans', async () => {
@@ -108,10 +109,6 @@ describe('merged screens keep what they took over', () => {
   it('admin screens hold their tabs', async () => {
     await open('u01', '/admin/customers')
     for (const name of ['Customers', 'Vessels', 'Tablets'])
-      expect(screen.getByRole('tab', { name })).toBeInTheDocument()
-    cleanup()
-    await open('u01', '/admin/products')
-    for (const name of ['Master item list', 'Label schema'])
       expect(screen.getByRole('tab', { name })).toBeInTheDocument()
     cleanup()
     await open('u06', '/admin/users')
@@ -223,7 +220,163 @@ describe('roles screen', () => {
     window.history.pushState({}, '', '/admin/users?tab=roles')
     render(<App />)
     expect(await screen.findByRole('table', { name: 'Permissions' })).toHaveTextContent(
-      'Maintain the label schema',
+      'Maintain the master item list',
     )
+    expect(screen.getByRole('table', { name: 'Permissions' })).not.toHaveTextContent('label schema')
+  })
+})
+
+describe('data model V2', () => {
+  const pickFile = async (name: string) => {
+    const { fireEvent } = await import('@testing-library/react')
+    const input = screen.getByRole('dialog').querySelector('input[type="file"]')
+    if (!input) throw new Error('no file input')
+    fireEvent.change(input, { target: { files: [new File(['x'], name)] } })
+  }
+
+  it('Products has the master item list only, with no label schema and no retiring', async () => {
+    await open('u01', '/admin/products')
+    expect(screen.queryByRole('tab')).not.toBeInTheDocument()
+    expect(screen.getByRole('table', { name: 'Master item list' })).toHaveTextContent('175510')
+    expect(screen.queryByRole('button', { name: 'Retire' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Restore' })).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Status')).not.toBeInTheDocument()
+    expect(document.body).not.toHaveTextContent('Label schema')
+    expect(document.body).not.toHaveTextContent('Retired')
+  })
+
+  it('an old link to the label schema opens the master item list', async () => {
+    await open('u01', '/admin/products?tab=label-schema')
+    expect(screen.getByRole('table', { name: 'Master item list' })).toBeInTheDocument()
+  })
+
+  it('a tablet offers prepare to retire, retire now and revoke; retire now asks first', async () => {
+    const { fireEvent, within } = await import('@testing-library/react')
+    await open('u01', '/admin/customers?tab=tablets')
+    const row = within(screen.getByRole('table', { name: 'Tablets' })).getByText('TAB-0101').closest('[role="row"], tr')
+    if (!(row instanceof HTMLElement)) throw new Error('no row')
+    within(row).getByRole('button', { name: 'Prepare to retire' })
+    within(row).getByRole('button', { name: 'Revoke' })
+    fireEvent.click(within(row).getByRole('button', { name: 'Prepare to retire' }))
+    expect(await within(row).findByText('Retires at next sync')).toBeInTheDocument()
+    expect(within(row).queryByRole('button', { name: 'Prepare to retire' })).not.toBeInTheDocument()
+
+    fireEvent.click(within(row).getByRole('button', { name: 'Retire now' }))
+    const dialog = within(screen.getByRole('dialog'))
+    expect(dialog.getByText(/Anything still on it will not reach Sea Stock/)).toBeInTheDocument()
+    fireEvent.click(dialog.getByRole('button', { name: 'Retire now' }))
+    expect(await within(row).findByText('Retired')).toBeInTheDocument()
+    expect(within(row).getByText('No longer paired')).toBeInTheDocument()
+  })
+
+  it('pairing has no replace option and warns while the vessel still has a tablet', async () => {
+    const { fireEvent, within } = await import('@testing-library/react')
+    await open('u01', '/admin/customers?tab=vessels')
+    const row = within(screen.getByRole('table', { name: 'Vessels' })).getByText('Nordhavn Aurora').closest('[role="row"], tr')
+    if (!(row instanceof HTMLElement)) throw new Error('no row')
+    fireEvent.click(within(row).getByRole('button', { name: 'Pair tablet' }))
+    const dialog = within(screen.getByRole('dialog'))
+    expect(dialog.queryByRole('checkbox')).not.toBeInTheDocument()
+    expect(dialog.getByText(/is still active/)).toBeInTheDocument()
+  })
+
+  it('an open code is never shown again; a new one is shown once', async () => {
+    const { fireEvent, within } = await import('@testing-library/react')
+    await open('u01', '/admin/customers?tab=vessels')
+    const row = within(screen.getByRole('table', { name: 'Vessels' })).getByText('Straits Endeavour').closest('[role="row"], tr')
+    if (!(row instanceof HTMLElement)) throw new Error('no row')
+    fireEvent.click(within(row).getByRole('button', { name: 'Pair tablet' }))
+    const dialog = within(screen.getByRole('dialog'))
+    expect(dialog.getByText(/A code is open/)).toBeInTheDocument()
+    expect(document.body).not.toHaveTextContent('K7QM')
+    fireEvent.click(dialog.getByRole('button', { name: 'Issue a new code' }))
+    expect(await dialog.findByText(/only time the code is shown/)).toBeInTheDocument()
+    expect(dialog.getByTitle('Enrolment QR code')).toBeInTheDocument()
+  })
+
+  it('a vessel’s customer cannot be changed; a new vessel’s can be chosen', async () => {
+    const { fireEvent, within } = await import('@testing-library/react')
+    await open('u01', '/admin/customers?tab=vessels')
+    fireEvent.click(screen.getAllByRole('button', { name: 'Edit' })[0] as HTMLElement)
+    expect(within(screen.getByRole('dialog')).getByLabelText('Customer')).toBeDisabled()
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Cancel' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Add vessel' }))
+    expect(within(screen.getByRole('dialog')).getByLabelText('Customer')).toBeEnabled()
+  })
+
+  it('one bad row refuses a vessel file; a clean file loads', async () => {
+    const { fireEvent, within } = await import('@testing-library/react')
+    await open('u01', '/admin/customers?tab=vessels')
+    fireEvent.click(screen.getByRole('button', { name: /Import from Excel/ }))
+    await pickFile('vessels-error.xlsx')
+    const dialog = within(screen.getByRole('dialog'))
+    expect(dialog.getByText('File refused — nothing was loaded')).toBeInTheDocument()
+    expect(dialog.getByText(/fails the check digit/)).toBeInTheDocument()
+    expect(dialog.getByText(/belongs to another customer\.$/)).toBeInTheDocument()
+    expect(dialog.getByRole('button', { name: 'File refused' })).toBeDisabled()
+    expect(dialog.queryByText('New vessels')).not.toBeInTheDocument()
+
+    await pickFile('vessels.xlsx')
+    expect(await dialog.findByText('New vessels')).toBeInTheDocument()
+    expect(dialog.getByRole('button', { name: /^Load / })).toBeEnabled()
+  })
+
+  it('one bad row refuses a customer file too', async () => {
+    const { fireEvent, within } = await import('@testing-library/react')
+    await open('u01', '/admin/customers')
+    fireEvent.click(screen.getByRole('button', { name: /Import from Excel/ }))
+    await pickFile('customers-error.csv')
+    expect(within(screen.getByRole('dialog')).getByRole('button', { name: 'File refused' })).toBeDisabled()
+  })
+
+  it('a bulk load of items still skips bad rows and loads the rest', async () => {
+    const { fireEvent, within } = await import('@testing-library/react')
+    await open('u01', '/admin/products')
+    fireEvent.click(screen.getByRole('button', { name: /Bulk load/ }))
+    await pickFile('items-error.xlsx')
+    const dialog = within(screen.getByRole('dialog'))
+    expect(dialog.getByText('Rows with errors — skipped')).toBeInTheDocument()
+    expect(dialog.getByRole('button', { name: /^Load / })).toBeEnabled()
+  })
+
+  it('a delivery note line not in the master list is shown as held, then as matched', async () => {
+    const { within } = await import('@testing-library/react')
+    const { matchScan } = await import('../data/store')
+    const { unrecognisedScans, users } = await import('../data/sample')
+    await open('u01', '/activity?tab=notes&dn=5324655402')
+    expect(within(screen.getByRole('table', { name: 'Tally' })).getByText(/Not in the master list/)).toBeInTheDocument()
+    cleanup()
+    const scan = unrecognisedScans.find((s) => s.id === 'us1')
+    const dana = users.find((u) => u.id === 'u01')
+    if (!scan || !dana) throw new Error('sample missing')
+    matchScan(scan, '179061', dana)
+    await open('u01', '/activity?tab=notes&dn=5324655402')
+    const tally = screen.getByRole('table', { name: 'Tally' })
+    expect(tally).toHaveTextContent('matched to 179061')
+    expect(tally).not.toHaveTextContent('Not in the master list')
+  })
+
+  it('Sea Stock updates straight after a portal adjustment', async () => {
+    const { act } = await import('@testing-library/react')
+    const { adjustStock } = await import('../data/store')
+    const { users } = await import('../data/sample')
+    await open('u01', '/sea-stock?vessel=v04')
+    const before = screen.getByRole('table', { name: 'Sea Stock' }).textContent
+    const dana = users.find((u) => u.id === 'u01')
+    if (!dana) throw new Error('sample missing')
+    act(() => adjustStock('v04', '179061', 5, 'Test', dana))
+    expect(screen.getByRole('table', { name: 'Sea Stock' }).textContent).not.toBe(before)
+  })
+
+  it('a new user’s e-mail is saved in lower case', async () => {
+    const { fireEvent, within } = await import('@testing-library/react')
+    const { users } = await import('../data/sample')
+    await open('u01', '/admin/users')
+    fireEvent.click(screen.getByRole('button', { name: /Invite user/ }))
+    const form = within(screen.getByRole('dialog'))
+    fireEvent.change(form.getByLabelText('Full name'), { target: { value: 'Test Person' } })
+    fireEvent.change(form.getByLabelText('Work e-mail'), { target: { value: 'Test.Person@PPG.example' } })
+    fireEvent.click(form.getByRole('button', { name: 'Send invite' }))
+    expect(users.some((u) => u.email === 'test.person@ppg.example')).toBe(true)
   })
 })
