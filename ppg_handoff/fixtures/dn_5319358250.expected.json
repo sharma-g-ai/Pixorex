@@ -1,0 +1,30 @@
+{
+  "source_file": "source/DN_5319358250.pdf",
+  "sha256": "4a4f2e397c30bd0eef9ce856344800c80271956ed17558018f3f9ac101dddc01",
+  "evidence_type": "manual_visual_transcription_from_pdf_pages",
+  "delivery_note_number": "5319358250",
+  "printed_page_count": 6,
+  "page_1_piece_summary": 100,
+  "quantity_bearing_occurrences": [
+    {"page": 2, "article_number": "445276", "total_qty": 4, "context": "S DUR 550 BAS GREY"},
+    {"page": 2, "article_number": "445254", "total_qty": 4, "context": "S DUR 520/550 HRD"},
+    {"page": 3, "article_number": "475211", "total_qty": 15, "context": "S PRIME 200 BAS GREY"},
+    {"page": 3, "article_number": "475210", "total_qty": 15, "context": "S PRIME 200 HRD"},
+    {"page": 3, "article_number": "475212", "total_qty": 5, "context": "S PRIME 200 BAS YEL/GREEN"},
+    {"page": 4, "article_number": "475210", "total_qty": 5, "context": "S PRIME 200 HRD"},
+    {"page": 4, "article_number": "445332", "total_qty": 1, "context": "S GUARD CSF 585 BAS BLUE"},
+    {"page": 4, "article_number": "468181", "total_qty": 1, "context": "S GUARD CSF 585 HRD"},
+    {"page": 5, "article_number": "445450", "total_qty": 3, "context": "THINNER 21-06"},
+    {"page": 5, "article_number": "445458", "total_qty": 3, "context": "THINNER 91-92"},
+    {"page": 5, "article_number": "445365", "total_qty": 4, "context": "S RINE 28 REDBROWN"},
+    {"page": 6, "article_number": "445382", "total_qty": 16, "context": "S RINE 48 GREY"},
+    {"page": 6, "article_number": "445378", "total_qty": 16, "context": "S RINE 48 GREEN"},
+    {"page": 6, "article_number": "445430", "total_qty": 8, "context": "S THERM 500"}
+  ],
+  "quantity_less_headings": [
+    {"page": 2, "article_number": "239995", "context": "S DUR 550 SET GREY"},
+    {"page": 2, "article_number": "446785", "context": "S PRIME 200 SET GREY"},
+    {"page": 3, "article_number": "446789", "context": "S PRIME 200 SET YEL/GREEN"},
+    {"page": 4, "article_number": "219191", "context": "S GUARD CSF 585 SET BLUE"}
+  ]
+}

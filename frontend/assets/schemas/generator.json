@@ -1,0 +1,11 @@
+{
+  "equipment_type": "generator",
+  "display_name": "AC Generator Nameplate",
+  "fields": [
+    "manufacturer", "location", "country", "model_no", "serial_no", "type",
+    "frame", "kva", "kw", "volts", "amp", "hz", "rpm", "phase",
+    "power_factor", "ins_class", "duty", "excitation_volts", "excitation_amps",
+    "bearing_type", "weight_kg", "made_in"
+  ],
+  "always_review": ["model_no", "serial_no", "rpm"]
+}

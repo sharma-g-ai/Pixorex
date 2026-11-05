@@ -1,0 +1,70 @@
+{
+  "mode": "ILLUSTRATIVE_FIXTURE",
+  "submission_id": "sub_example_001",
+  "scan_session_id": "sess_example_001",
+  "status": "SUBMITTED_LOCAL",
+  "delivery_note_number": "5319364114",
+  "declared_page_count": 4,
+  "submitted_at": "2026-09-24T08:00:00.000Z",
+  "form_revision": 1,
+  "operator_email": null,
+  "lines": [
+    {
+      "occurrence_id": "occ_445386_p3",
+      "article_number": "445386",
+      "document_quantity": 8,
+      "physical_quantity": 6,
+      "physical_quantity_confirmed": true,
+      "unit": "PC",
+      "variance": -2,
+      "variance_reason": "Two pieces not physically received",
+      "source_page": 3,
+      "product_context": "S RINE 48 RED",
+      "review_confirmed": true
+    }
+  ],
+  "contexts": [
+    {
+      "context_id": "ctx_179061",
+      "article_number": "179061",
+      "heading": "S'COVER 456 SET GREY",
+      "document_quantity": null,
+      "role": "SET_HEADER_NO_PRINTED_QUANTITY",
+      "source_page": 2
+    }
+  ],
+  "page_captures": [
+    {
+      "page_capture_id": "page_example_001",
+      "printed_page": 1,
+      "capture_revision": 1,
+      "verified_delivery_note_number": "5319364114",
+      "page_review_confirmed": true,
+      "piece_count_variance_reviewed": false
+    },
+    {
+      "page_capture_id": "page_example_002",
+      "printed_page": 2,
+      "capture_revision": 1,
+      "verified_delivery_note_number": "5319364114",
+      "page_review_confirmed": true,
+      "piece_count_variance_reviewed": false
+    },
+    {
+      "page_capture_id": "page_example_003",
+      "printed_page": 3,
+      "capture_revision": 1,
+      "verified_delivery_note_number": "5319364114",
+      "page_review_confirmed": true,
+      "piece_count_variance_reviewed": false
+    },
+    {
+      "page_capture_id": "page_example_004",
+      "printed_page": 4,
+      "capture_revision": 1,
+      "verified_delivery_note_number": "5319364114",
+      "page_review_confirmed": true,
+      "piece_count_variance_reviewed": false
+    }
+  ]
+}

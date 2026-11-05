@@ -1,0 +1,25 @@
+{
+  "equipment_type": "other",
+  "display_name": "Other",
+  "fields": [
+    "label_type",
+    "primary_identifier",
+    "secondary_identifier",
+    "barcode",
+    "product_name",
+    "manufacturer",
+    "brand",
+    "model_no",
+    "serial_no",
+    "description",
+    "specifications",
+    "size_or_quantity",
+    "date",
+    "made_in",
+    "country",
+    "visible_text",
+    "notes",
+    "extra_fields"
+  ],
+  "always_review": ["primary_identifier", "barcode", "product_name"]
+}

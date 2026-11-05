@@ -1,0 +1,337 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>EquipTrack Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="./styles.css?v=20260415-schema-ui-trim" />
+  </head>
+  <body>
+    <div id="app">
+      <!-- Auth -->
+      <section class="auth-overlay" id="auth-panel">
+        <div class="auth-card">
+          <div class="auth-logo">
+            <img src="./assets/app_icon.png" alt="EquipTrack" />
+          </div>
+          <h1>EquipTrack Dashboard</h1>
+          <p class="auth-subtitle">Sign in to view approved scan records and inventory lookup results.</p>
+          <form id="login-form" class="auth-form">
+            <input id="email" type="email" required placeholder="Email address" autocomplete="email" />
+            <input id="password" type="password" required placeholder="Password" autocomplete="current-password" />
+            <button type="submit" id="sign-in-btn">Sign In</button>
+            <button type="button" id="magic-link-btn" class="btn-link" hidden>Send Magic Link</button>
+          </form>
+          <div id="auth-message" class="auth-message"></div>
+        </div>
+      </section>
+
+      <!-- Main app -->
+      <div id="main-app" hidden>
+        <!-- Top bar -->
+        <header class="topbar">
+          <div class="topbar-left">
+            <h1 id="app-title">EquipTrack Dashboard</h1>
+            <nav class="view-tabs" id="view-tabs">
+              <button class="view-tab active" data-view="records" type="button">Records</button>
+              <button class="view-tab" data-view="paint-basket" type="button">Inventory Lookup</button>
+              <button class="view-tab" data-view="schemas" type="button">Schemas</button>
+            </nav>
+            <span class="record-count" id="record-count"></span>
+          </div>
+          <div class="topbar-right" id="session-actions">
+            <span class="user-email" id="session-email"></span>
+            <button id="refresh-btn" class="btn-icon" title="Refresh">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2v6h-6M3 12a9 9 0 0115.4-6.4L21 8M3 22v-6h6M21 12a9 9 0 01-15.4 6.4L3 16"/></svg>
+            </button>
+            <button id="export-btn" class="btn-secondary">Export CSV</button>
+            <button id="logout-btn" class="btn-ghost">Sign Out</button>
+          </div>
+        </header>
+
+        <!-- Filters (records view only) -->
+        <div class="filters" id="records-filters">
+          <div class="filter-group">
+            <input id="search-input" type="search" placeholder="Search by manufacturer, model, serial..." class="search-box" />
+          </div>
+          <div class="filter-group filter-row">
+            <select id="type-filter" class="filter-select">
+              <option value="">All Types</option>
+            </select>
+            <input id="date-from" type="date" class="filter-date" title="Start date" />
+            <input id="date-to" type="date" class="filter-date" title="End date" />
+            <button id="clear-filters" class="btn-ghost btn-sm">Clear</button>
+          </div>
+        </div>
+
+        <!-- Filters (paint basket view) -->
+        <div class="filters" id="basket-filters" hidden>
+          <div class="filter-group filter-row">
+            <input id="basket-search" type="search" placeholder="Search by product, brand, UPC..." class="search-box" />
+            <div class="sort-group">
+              <label class="filter-inline-label" for="basket-sort">Sort by</label>
+              <select id="basket-sort" class="filter-select">
+                <option value="scanned_qty"      selected>Scanned count</option>
+                <option value="last_scanned_at">Last scanned</option>
+                <option value="upc">UPC</option>
+                <option value="product_name">Product name</option>
+                <option value="brand">Brand</option>
+                <option value="available_qty">Available qty</option>
+                <option value="stock_status">Stock status</option>
+              </select>
+              <button id="basket-sort-dir" type="button" class="btn-sort-dir" title="Toggle ascending / descending">
+                <span class="sort-dir-arrow">&#x2193;</span>
+                <span class="sort-dir-label">Desc</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Records view -->
+        <main class="layout" id="records-view">
+          <section class="list-panel">
+            <div class="records-panel-header">
+              <div>
+                <p class="eyebrow">Records</p>
+                <h2>Scan history</h2>
+              </div>
+              <p>Click a row to inspect its extracted fields.</p>
+            </div>
+            <table id="records-table">
+              <thead>
+                <tr>
+                  <th class="col-thumb">Image</th>
+                  <th>Record Type</th>
+                  <th>Manufacturer</th>
+                  <th>Model / Product Code</th>
+                  <th>Key Specs</th>
+                  <th class="col-extra">Location</th>
+                  <th class="col-extra">UPC / Identifier</th>
+                  <th class="col-date">Scanned</th>
+                </tr>
+              </thead>
+              <tbody id="records-body"></tbody>
+            </table>
+            <div id="empty-state" class="empty" hidden>
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#aaa" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+              <p>No records match your filters.</p>
+            </div>
+          </section>
+
+          <aside class="detail-panel" id="detail-panel" hidden>
+            <button class="detail-close" id="detail-close">&times;</button>
+            <div id="detail-image-wrap" class="detail-image-wrap" hidden>
+              <div class="detail-image-main">
+                <img id="detail-image" alt="Record image" />
+                <button class="img-zoom-btn" id="img-zoom-btn" title="View full size">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+                </button>
+                <span class="img-counter" id="img-counter" hidden></span>
+              </div>
+              <div class="detail-image-thumbs" id="detail-image-thumbs" hidden></div>
+            </div>
+
+            <div class="detail-body">
+              <p class="detail-schema-label" id="detail-schema-label">Fields</p>
+              <h2 id="detail-title">Record</h2>
+              <div id="detail-fields" class="field-grid"></div>
+              <div id="detail-extra-section" hidden>
+                <h3 class="section-label">Additional Fields</h3>
+                <div id="detail-extra-fields" class="field-grid"></div>
+              </div>
+            </div>
+          </aside>
+        </main>
+
+        <!-- Paint basket view -->
+        <main class="basket-view" id="basket-view" hidden>
+          <section class="basket-kpis" id="basket-kpis" aria-label="Paint inventory lookup summary"></section>
+
+          <section class="basket-table-card">
+            <div class="basket-table-header">
+              <div>
+                <p class="eyebrow">Lookup results</p>
+                <h3>Scanned products</h3>
+              </div>
+              <p>Scanned = onsite count, Available = inventory quantity.</p>
+            </div>
+            <div class="basket-table-wrap">
+              <table id="basket-table">
+                <thead>
+                  <tr>
+                    <th>Product</th>
+                    <th>UPC</th>
+                    <th>Product Code</th>
+                    <th>Brand</th>
+                    <th>Color / Size</th>
+                    <th class="num">Scanned</th>
+                    <th class="num">Available</th>
+                    <th>Status</th>
+                    <th>Last Scanned</th>
+                  </tr>
+                </thead>
+                <tbody id="basket-body"></tbody>
+              </table>
+            </div>
+          </section>
+          <div id="basket-empty" class="empty" hidden>
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#aaa" stroke-width="1.5"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4zM3 6h18M16 10a4 4 0 01-8 0"/></svg>
+            <p>No paint scans yet — scan a paint label from the mobile app to see the basket populate.</p>
+          </div>
+        </main>
+
+        <!-- Schema management view -->
+        <main class="schemas-view" id="schemas-view" hidden>
+          <section class="schema-workspace">
+            <section class="schema-builder-card">
+              <div class="schema-builder-header">
+                <div>
+                  <p class="eyebrow">Add schema</p>
+                  <h3>New reusable template</h3>
+                  <p>Upload a photo of the label to generate a schema automatically, or build one by hand.</p>
+                </div>
+                <div class="schema-builder-actions">
+                  <button type="button" class="schema-example-btn" id="schema-load-example">Load example</button>
+                  <button type="button" class="schema-clear-btn" id="schema-clear-form">Clear</button>
+                </div>
+              </div>
+
+              <div class="schema-mode-tabs" id="schema-mode-tabs" role="tablist">
+                <button type="button" class="schema-mode-tab active" data-mode="image" role="tab" aria-selected="true">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <rect x="3" y="3" width="18" height="18" rx="2"/>
+                    <circle cx="8.5" cy="8.5" r="1.5"/>
+                    <path d="M21 15l-5-5L5 21"/>
+                  </svg>
+                  From image
+                </button>
+                <button type="button" class="schema-mode-tab" data-mode="manual" role="tab" aria-selected="false">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M12 20h9"/>
+                    <path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4 12.5-12.5z"/>
+                  </svg>
+                  Manual
+                </button>
+              </div>
+
+              <div class="schema-image-drop" id="schema-image-drop">
+                <input type="file" id="schema-image-input" accept="image/*" multiple hidden />
+                <div class="schema-image-drop-empty" id="schema-image-drop-empty">
+                  <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+                    <polyline points="17 8 12 3 7 8"/>
+                    <line x1="12" y1="3" x2="12" y2="15"/>
+                  </svg>
+                  <strong>Drop 1-3 photos of the label</strong>
+                  <span>or click to browse</span>
+                  <span class="schema-upload-button">Upload photos</span>
+                  <small>Front/back/side views. JPG or PNG, max 10 MB each.</small>
+                </div>
+                <div class="schema-image-drop-loaded" id="schema-image-drop-loaded" hidden>
+                  <div class="schema-image-thumbnails" id="schema-image-thumbnails" aria-label="Selected label images"></div>
+                  <div class="schema-image-status">
+                    <div class="schema-image-status-text" id="schema-image-status-text">Analyzing…</div>
+                    <button type="button" class="schema-image-clear" id="schema-image-clear" title="Remove image" aria-label="Remove image">&times;</button>
+                  </div>
+                </div>
+              </div>
+
+              <form class="schema-form" id="custom-schema-form">
+                <label>
+                  Label type name
+                  <input id="schema-display-name" type="text" required placeholder="Example: Valve Tag" />
+                </label>
+                <label>
+                  Description <span>(optional)</span>
+                  <textarea id="schema-description" rows="2" placeholder="What kind of label is this for?"></textarea>
+                </label>
+                <details class="schema-advanced">
+                  <summary>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <path d="M6 9l6 6 6-6"/>
+                    </svg>
+                    Advanced
+                  </summary>
+                  <div class="schema-advanced-body">
+                    <label>
+                      Internal key
+                      <input id="schema-name" type="text" required placeholder="valve_tag" />
+                      <small>Auto-generated from the label type name. Only change if you need a specific internal ID.</small>
+                    </label>
+                  </div>
+                </details>
+                <div class="schema-fields-group">
+                  <div class="schema-fields-heading">
+                    <span>Fields</span>
+                    <small>Add each field the model should extract. Description is optional.</small>
+                  </div>
+                  <div class="schema-fields-list" id="schema-fields-list"></div>
+                  <button type="button" class="schema-add-field-btn" id="schema-add-field">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+                      <path d="M12 5v14M5 12h14"/>
+                    </svg>
+                    Add field
+                  </button>
+                </div>
+                <div class="schema-form-actions">
+                  <p id="schema-message" class="schema-message"></p>
+                  <button type="submit" class="btn-primary" id="save-schema-btn">Save Schema</button>
+                </div>
+              </form>
+            </section>
+
+            <section class="schema-list-card">
+              <div class="schema-list-header">
+                <div>
+                  <p class="eyebrow">Available schemas</p>
+                  <h3>Existing templates</h3>
+                </div>
+                <p>Click any template to view its fields.</p>
+              </div>
+              <div class="schema-list" id="schema-list"></div>
+            </section>
+          </section>
+        </main>
+      </div>
+    </div>
+
+    <!-- Schema save confirmation modal (duplicate key / duplicate display name) -->
+    <div id="schema-confirm-modal" class="schema-confirm-overlay" hidden>
+      <div class="schema-confirm-card" role="dialog" aria-modal="true" aria-labelledby="schema-confirm-title">
+        <div class="schema-confirm-head">
+          <div class="schema-confirm-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+              <line x1="12" y1="9" x2="12" y2="13"/>
+              <line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+          </div>
+          <div class="schema-confirm-text">
+            <h3 id="schema-confirm-title">Schema already exists</h3>
+            <p id="schema-confirm-body">Body text.</p>
+          </div>
+        </div>
+        <div class="schema-confirm-actions">
+          <button type="button" class="btn-ghost" id="schema-confirm-cancel">Cancel</button>
+          <button type="button" class="btn-primary schema-confirm-action" id="schema-confirm-action">Overwrite</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Lightbox overlay for zooming record images with prev/next nav -->
+    <div id="lightbox" class="lightbox" hidden>
+      <button class="lightbox-close" id="lightbox-close" aria-label="Close" title="Close (Esc)">&times;</button>
+      <button class="lightbox-prev" id="lightbox-prev" aria-label="Previous image" title="Previous (←)">&#x2039;</button>
+      <img class="lightbox-img" id="lightbox-img" alt="" />
+      <button class="lightbox-next" id="lightbox-next" aria-label="Next image" title="Next (→)">&#x203A;</button>
+      <div class="lightbox-counter" id="lightbox-counter"></div>
+      <a class="lightbox-newtab" id="lightbox-newtab" target="_blank" rel="noopener" title="Open this image in a new tab">Open in new tab &#x2197;</a>
+    </div>
+
+    <script src="./config.js?v=20260415-schema-ui-trim"></script>
+    <script type="module" src="./app.js?v=20260415-schema-ui-trim"></script>
+  </body>
+</html>

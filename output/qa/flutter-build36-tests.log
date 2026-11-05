@@ -1,0 +1,75 @@
+00:00 +0: loading /home/suchithgoud/Downloads/Label_Reader/frontend/test/ppg_delivery_note/total_qty_field_reader_test.dart
+00:00 +0: /home/suchithgoud/Downloads/Label_Reader/frontend/test/ppg_delivery_note/total_qty_field_reader_test.dart: field crop starts after colour code and above batch quantities
+00:00 +1: /home/suchithgoud/Downloads/Label_Reader/frontend/test/ppg_delivery_note/total_qty_field_reader_test.dart: field retry accepts separate 8 PC but not the same fused 68 PC
+00:00 +2: /home/suchithgoud/Downloads/Label_Reader/frontend/test/ppg_delivery_note/total_qty_field_reader_test.dart: saved field read resolves only the matching Total Qty on reopen
+00:00 +3: /home/suchithgoud/Downloads/Label_Reader/frontend/test/ppg_delivery_note/ppg_parser_test.dart: (setUpAll)
+00:00 +3: /home/suchithgoud/Downloads/Label_Reader/frontend/test/ppg_delivery_note/ppg_parser_test.dart: T01 parse complete sample product evidence
+00:00 +4: /home/suchithgoud/Downloads/Label_Reader/frontend/test/ppg_delivery_note/ppg_parser_test.dart: T02 page 2 has two qty rows and set headers without quantities
+00:00 +5: /home/suchithgoud/Downloads/Label_Reader/frontend/test/ppg_delivery_note/ppg_parser_test.dart: page 2 does not borrow a Batch Qty when Total Qty is unreadable
+00:00 +6: /home/suchithgoud/Downloads/Label_Reader/frontend/test/ppg_delivery_note/ppg_parser_test.dart: T03 article 445386 total 8 not batch 5/3
+00:00 +7: /home/suchithgoud/Downloads/Label_Reader/frontend/test/ppg_delivery_note/ppg_parser_test.dart: Total Qty above article code survives a wide printed row gap
+00:00 +8: /home/suchithgoud/Downloads/Label_Reader/frontend/test/ppg_delivery_note/ppg_parser_test.dart: T06 header page emits no product rows
+00:00 +9: /home/suchithgoud/Downloads/Label_Reader/frontend/test/ppg_delivery_note/ppg_parser_test.dart: Order number cannot replace the labelled Delivery Note number
+00:00 +10: /home/suchithgoud/Downloads/Label_Reader/frontend/test/ppg_delivery_note/ppg_parser_test.dart: Delivery Note label wins when OCR joins Order on one line
+00:00 +11: /home/suchithgoud/Downloads/Label_Reader/frontend/test/ppg_delivery_note/ppg_parser_test.dart: split Order label and number cannot seed delivery identity
+00:00 +12: /home/suchithgoud/Downloads/Label_Reader/frontend/test/ppg_delivery_note/ppg_parser_test.dart: address postcodes above the table are not article occurrences
+00:00 +13: /home/suchithgoud/Downloads/Label_Reader/frontend/test/ppg_delivery_note/ppg_parser_test.dart: item number and material columns stay out of product description
+00:00 +14: /home/suchithgoud/Downloads/Label_Reader/frontend/test/ppg_delivery_note/ppg_parser_test.dart: T08 ignores EAN and material codes
+00:00 +15: /home/suchithgoud/Downloads/Label_Reader/frontend/test/ppg_delivery_note/ppg_parser_test.dart: T09 retention of duplicate article occurrences
+00:00 +16: /home/suchithgoud/Downloads/Label_Reader/frontend/test/ppg_delivery_note/ppg_parser_test.dart: T10 ordinary missing total stays unresolved without inventing zero
+00:00 +17: /home/suchithgoud/Downloads/Label_Reader/frontend/test/ppg_delivery_note/ppg_parser_test.dart: source-entered Total Qty resolves only its matching occurrence
+00:00 +18: /home/suchithgoud/Downloads/Label_Reader/frontend/test/ppg_delivery_note/ppg_parser_test.dart: T22 variance behavior
+00:00 +19: /home/suchithgoud/Downloads/Label_Reader/frontend/test/ppg_delivery_note/ppg_parser_test.dart: T28 submit validation idempotent readiness checks
+00:00 +20: /home/suchithgoud/Downloads/Label_Reader/frontend/test/ppg_delivery_note/ppg_parser_test.dart: printed Piece check compares document total, not physical stock
+00:00 +21: /home/suchithgoud/Downloads/Label_Reader/frontend/test/ppg_delivery_note/ppg_parser_test.dart: optional Piece count never blocks and mismatch needs acknowledgment
+00:00 +22: /home/suchithgoud/Downloads/Label_Reader/frontend/test/ppg_delivery_note/ppg_parser_test.dart: capture order does not change consolidation order
+00:00 +23: /home/suchithgoud/Downloads/Label_Reader/frontend/test/ppg_delivery_note/ppg_parser_test.dart: word-level OCR fixture matches golden seven rows
+00:00 +24: /home/suchithgoud/Downloads/Label_Reader/frontend/test/ppg_delivery_note/ppg_session_resume_test.dart: reopening a page keeps a saved 445386 Total Qty correction resolved
+00:00 +25: /home/suchithgoud/Downloads/Label_Reader/frontend/test/ppg_delivery_note/ppg_session_resume_test.dart: reopening a page keeps a saved 445386 Total Qty correction resolved
+00:00 +26: /home/suchithgoud/Downloads/Label_Reader/frontend/test/ppg_delivery_note/ppg_parser_test.dart: accepts joined DeliveryNote on summary page
+00:00 +27: /home/suchithgoud/Downloads/Label_Reader/frontend/test/ppg_delivery_note/ppg_parser_test.dart: summary details verify a page when its title is missed
+00:00 +28: /home/suchithgoud/Downloads/Label_Reader/frontend/test/ppg_delivery_note/ppg_parser_test.dart: summary page remains capturable when Piece label is unreadable
+00:00 +29: /home/suchithgoud/Downloads/Label_Reader/frontend/test/ppg_delivery_note/ppg_parser_test.dart: accepts TotalQty joined by OCR and extracts its quantity
+00:01 +30: /home/suchithgoud/Downloads/Label_Reader/frontend/test/ppg_delivery_note/ppg_parser_test.dart: table headers verify a page when title and Total Qty are missed
+00:01 +31: /home/suchithgoud/Downloads/Label_Reader/frontend/test/ppg_delivery_note/ppg_parser_test.dart: insufficient OCR evidence asks for recapture, not unsupported document
+00:01 +32: /home/suchithgoud/Downloads/Label_Reader/frontend/test/ppg_delivery_note/ppg_parser_test.dart: page 3 separate colour digit and Total Qty resolves 445386 to 8
+00:01 +33: /home/suchithgoud/Downloads/Label_Reader/frontend/test/ppg_delivery_note/ppg_parser_test.dart: fused colour digit and quantity requires source review and can be corrected
+00:01 +34: /home/suchithgoud/Downloads/Label_Reader/frontend/test/ppg_delivery_note/ppg_parser_test.dart: page-level Batch header does not discard product rows
+00:01 +35: /home/suchithgoud/Downloads/Label_Reader/frontend/test/ppg_delivery_note/ppg_parser_test.dart: (tearDownAll)
+00:01 +35: /home/suchithgoud/Downloads/Label_Reader/frontend/test/ppg_delivery_note/ppg_receiving_workflow_test.dart: scanned can starts at one, saves atomically, and ignores the same event twice
+00:01 +36: /home/suchithgoud/Downloads/Label_Reader/frontend/test/ppg_delivery_note/ppg_receiving_workflow_test.dart: scan rejection preserves quantity for wrong article, DN, stale revision and unchecked source
+00:01 +37: /home/suchithgoud/Downloads/Label_Reader/frontend/test/ppg_delivery_note/ppg_receiving_workflow_test.dart: scan allocates once to selected duplicate and failed saves can be retried
+00:01 +38: /home/suchithgoud/Downloads/Label_Reader/frontend/test/ppg_delivery_note/ppg_receiving_workflow_test.dart: receiving exposes scanner icon and opens the can reader
+00:02 +39: /home/suchithgoud/Downloads/Label_Reader/frontend/test/ppg_delivery_note/ppg_receiving_workflow_test.dart: receiving exposes scanner icon and opens the can reader
+00:02 +40: /home/suchithgoud/Downloads/Label_Reader/frontend/test/ppg_delivery_note/ppg_receiving_workflow_test.dart: receiving exposes scanner icon and opens the can reader
+00:02 +41: /home/suchithgoud/Downloads/Label_Reader/frontend/test/ppg_delivery_note/ppg_receiving_workflow_test.dart: receiving exposes scanner icon and opens the can reader
+00:02 +42: /home/suchithgoud/Downloads/Label_Reader/frontend/test/ppg_delivery_note/ppg_receiving_workflow_test.dart: receiving exposes scanner icon and opens the can reader
+00:02 +43: /home/suchithgoud/Downloads/Label_Reader/frontend/test/ppg_delivery_note/ppg_receiving_workflow_test.dart: receiving exposes scanner icon and opens the can reader
+00:02 +44: /home/suchithgoud/Downloads/Label_Reader/frontend/test/ppg_delivery_note/ppg_receiving_workflow_test.dart: receiving exposes scanner icon and opens the can reader
+00:02 +45: /home/suchithgoud/Downloads/Label_Reader/frontend/test/ppg_delivery_note/ppg_receiving_workflow_test.dart: receiving exposes scanner icon and opens the can reader
+00:02 +46: /home/suchithgoud/Downloads/Label_Reader/frontend/test/ppg_delivery_note/ppg_receiving_workflow_test.dart: receiving exposes scanner icon and opens the can reader
+00:02 +47: /home/suchithgoud/Downloads/Label_Reader/frontend/test/ppg_delivery_note/ppg_receiving_workflow_test.dart: receiving exposes scanner icon and opens the can reader
+00:02 +48: /home/suchithgoud/Downloads/Label_Reader/frontend/test/ppg_delivery_note/ppg_receiving_workflow_test.dart: receiving exposes scanner icon and opens the can reader
+00:02 +49: /home/suchithgoud/Downloads/Label_Reader/frontend/test/ppg_delivery_note/ppg_receiving_workflow_test.dart: receiving exposes scanner icon and opens the can reader
+00:03 +50: /home/suchithgoud/Downloads/Label_Reader/frontend/test/ppg_delivery_note/ppg_receiving_workflow_test.dart: receiving exposes scanner icon and opens the can reader
+00:03 +51: /home/suchithgoud/Downloads/Label_Reader/frontend/test/ppg_delivery_note/ppg_receiving_workflow_test.dart: receiving exposes scanner icon and opens the can reader
+00:03 +52: /home/suchithgoud/Downloads/Label_Reader/frontend/test/ppg_delivery_note/ppg_receiving_workflow_test.dart: receiving exposes scanner icon and opens the can reader
+00:03 +53: /home/suchithgoud/Downloads/Label_Reader/frontend/test/ppg_delivery_note/ppg_receiving_workflow_test.dart: receiving exposes scanner icon and opens the can reader
+00:03 +54: /home/suchithgoud/Downloads/Label_Reader/frontend/test/ppg_delivery_note/ppg_receiving_workflow_test.dart: receiving exposes scanner icon and opens the can reader
+00:03 +55: /home/suchithgoud/Downloads/Label_Reader/frontend/test/ppg_delivery_note/ppg_receiving_workflow_test.dart: receiving exposes scanner icon and opens the can reader
+00:03 +56: /home/suchithgoud/Downloads/Label_Reader/frontend/test/ppg_delivery_note/ppg_receiving_workflow_test.dart: receiving exposes scanner icon and opens the can reader
+00:03 +57: /home/suchithgoud/Downloads/Label_Reader/frontend/test/ppg_delivery_note/ppg_receiving_workflow_test.dart: receiving exposes scanner icon and opens the can reader
+00:03 +58: /home/suchithgoud/Downloads/Label_Reader/frontend/test/ppg_delivery_note/ppg_receiving_workflow_test.dart: receiving exposes scanner icon and opens the can reader
+00:04 +59: /home/suchithgoud/Downloads/Label_Reader/frontend/test/ppg_delivery_note/ppg_receiving_workflow_test.dart: page source confirmation does not confirm physical quantities
+00:04 +60: /home/suchithgoud/Downloads/Label_Reader/frontend/test/ppg_delivery_note/ppg_receiving_workflow_test.dart: rapid taps commit in order and a counting draft survives reopening
+00:04 +61: /home/suchithgoud/Downloads/Label_Reader/frontend/test/ppg_delivery_note/ppg_receiving_workflow_test.dart: batch adds, set replaces, and only finishing requires a variance reason
+00:04 +62: /home/suchithgoud/Downloads/Label_Reader/frontend/test/ppg_delivery_note/ppg_receiving_workflow_test.dart: zero is explicit, negatives rejected, and failed writes do not change saved state
+00:04 +63: /home/suchithgoud/Downloads/Label_Reader/frontend/test/ppg_delivery_note/ppg_receiving_workflow_test.dart: DN corrections retain the count and article changes require reconciliation
+00:04 +64: /home/suchithgoud/Downloads/Label_Reader/frontend/test/ppg_delivery_note/ppg_receiving_workflow_test.dart: duplicate article occurrences receive independent counts
+00:04 +65: /home/suchithgoud/Downloads/Label_Reader/frontend/test/ppg_delivery_note/ppg_receiving_workflow_test.dart: rescanning or replacing a counted page cannot discard its counts
+00:04 +66: /home/suchithgoud/Downloads/Label_Reader/frontend/test/ppg_delivery_note/ppg_receiving_workflow_test.dart: final confirmation requires physical verification and submission locks edits
+00:04 +67: /home/suchithgoud/Downloads/Label_Reader/frontend/test/ppg_delivery_note/ppg_receiving_workflow_test.dart: narrow receiving UI counts from zero and long press opens total entry
+00:06 +68: /home/suchithgoud/Downloads/Label_Reader/frontend/test/ppg_delivery_note/ppg_receiving_workflow_test.dart: variance reason is requested on finish and Other needs details
+00:07 +69: /home/suchithgoud/Downloads/Label_Reader/frontend/test/ppg_delivery_note/ppg_receiving_workflow_test.dart: Matches DN is explicit and submitted receiving controls are read only
+00:08 +70: /home/suchithgoud/Downloads/Label_Reader/frontend/test/ppg_delivery_note/ppg_receiving_workflow_test.dart: DN page review contains only source checks
+00:08 +71: All tests passed!

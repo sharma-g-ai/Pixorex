@@ -1,0 +1,13 @@
+{
+  "equipment_type": "paint_label",
+  "display_name": "Paint / Chemical Label",
+  "fields": [
+    "product_name", "product_code", "product_type", "manufacturer", "brand",
+    "color_name", "color_code", "finish", "size", "batch_number",
+    "manufacturing_date", "expiry_date", "specification", "description",
+    "safety_warnings", "voc_content", "upc_barcode", "made_in",
+    "dilution_ratio", "coverage", "dry_time", "application_method",
+    "po_number", "notes", "extra_fields"
+  ],
+  "always_review": ["batch_number", "product_code", "upc_barcode", "manufacturing_date", "expiry_date", "specification"]
+}

@@ -1,0 +1,81 @@
+{
+  "fixture_id": "dn_5319364114_synthetic_geometry",
+  "note": "Synthetic OCR elements for pure parser tests. Not real ML Kit output.",
+  "pages": [
+    {
+      "printed_page": 1,
+      "image_width": 1224,
+      "image_height": 1584,
+      "elements": [
+        {"text": "Delivery Note", "left": 80, "top": 40, "right": 320, "bottom": 70},
+        {"text": "5319364114", "left": 400, "top": 40, "right": 560, "bottom": 70},
+        {"text": "1 / 4", "left": 1000, "top": 40, "right": 1100, "bottom": 70},
+        {"text": "Piece:62", "left": 80, "top": 200, "right": 220, "bottom": 230},
+        {"text": "Net weight", "left": 80, "top": 260, "right": 220, "bottom": 290},
+        {"text": "Gross weight", "left": 80, "top": 300, "right": 240, "bottom": 330}
+      ]
+    },
+    {
+      "printed_page": 2,
+      "image_width": 1224,
+      "image_height": 1584,
+      "elements": [
+        {"text": "5319364114", "left": 400, "top": 30, "right": 560, "bottom": 55},
+        {"text": "2 / 4", "left": 1000, "top": 30, "right": 1100, "bottom": 55},
+        {"text": "Item", "left": 40, "top": 100, "right": 90, "bottom": 125},
+        {"text": "Article", "left": 200, "top": 100, "right": 280, "bottom": 125},
+        {"text": "Total Qty", "left": 900, "top": 100, "right": 1020, "bottom": 125},
+        {"text": "S'COVER 456 SET GREY", "left": 120, "top": 160, "right": 520, "bottom": 190},
+        {"text": "179061", "left": 200, "top": 200, "right": 290, "bottom": 230},
+        {"text": "S COVER 456 BAS GREY", "left": 120, "top": 280, "right": 520, "bottom": 310},
+        {"text": "15 PC", "left": 920, "top": 280, "right": 1000, "bottom": 310},
+        {"text": "445235", "left": 200, "top": 320, "right": 290, "bottom": 350},
+        {"text": "S COVER 256/435/456/522 HRD", "left": 120, "top": 400, "right": 620, "bottom": 430},
+        {"text": "15 PC", "left": 920, "top": 400, "right": 1000, "bottom": 430},
+        {"text": "445182", "left": 200, "top": 440, "right": 290, "bottom": 470},
+        {"text": "S PRIME 200 SET YEL/GREEN", "left": 120, "top": 560, "right": 560, "bottom": 590},
+        {"text": "446789", "left": 200, "top": 600, "right": 290, "bottom": 630}
+      ]
+    },
+    {
+      "printed_page": 3,
+      "image_width": 1224,
+      "image_height": 1584,
+      "elements": [
+        {"text": "5319364114", "left": 400, "top": 30, "right": 560, "bottom": 55},
+        {"text": "3 / 4", "left": 1000, "top": 30, "right": 1100, "bottom": 55},
+        {"text": "Total Qty", "left": 900, "top": 100, "right": 1020, "bottom": 125},
+        {"text": "S PRIME 200 BAS YEL/GREEN", "left": 120, "top": 160, "right": 560, "bottom": 190},
+        {"text": "7 PC", "left": 920, "top": 160, "right": 990, "bottom": 190},
+        {"text": "475212", "left": 200, "top": 200, "right": 290, "bottom": 230},
+        {"text": "S PRIME 200 HRD", "left": 120, "top": 280, "right": 420, "bottom": 310},
+        {"text": "7 PC", "left": 920, "top": 280, "right": 990, "bottom": 310},
+        {"text": "475210", "left": 200, "top": 320, "right": 290, "bottom": 350},
+        {"text": "S RINE 48 GREEN", "left": 120, "top": 420, "right": 420, "bottom": 450},
+        {"text": "2 PC", "left": 920, "top": 420, "right": 990, "bottom": 450},
+        {"text": "445377", "left": 200, "top": 460, "right": 290, "bottom": 490},
+        {"text": "S RINE 48 RED", "left": 120, "top": 560, "right": 400, "bottom": 590},
+        {"text": "8 PC", "left": 920, "top": 560, "right": 990, "bottom": 590},
+        {"text": "445386", "left": 200, "top": 600, "right": 290, "bottom": 630},
+        {"text": "Qty per Batch", "left": 700, "top": 660, "right": 860, "bottom": 685},
+        {"text": "5 PC", "left": 920, "top": 690, "right": 990, "bottom": 720},
+        {"text": "3 PC", "left": 920, "top": 740, "right": 990, "bottom": 770},
+        {"text": "618805ID1500", "left": 500, "top": 600, "right": 680, "bottom": 630},
+        {"text": "4006381333931", "left": 500, "top": 640, "right": 700, "bottom": 670}
+      ]
+    },
+    {
+      "printed_page": 4,
+      "image_width": 1224,
+      "image_height": 1584,
+      "elements": [
+        {"text": "5319364114", "left": 400, "top": 30, "right": 560, "bottom": 55},
+        {"text": "4 / 4", "left": 1000, "top": 30, "right": 1100, "bottom": 55},
+        {"text": "Total Qty", "left": 900, "top": 100, "right": 1020, "bottom": 125},
+        {"text": "S RINE 48 BLUE", "left": 120, "top": 200, "right": 420, "bottom": 230},
+        {"text": "8 PC", "left": 920, "top": 200, "right": 990, "bottom": 230},
+        {"text": "445374", "left": 200, "top": 240, "right": 290, "bottom": 270}
+      ]
+    }
+  ]
+}

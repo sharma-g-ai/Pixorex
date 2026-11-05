@@ -1,19 +1,24 @@
-# PPG | SeaStock — compact version
+# Pixorex
+Pixorex Scanning Product Repo
 
-The same portal as `C:\atg\ppg-seastock` (17 screens), merged into **8 screens** with no
-repeated data. Both are shown to the team to choose one.
+## PPG | SeaStock web portal
+
+The 8-screen web portal. This is the main version; a 17-screen version is kept for reference only.
 
 Inventory and consumption tracking for PPG paint and thinners on board vessels.
-Basis: *PPG Sea Stock — MVP Business Requirements*, v1.2 (19 Sep 2026).
+Basis: *PPG Sea Stock — MVP Business Requirements*, v1.3, and the SeaStock Data Models document.
 
 | Folder | What |
 |---|---|
 | `web/` | Web portal (React, Vite, Tailwind). **Static screens with sample data**, no API yet. |
-| `docs/` | Screen list mapped to the BRD, and open questions. |
+| `contracts/` | API contracts (PIX-58), OpenAPI 3.1. |
+| `docs/` | Screen list mapped to the BRD, open questions, help guide. |
+| `frontend/` | Flutter mobile app, including PPG delivery note and can scanning. |
+| `backend/` | Python backend for label extraction. |
+| `client_portal_poc/` | Earlier static client portal proof of concept. |
+| `supabase/`, `ppg_handoff/`, `documents/`, `output/` | Supabase setup, delivery note handoff, documents and build outputs. |
 
-The mobile (tablet) app is not in this repo yet.
-
-## Run the web screens
+### Run the web screens
 
 ```
 cd web
@@ -23,7 +28,7 @@ npm run dev        # http://localhost:5181 (the 17-screen version uses 5180)
 
 Checks: `npm run typecheck`, `npm run lint`, `npm test` (renders every screen for every role, and checks the merged screens kept what they took over).
 
-## Sign in
+### Sign in
 
 Sign in with e-mail and password; the role decides what opens. Every sample account uses the
 password **SeaStock@2026** (static screens only).

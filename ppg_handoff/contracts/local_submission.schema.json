@@ -1,0 +1,99 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://amzur.local/contracts/ppg_local_submission.schema.json",
+  "title": "PPGDeliveryNoteLocalSubmission",
+  "type": "object",
+  "required": [
+    "submission_id",
+    "scan_session_id",
+    "status",
+    "delivery_note_number",
+    "declared_page_count",
+    "submitted_at",
+    "form_revision",
+    "lines",
+    "contexts",
+    "mode"
+  ],
+  "properties": {
+    "submission_id": { "type": "string", "minLength": 1 },
+    "scan_session_id": { "type": "string", "minLength": 1 },
+    "status": { "const": "SUBMITTED_LOCAL" },
+    "delivery_note_number": { "type": "string", "minLength": 1 },
+    "declared_page_count": { "type": "integer", "minimum": 1 },
+    "submitted_at": { "type": "string", "format": "date-time" },
+    "form_revision": { "type": "integer", "minimum": 1 },
+    "operator_email": { "type": ["string", "null"] },
+    "mode": {
+      "type": "string",
+      "enum": ["CAMERA", "DEVELOPER_IMAGE_IMPORT", "ILLUSTRATIVE_FIXTURE"]
+    },
+    "lines": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "occurrence_id",
+          "article_number",
+          "document_quantity",
+          "physical_quantity",
+          "physical_quantity_confirmed",
+          "unit",
+          "variance",
+          "source_page",
+          "review_confirmed"
+        ],
+        "properties": {
+          "occurrence_id": { "type": "string" },
+          "article_number": {
+            "type": "string",
+            "pattern": "^[0-9]{1,32}$"
+          },
+          "document_quantity": { "type": "integer", "minimum": 0 },
+          "physical_quantity": { "type": "integer", "minimum": 0 },
+          "unit": { "const": "PC" },
+          "variance": { "type": "integer" },
+          "variance_reason": { "type": ["string", "null"] },
+          "physical_quantity_confirmed": { "const": true },
+          "source_page": { "type": "integer", "minimum": 1 },
+          "product_context": { "type": ["string", "null"] },
+          "review_confirmed": { "type": "boolean" }
+        },
+        "additionalProperties": true
+      }
+    },
+    "contexts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["context_id", "article_number", "role", "source_page"],
+        "properties": {
+          "context_id": { "type": "string" },
+          "article_number": { "type": "string" },
+          "heading": { "type": ["string", "null"] },
+          "document_quantity": { "type": "null" },
+          "role": { "const": "SET_HEADER_NO_PRINTED_QUANTITY" },
+          "source_page": { "type": "integer", "minimum": 1 }
+        },
+        "additionalProperties": true
+      }
+    },
+    "page_captures": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["page_capture_id", "printed_page", "capture_revision", "verified_delivery_note_number", "page_review_confirmed", "piece_count_variance_reviewed"],
+        "properties": {
+          "page_capture_id": { "type": "string" },
+          "printed_page": { "type": "integer", "minimum": 1 },
+          "capture_revision": { "type": "integer", "minimum": 1 },
+          "verified_delivery_note_number": { "type": "string", "pattern": "^[0-9]{1,32}$" },
+          "page_review_confirmed": { "const": true },
+          "piece_count_variance_reviewed": { "type": "boolean" },
+          "source_image_ref": { "type": ["string", "null"] }
+        }
+      }
+    }
+  },
+  "additionalProperties": true
+}

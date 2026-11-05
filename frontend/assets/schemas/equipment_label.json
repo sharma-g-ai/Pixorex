@@ -1,0 +1,10 @@
+{
+  "equipment_type": "equipment_label",
+  "display_name": "Equipment Label",
+  "fields": [
+    "manufacturer", "location", "country", "serial_no", "part_no",
+    "configuration_no", "date_code", "series", "max_wpr_psi_bar",
+    "hazardous_locations", "made_in"
+  ],
+  "always_review": ["serial_no", "part_no", "configuration_no"]
+}
