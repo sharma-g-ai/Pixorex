@@ -4,6 +4,7 @@ import { Badge } from '../../components/Badge'
 import { buttonClasses } from '../../components/buttonClasses'
 import { Card } from '../../components/Card'
 import { decidedByText, technicianDecisionStatus } from '../review/reviewRules'
+import { formatScanId } from '../../lib/scanId'
 
 /** BU Home: the 3 latest decisions by technicians, each with "Check" (canvas BU 03). */
 export function RecentDecisions({ buId }: { buId: string }) {
@@ -29,7 +30,9 @@ export function RecentDecisions({ buId }: { buId: string }) {
             return (
               <li key={d.decision_id} className="flex items-center gap-3 py-3">
                 <div className="min-w-0 grow">
-                  <div className="truncate text-body font-semibold">{d.record_no}</div>
+                  <div className="truncate text-body font-semibold">
+                    {formatScanId(d.record_no)}
+                  </div>
                   <div className="text-meta text-ink-subtle">{decidedByText(d)}</div>
                 </div>
                 <Badge tone={status.tone}>{status.label}</Badge>

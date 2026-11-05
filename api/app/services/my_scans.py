@@ -30,6 +30,9 @@ class MyScan(BaseModel):
     review_status: str
     attempts_used: int
     reject_category: str | None
+    resubmitted: bool  # a rejected scan, fixed and sent back
+    retake_of_scan_id: UUID | None
+    reviewer_name: str | None  # who rejected it, or who a fix or retake goes to
     updated_at: datetime
 
 

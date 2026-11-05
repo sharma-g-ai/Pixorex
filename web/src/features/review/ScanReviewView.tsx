@@ -9,6 +9,8 @@ import {
   type ReviewField,
 } from '../../api/review'
 import { Alert } from '../../components/Alert'
+import { PhotoViewer } from '../../components/PhotoViewer'
+import { ScanHistoryCard } from './ScanHistoryCard'
 import { Badge } from '../../components/Badge'
 import { Button } from '../../components/Button'
 import { buttonClasses } from '../../components/buttonClasses'
@@ -19,6 +21,7 @@ import { timeAgo } from '../../lib/time'
 import { DecisionReasonDialog } from './DecisionReasonDialog'
 import { photoList } from './photos'
 import { flagText, rejectCategoryLabels, verificationStatus } from './reviewRules'
+import { formatScanId } from '../../lib/scanId'
 
 interface ScanReviewViewProps {
   scanId: string
@@ -41,14 +44,22 @@ export function ScanReviewView({ scanId, back }: ScanReviewViewProps) {
     )
 
   const scan = review.data
-  const current = scan.decisions.find((d) => d.is_current)
+  // A decision belongs to one revision: after a fix the earlier rejection is history,
+  // and the new revision waits for its own decision.
+  const current = scan.decisions.find(
+    (d) => d.is_current && d.revision_id === scan.current_revision.revision_id,
+  )
+  const earlier = scan.decisions.find(
+    (d) => d.is_current && d.revision_id !== scan.current_revision.revision_id,
+  )
+  const resubmitted = scan.current_revision.origin === 'rejection_fix'
   const waiting = scan.current_revision.review_status === 'waiting_for_approval' && !current
 
   return (
     <>
       <PageHeader
         title={scan.equipment_type_name}
-        subtitle={`${scan.record_no} · ${back.label}`}
+        subtitle={`${formatScanId(scan.record_no)} · ${back.label}`}
         actions={
           <Link to={back.to} className={buttonClasses('link')}>
             ← Back
@@ -77,6 +88,15 @@ export function ScanReviewView({ scanId, back }: ScanReviewViewProps) {
               {notice}
             </Alert>
           )}
+          {resubmitted && waiting && earlier && (
+            <Alert tone="warning">
+              <b>Resubmitted · revision {scan.current_revision.revision_no}.</b> Revision{' '}
+              {scan.current_revision.revision_no - 1} was rejected by {earlier.decided_by_name} ·{' '}
+              {timeAgo(earlier.decided_at)}
+              {earlier.note ? ` — “${earlier.note}”` : ''}. {scan.captured_by_name} fixed it and
+              sent it back.
+            </Alert>
+          )}
           {scan.current_revision.empty_required_fields.length > 0 && (
             <Alert tone="danger">
               Sent with required fields empty:{' '}
@@ -95,6 +115,7 @@ export function ScanReviewView({ scanId, back }: ScanReviewViewProps) {
           ) : (
             <Alert tone="info">This scan is not waiting for a decision.</Alert>
           )}
+          <ScanHistoryCard scanId={scanId} />
           {scan.decisions.length > 0 && <DecisionHistory decisions={scan.decisions} />}
         </section>
       </div>
@@ -113,6 +134,7 @@ function Meta({ term, value }: { term: string; value: string }) {
 
 function Photos({ photos }: { photos: { no: number; url: string }[] }) {
   const [shown, setShown] = useState(0)
+  const [open, setOpen] = useState(false)
   const photo = photos[shown]
   if (!photo) {
     return (
@@ -123,11 +145,11 @@ function Photos({ photos }: { photos: { no: number; url: string }[] }) {
   }
   return (
     <div className="flex flex-col gap-2">
-      <a
-        href={photo.url}
-        target="_blank"
-        rel="noreferrer"
-        className="relative block overflow-hidden rounded-xl bg-ink"
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        aria-label={`Open photo ${photo.no} of ${photos.length}`}
+        className="relative block w-full cursor-zoom-in overflow-hidden rounded-xl bg-ink"
       >
         <img
           src={photo.url}
@@ -135,9 +157,10 @@ function Photos({ photos }: { photos: { no: number; url: string }[] }) {
           className="h-75 w-full object-contain"
         />
         <span className="absolute right-2.5 bottom-2.5 rounded-full bg-ink/60 px-2.5 py-1 text-meta font-semibold text-white">
-          Photo {photo.no} of {photos.length} · open full size
+          Photo {photo.no} of {photos.length} · click to zoom
         </span>
-      </a>
+      </button>
+      {open && <PhotoViewer photos={photos} start={shown} onClose={() => setOpen(false)} />}
       {photos.length > 1 && (
         <div className="flex gap-2">
           {photos.map((p, i) => (

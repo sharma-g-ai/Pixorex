@@ -7,6 +7,7 @@ import { DataTable, type Column } from '../../components/DataTable'
 import { Tabs } from '../../components/Tabs'
 import { timeAgo } from '../../lib/time'
 import { technicianDecisionStatus } from './reviewRules'
+import { formatScanId } from '../../lib/scanId'
 
 type Filter = 'all' | 'approved' | 'rejected'
 
@@ -28,7 +29,7 @@ export function TechnicianDecisionsTable({
     {
       header: 'Scan',
       width: 1.2,
-      cell: (d) => <span className="font-mono font-semibold">{d.record_no}</span>,
+      cell: (d) => <span className="font-mono font-semibold">{formatScanId(d.record_no)}</span>,
     },
     {
       header: 'Decision',

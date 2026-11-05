@@ -50,7 +50,7 @@ class ScansApi {
 }
 
 Future<(ScansApi, List<String>)> pumpMyScans(WidgetTester t, {ScansApi? api, String? tab}) async {
-  t.view.physicalSize = const Size(1170, 2532);
+  t.view.physicalSize = const Size(1170, 4200);
   t.view.devicePixelRatio = 3;
   addTearDown(t.view.reset);
   final a = api ?? ScansApi();
@@ -84,8 +84,10 @@ void main() {
     expect(find.text('Failed 3 times — retake the photo'), findsOneWidget);
     expect(find.text('No retries left'), findsOneWidget);
     expect(find.text('Retake photo'), findsNWidgets(2)); // with Retry while tries are left (design 47)
-    expect(find.text('Bin 07 · ready to check'), findsOneWidget);
-    expect(find.text('Attempt 2 of 3 · 5 min ago'), findsOneWidget);
+    expect(find.text('Check what was read'), findsOneWidget);
+    // Where a scan is and when things happened is on Scan details, not on every row.
+    expect(find.text('Attempt 2 of 3 · 5 min ago'), findsNothing);
+    expect(find.textContaining('min ago'), findsNothing);
     expect(
       t.getTopLeft(find.text('Control Valve')).dy,
       lessThan(t.getTopLeft(find.text('AC Generator')).dy),
@@ -208,7 +210,7 @@ void main() {
     testWidgets('GIVEN another type was read WHEN the scan opens THEN the choice is offered', (t) async {
       final calls = await openMismatch(t);
       expect(find.text('Type mismatch'), findsOneWidget);
-      expect(find.textContaining('Image appears to be: Air conditioner remote control.'), findsOneWidget);
+      expect(find.textContaining('Image appears to be: Air conditioner remote control.', findRichText: true), findsOneWidget);
       expect(find.textContaining('You selected: Control Valve V-071.'), findsOneWidget);
       expect(find.textContaining('Suggested type: Other.'), findsOneWidget);
 

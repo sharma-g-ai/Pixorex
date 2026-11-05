@@ -20,6 +20,8 @@ import 'features/scan/location_pick.dart';
 import 'features/scan/my_scans_screen.dart';
 import 'features/scan/new_scan_flow.dart';
 import 'features/scan/photo_source.dart';
+import 'features/scan/rejection_screens.dart';
+import 'features/scan/scan_models.dart' show MyScan;
 import 'features/scan/scan_repository.dart';
 
 /// Source of links that open the app (invite links). A seam so tests can fake it.
@@ -130,6 +132,7 @@ class _AuthGate extends StatelessWidget {
     final buId = unit?.buId;
     if (buId == null) return HomeShell(scans: scans);
     final nav = Navigator.of(context);
+    late final Future<bool> Function(MyScan old) retake;
 
     NewScanFlow flow({RetakeOf? retakeOf}) => NewScanFlow(
           scans: scans,
@@ -139,31 +142,40 @@ class _AuthGate extends StatelessWidget {
           unitName: unit!.name ?? '',
           tenantName: session.me!.tenantName,
           retakeOf: retakeOf,
-          onMyScans: retakeOf == null ? () => openMyScans(nav, scans, unit.name ?? '', flow) : null,
+          onMyScans: retakeOf == null ? () => openMyScans(nav, scans, unit.name ?? '', retake) : null,
         );
+    retake = retakeWith(nav, scans, flow, photoSource);
 
     return HomeShell(
       scans: scans,
       onNewScan: () => nav.push(MaterialPageRoute<void>(builder: (_) => flow())),
-      onMyScans: ({String? tab}) => openMyScans(nav, scans, unit!.name ?? '', flow, tab: tab),
+      onMyScans: ({String? tab}) => openMyScans(nav, scans, unit!.name ?? '', retake, tab: tab),
+      onRetake: retake,
     );
   }
 }
 
-/// My Scans, with Retake starting the capture flow for the old scan's type and place.
+/// My Scans, with Retake replacing a scan by a new one.
 Future<void> openMyScans(
   NavigatorState nav,
   ScanRepository scans,
   String unitName,
-  NewScanFlow Function({RetakeOf? retakeOf}) flow, {
+  Future<bool> Function(MyScan old) retake, {
   String? tab,
 }) =>
     nav.push(MaterialPageRoute<void>(
-      builder: (context) => MyScansScreen(
-        scans: scans,
-        unitName: unitName,
-        initialTab: tab,
-        onRetake: (old) async {
+      builder: (context) => MyScansScreen(scans: scans, unitName: unitName, initialTab: tab, onRetake: retake),
+    ));
+
+/// Retake [old] for its type and place: a rejected scan gets one photo and a confirm
+/// (design 71-72), a failed one the full capture flow (design 65). True once sent.
+Future<bool> Function(MyScan old) retakeWith(
+  NavigatorState nav,
+  ScanRepository scans,
+  NewScanFlow Function({RetakeOf? retakeOf}) flow,
+  PhotoSource Function() photoSource,
+) =>
+    (old) async {
           try {
             final scan = await scans.scan(old.scanId);
             final type = (await scans.equipmentTypes(scan.buId)).where((t) => t.typeId == scan.equipmentTypeId).firstOrNull;
@@ -173,6 +185,12 @@ Future<void> openMyScans(
                 code: 'type-not-published',
                 title: '${scan.equipmentTypeName} is no longer set up for this unit. Ask your BU Admin.',
               );
+            }
+            if (scan.reviewStatus == 'rejected') {
+              final sent = await nav.push<bool>(MaterialPageRoute(
+                builder: (_) => RejectedRetakeScreen(scans: scans, old: scan, type: type, photoSource: photoSource),
+              ));
+              return sent == true;
             }
             final sent = await nav.push<bool>(MaterialPageRoute(
               builder: (_) => flow(
@@ -186,9 +204,7 @@ Future<void> openMyScans(
             ));
             return sent == true;
           } on ApiException catch (e) {
-            if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+            if (nav.mounted) ScaffoldMessenger.maybeOf(nav.context)?.showSnackBar(SnackBar(content: Text(e.message)));
             return false;
           }
-        },
-      ),
-    ));
+        };

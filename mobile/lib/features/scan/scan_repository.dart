@@ -75,6 +75,9 @@ class ScanRepository {
   /// Contract 2.23: queues the AI extraction (the API writes the outbox event). Safe to repeat.
   Future<void> confirmUpload(String scanId) => _api.post('/scans/$scanId/upload-complete');
 
+  /// Contract 3.16: the scan's events, oldest first, and where it is now.
+  Future<ScanHistory> history(String scanId) async => ScanHistory.fromJson(await _api.get('/scans/$scanId/history'));
+
   /// Contract 2.24. Poll until [Scan.isSettled]: there is no push.
   Future<Scan> scan(String scanId) async => Scan.fromJson(await _api.get('/scans/$scanId'));
 

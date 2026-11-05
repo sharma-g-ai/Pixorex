@@ -2,10 +2,11 @@
 re-extract, discard."""
 
 import hashlib
+import re
 import uuid
 from typing import Any
 
-from app.repositories.scans import PATH_SEPARATOR
+from app.repositories.scans import PATH_SEPARATOR, record_no_for
 from app.workers import outbox
 from app.workers.settings import WorkerSettings
 from tests.integration.capture_setup import (
@@ -32,7 +33,8 @@ def test_create_scan_is_repeat_safe_and_counts_once(
     first = _create(api, unit, body)
     assert first.status_code == 201, first.text
     scan = first.json()
-    assert scan["record_no"].startswith("REC-")
+    assert re.fullmatch(r"[0-9]{10}", scan["record_no"])  # 9-digit counter + check digit
+    assert scan["record_no"] == record_no_for(int(scan["record_no"][:9]))
     assert scan["location_path"] == PATH_SEPARATOR.join(["Akron", "Building A", "Bin 14"])
     assert (scan["processing_status"], scan["review_status"]) == ("uploading", "draft")
     assert (scan["photos"], scan["attempts_used"], scan["fields"]) == ([], 0, [])
@@ -215,6 +217,7 @@ def test_scan_detail_and_who_may_see_it(
             "ai_value": "SN-77",
             "confidence": 0.42,
             "flag_reasons": ["low_confidence"],
+            "submitted": None,
         }
     ]
     assert api.get(f"/scans/{sid}", ERIN).status_code == 200  # the EA

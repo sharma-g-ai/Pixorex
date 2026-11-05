@@ -79,19 +79,40 @@ async def published_node_path(conn: Conn, bu_id: UUID, node_id: UUID) -> str | N
     return row["path"] if row else None
 
 
+FIRST_RECORD = 100_000_001  # the 9-digit counter per tenant starts here: no leading zero
+
+
+def luhn_digit(payload: str) -> int:
+    """The Luhn check digit, as on card numbers: catches one wrong digit or two swapped."""
+    total = 0
+    for i, ch in enumerate(reversed(payload)):
+        d = int(ch)
+        if i % 2 == 0:
+            d = d * 2 - 9 if d > 4 else d * 2
+        total += d
+    return (10 - total % 10) % 10
+
+
+def record_no_for(n: int) -> str:
+    """Scan ID: the 9-digit counter, then its check digit (1000000040 for scan 4). The apps
+    show it grouped as 100 000 004 0."""
+    return f"{n}{luhn_digit(str(n))}"
+
+
 async def next_record_no(conn: Conn, tenant_id: UUID) -> str:
-    """Display numbers REC-1, REC-2... per tenant, as batch numbers are. Serialised by a
-    transaction-level advisory lock on the tenant, so two scans never get the same number."""
+    """The next scan ID for the tenant. Serialised by a transaction-level advisory lock on
+    the tenant, so two scans never get the same number."""
     await conn.execute(
         "SELECT pg_advisory_xact_lock(hashtextextended(%s, 0))", (f"record:{tenant_id}",)
     )
     cur = await conn.execute(
-        "SELECT coalesce(max(substring(record_no FROM '^REC-([0-9]+)$')::bigint), 0) + 1 AS n"
-        " FROM scan WHERE tenant_id = %s",
+        "SELECT max(left(record_no, 9)::bigint) AS n FROM scan"
+        " WHERE tenant_id = %s AND record_no ~ '^[0-9]{10}$'",
         (tenant_id,),
     )
     row = await cur.fetchone()
-    return f"REC-{row['n'] if row else 1}"
+    last = row["n"] if row and row["n"] is not None else FIRST_RECORD - 1
+    return record_no_for(last + 1)
 
 
 async def insert(
@@ -227,6 +248,104 @@ async def ai_fields(conn: Conn, contract_id: UUID, attempt_id: UUID) -> list[dic
     return await cur.fetchall()
 
 
+async def rejection(conn: Conn, scan_id: UUID) -> dict[str, Any] | None:
+    """The current rejection of the latest revision: reason, the reviewer's note and who."""
+    cur = await conn.execute(
+        "SELECT cd.reject_category AS category, cd.note, u.full_name AS reviewer_name,"
+        " cd.decided_at FROM revision r JOIN review_decision cd ON cd.revision_id = r.id"
+        " AND cd.is_current AND cd.decision = 'rejected'"
+        " JOIN app_user u ON u.id = cd.decided_by WHERE r.scan_id = %s"
+        " ORDER BY r.revision_no DESC LIMIT 1",
+        (scan_id,),
+    )
+    return await cur.fetchone()
+
+
+async def submitted_fields(conn: Conn, scan_id: UUID) -> list[dict[str, Any]]:
+    """The technician's verdicts in the latest revision, by field."""
+    cur = await conn.execute(
+        "SELECT rf.field_key, rf.value, rf.verification_state, rf.unreadable_reason, rf.note"
+        " FROM revision_field rf WHERE rf.revision_id = ("
+        "   SELECT r.id FROM revision r WHERE r.scan_id = %s ORDER BY r.revision_no DESC LIMIT 1)",
+        (scan_id,),
+    )
+    return await cur.fetchall()
+
+
+async def history_attempts(conn: Conn, scan_id: UUID) -> list[dict[str, Any]]:
+    cur = await conn.execute(
+        "SELECT attempt_no, trigger, status, created_at, updated_at FROM extraction_attempt"
+        " WHERE scan_id = %s ORDER BY attempt_no",
+        (scan_id,),
+    )
+    return await cur.fetchall()
+
+
+async def history_revisions(conn: Conn, scan_id: UUID) -> list[dict[str, Any]]:
+    cur = await conn.execute(
+        "SELECT r.id, r.revision_no, r.origin, r.values_json, r.submitted_by,"
+        " u.full_name AS by_name, r.submitted_at,"
+        " (SELECT count(*) FROM revision_field rf WHERE rf.revision_id = r.id"
+        "   AND rf.verification_state = 'corrected') AS corrected,"
+        " (SELECT count(*) FROM revision_field rf WHERE rf.revision_id = r.id"
+        "   AND rf.verification_state = 'unreadable') AS unreadable"
+        " FROM revision r JOIN app_user u ON u.id = r.submitted_by"
+        " WHERE r.scan_id = %s ORDER BY r.revision_no",
+        (scan_id,),
+    )
+    return await cur.fetchall()
+
+
+async def history_decisions(conn: Conn, scan_id: UUID) -> list[dict[str, Any]]:
+    cur = await conn.execute(
+        "SELECT d.id, d.decision, d.reject_category, d.note, d.decided_by, d.decided_at,"
+        " d.overrides_decision_id, d.decider_role, u.full_name AS by_name, r.revision_no"
+        " FROM review_decision d JOIN revision r ON r.id = d.revision_id"
+        " JOIN app_user u ON u.id = d.decided_by WHERE r.scan_id = %s"
+        " ORDER BY d.decided_at, d.id",
+        (scan_id,),
+    )
+    return await cur.fetchall()
+
+
+async def field_labels(conn: Conn, contract_id: UUID) -> dict[str, str]:
+    cur = await conn.execute(
+        "SELECT fd.field_key, fd.label FROM extraction_contract c"
+        " JOIN field_definition fd ON fd.type_version_id = c.type_version_id WHERE c.id = %s",
+        (contract_id,),
+    )
+    return {r["field_key"]: r["label"] for r in await cur.fetchall()}
+
+
+async def related_scans(conn: Conn, scan_id: UUID, retake_of: UUID | None) -> dict[str, Any]:
+    """The scan this one replaces, and the scan that replaced it."""
+    cur = await conn.execute(
+        "SELECT s.id, s.record_no FROM scan s WHERE s.id = %s", (retake_of,)
+    )
+    replaces = await cur.fetchone() if retake_of else None
+    cur = await conn.execute(
+        "SELECT s.id, s.record_no, s.captured_at FROM scan s WHERE s.retake_of_scan_id = %s"
+        " ORDER BY s.captured_at LIMIT 1",
+        (scan_id,),
+    )
+    return {"replaces": replaces, "replaced_by": await cur.fetchone()}
+
+
+async def holder(conn: Conn, scan_id: UUID, technician_id: UUID) -> dict[str, Any] | None:
+    """Who the scan waits on for review right now: the technician it is delegated to, else
+    the reviewer a fixed scan goes back to."""
+    cur = await conn.execute(
+        "SELECT u.full_name FROM review_assignment ra JOIN app_user u ON u.id = ra.assigned_to"
+        " WHERE ra.scan_id = %s AND ra.status = 'assigned'"
+        " UNION ALL SELECT u.full_name FROM revision r JOIN app_user u"
+        " ON u.id = r.resubmit_to_user_id WHERE r.scan_id = %s"
+        " AND r.revision_no = (SELECT max(revision_no) FROM revision WHERE scan_id = %s)"
+        " LIMIT 1",
+        (scan_id, scan_id, scan_id),
+    )
+    return await cur.fetchone()
+
+
 async def open_assignee(conn: Conn, scan_id: UUID) -> UUID | None:
     """The technician this scan is assigned to for review right now, if any."""
     cur = await conn.execute(
@@ -291,14 +410,15 @@ async def my_scans(
             where.append(sql)
             params.append(filters[key])
     if filters.get("q"):
-        # "Search name, serial or bin": the type name, the submitted values, the location.
+        # "Search name, serial or bin": the type name, the submitted values, the location,
+        # and the scan ID with or without the spaces it is shown with (100 000 004 0).
         where.append(
             "(et.name ILIKE %s OR s.location_path_snapshot ILIKE %s"
-            " OR cr.values_json::text ILIKE %s)"
+            " OR cr.values_json::text ILIKE %s OR s.record_no LIKE %s)"
         )
         q = filters["q"].replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
         pattern = f"%{q}%"
-        params += [pattern, pattern, pattern]
+        params += [pattern, pattern, pattern, f"%{q.replace(' ', '')}%"]
     if after:
         where.append("(s.updated_at, s.id) < (%s::timestamptz, %s::uuid)")
         params += after
@@ -307,10 +427,22 @@ async def my_scans(
         " s.location_path_snapshot AS location_path, s.processing_status, s.review_status,"
         " (SELECT count(*) FROM extraction_attempt a WHERE a.scan_id = s.id) AS attempts_used,"
         " CASE WHEN s.review_status = 'rejected' THEN cd.reject_category END AS reject_category,"
+        " (cr.origin = 'rejection_fix' AND s.review_status = 'waiting_for_approval') AS resubmitted,"
+        " s.retake_of_scan_id,"
+        # Who the scan is with after a rejection: the reviewer who sent it back, the one a fix
+        # went back to, or (on a retake) the one who rejected the scan it replaces.
+        " coalesce(CASE WHEN cd.decision = 'rejected' THEN du.full_name END, ru.full_name,"
+        "   (SELECT ou.full_name FROM revision orr JOIN review_decision od ON od.revision_id = orr.id"
+        "      AND od.is_current AND od.decision = 'rejected'"
+        "      JOIN app_user ou ON ou.id = od.decided_by"
+        "      WHERE orr.scan_id = s.retake_of_scan_id ORDER BY orr.revision_no DESC LIMIT 1)"
+        " ) AS reviewer_name,"
         " s.updated_at FROM scan s JOIN equipment_type et ON et.id = s.equipment_type_id"
-        " LEFT JOIN LATERAL (SELECT r.id, r.values_json FROM revision r WHERE r.scan_id = s.id"
-        "   ORDER BY r.revision_no DESC LIMIT 1) cr ON true"
+        " LEFT JOIN LATERAL (SELECT r.id, r.values_json, r.origin, r.resubmit_to_user_id FROM revision r"
+        "   WHERE r.scan_id = s.id ORDER BY r.revision_no DESC LIMIT 1) cr ON true"
         " LEFT JOIN review_decision cd ON cd.revision_id = cr.id AND cd.is_current"
+        " LEFT JOIN app_user du ON du.id = cd.decided_by"
+        " LEFT JOIN app_user ru ON ru.id = cr.resubmit_to_user_id"
         f" WHERE {' AND '.join(where)} ORDER BY s.updated_at DESC, s.id DESC LIMIT %s",
         [*params, limit + 1],
     )

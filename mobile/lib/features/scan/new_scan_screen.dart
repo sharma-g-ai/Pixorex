@@ -156,7 +156,7 @@ class _NewScanScreenState extends State<NewScanScreen> {
             ),
             Expanded(
               child: Builder(builder: (_) {
-                final hint = type == null ? 'Choose the equipment type to start' : 'Align the nameplate within the frame';
+                final hint = type == null ? 'Choose the equipment type to start' : 'Fill the screen with the nameplate';
                 return widget.viewfinder?.call(hint) ?? _StaticViewfinder(hint);
               }),
             ),

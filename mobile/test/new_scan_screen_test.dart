@@ -119,7 +119,7 @@ void main() {
 
       await t.tap(find.text('Motor Nameplate'));
       await t.pumpAndSettle();
-      expect(find.text('Align the nameplate within the frame'), findsOneWidget);
+      expect(find.text('Fill the screen with the nameplate'), findsOneWidget);
       expect(find.text('Take photo'), findsOneWidget);
 
       await t.tap(find.byKey(const Key('shutter')));

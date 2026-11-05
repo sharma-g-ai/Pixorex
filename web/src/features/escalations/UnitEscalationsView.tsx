@@ -8,6 +8,7 @@ import { DataTable, type Column } from '../../components/DataTable'
 import { MAX_BATCH, SelectionBar } from '../review/SelectionBar'
 import { waitingStatus } from '../review/reviewRules'
 import { whyText, type UnitEscalations } from './escalationRules'
+import { formatScanId } from '../../lib/scanId'
 
 interface UnitEscalationsViewProps {
   group: UnitEscalations
@@ -50,7 +51,7 @@ export function UnitEscalationsView({
       cell: (e) => (
         <Link to={`/escalations/${e.scan_id}`} className="block min-w-0 hover:underline">
           <span className="block truncate font-semibold">{e.equipment_type_name}</span>
-          <span className="font-mono text-meta text-ink-subtle">{e.record_no}</span>
+          <span className="font-mono text-meta text-ink-subtle">{formatScanId(e.record_no)}</span>
         </Link>
       ),
     },

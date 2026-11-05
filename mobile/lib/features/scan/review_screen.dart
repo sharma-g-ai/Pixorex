@@ -8,6 +8,7 @@ import '../../core/api_exception.dart';
 import '../../core/theme.dart';
 import '../../widgets/auth_widgets.dart';
 import 'review_model.dart';
+import 'scan_details_screen.dart' show ScanHistoryScreen;
 import 'scan_models.dart';
 import 'scan_repository.dart';
 
@@ -91,29 +92,11 @@ class _ReviewScreenState extends State<ReviewScreen> {
     final choice = await showDialog<String>(
       context: context,
       barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        icon: const Icon(Icons.warning_amber_rounded, color: Brand.warn, size: 32),
-        title: const Text('Type mismatch'),
-        content: Text(
-          '${detected == null ? '' : 'Image appears to be: $detected. '}'
-          'You selected: ${scan.equipmentTypeName}.'
-          '${suggested == null ? '' : ' Suggested type: $suggested.'}\n\n'
-          'Re-extract as the suggested type, keep the current results, or discard?',
-        ),
-        actionsOverflowDirection: VerticalDirection.down,
-        actions: [
-          FilledButton(onPressed: () => Navigator.pop(ctx, 'keep'), child: const Text('Keep results')),
-          if (scan.attemptsUsed < Scan.maxAttempts)
-            OutlinedButton(
-              onPressed: () => Navigator.pop(ctx, 'reextract'),
-              child: Text('Re-extract as ${suggested ?? 'the suggested type'}'),
-            ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, 'discard'),
-            style: TextButton.styleFrom(foregroundColor: Brand.error),
-            child: const Text('Discard'),
-          ),
-        ],
+      builder: (ctx) => _MismatchDialog(
+        detected: detected,
+        selected: scan.equipmentTypeName,
+        suggested: suggested,
+        canReExtract: scan.attemptsUsed < Scan.maxAttempts,
       ),
     );
     if (!mounted) return;
@@ -261,15 +244,26 @@ class _ReviewScreenState extends State<ReviewScreen> {
             ? const Text('Scan')
             : Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text(s.equipmentTypeName, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
-                Text('${shortPlace(s.locationPath)} · ${_statusLabel(s)}',
+                Text('${formatScanId(s.recordNo)} · ${shortPlace(s.locationPath)} · ${_statusLabel(s)}',
                     style: const TextStyle(fontSize: 11, color: Colors.white70)),
               ]),
         actions: [
-          if (s != null && s.reviewStatus == 'draft' && s.isSettled)
+          if (s != null)
             PopupMenuButton<String>(
               tooltip: 'More',
-              onSelected: (_) => _discard(),
-              itemBuilder: (_) => const [PopupMenuItem(value: 'discard', child: Text('Discard scan'))],
+              onSelected: (v) => v == 'history'
+                  ? Navigator.of(context).push<void>(MaterialPageRoute(
+                      builder: (_) => ScanHistoryScreen(
+                        scans: widget.scans,
+                        scanId: s.scanId,
+                        title: '${formatScanId(s.recordNo)} · ${s.equipmentTypeName}',
+                      ),
+                    ))
+                  : _discard(),
+              itemBuilder: (_) => [
+                const PopupMenuItem(value: 'history', child: Text('History')),
+                if (s.reviewStatus == 'draft' && s.isSettled) const PopupMenuItem(value: 'discard', child: Text('Discard scan')),
+              ],
             ),
           if (d != null && _reviewable && d.flagged.isNotEmpty)
             Container(
@@ -409,7 +403,7 @@ class _Photos extends StatelessWidget {
       );
 
   Widget _photo(BuildContext context, int i, {String? label}) => GestureDetector(
-        onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => _Zoom(urls: urls, first: i))),
+        onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => PhotoZoom(urls: urls, first: i))),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(10),
           child: Stack(fit: StackFit.expand, children: [
@@ -430,8 +424,8 @@ class _Photos extends StatelessWidget {
       );
 }
 
-class _Zoom extends StatelessWidget {
-  const _Zoom({required this.urls, required this.first});
+class PhotoZoom extends StatelessWidget {
+  const PhotoZoom({super.key, required this.urls, required this.first});
   final List<String> urls;
   final int first;
 
@@ -836,6 +830,110 @@ class _Status extends StatelessWidget {
           const SizedBox(height: 8),
           Text(text, textAlign: TextAlign.center, style: const TextStyle(color: Brand.body)),
           if (!scan.isSettled) ...[const SizedBox(height: 20), const CircularProgressIndicator()],
+        ]),
+      ),
+    );
+  }
+}
+
+/// Type mismatch (design 54): what the AI saw, then three full-width choices stacked by
+/// importance, big enough for gloved hands. Pops 'keep', 'reextract' or 'discard'.
+class _MismatchDialog extends StatelessWidget {
+  const _MismatchDialog({required this.detected, required this.selected, required this.suggested, required this.canReExtract});
+  final String? detected;
+  final String selected;
+  final String? suggested;
+  final bool canReExtract;
+
+  static const _ink = Color(0xFF1B1E7A);
+
+  @override
+  Widget build(BuildContext context) {
+    final bold = const TextStyle(fontWeight: FontWeight.w700);
+    return Dialog(
+      backgroundColor: Colors.white,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 20),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(22, 22, 22, 14),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Container(
+            width: 52,
+            height: 52,
+            decoration: const BoxDecoration(color: Color(0xFFFDEBD8), shape: BoxShape.circle),
+            child: const Icon(Icons.warning_amber_rounded, color: Brand.warn, size: 28),
+          ),
+          const SizedBox(height: 10),
+          const Text('Type mismatch', style: TextStyle(fontSize: 19, fontWeight: FontWeight.w700, color: _ink)),
+          const SizedBox(height: 10),
+          Text.rich(
+            TextSpan(style: const TextStyle(fontSize: 14, color: Color(0xFF3D434B), height: 1.55), children: [
+              if (detected != null) ...[
+                const TextSpan(text: 'Image appears to be: '),
+                TextSpan(text: detected, style: bold),
+                const TextSpan(text: '. '),
+              ],
+              const TextSpan(text: 'You selected: '),
+              TextSpan(text: selected, style: bold),
+              const TextSpan(text: '.'),
+              if (suggested != null) ...[
+                const TextSpan(text: ' Suggested type: '),
+                TextSpan(text: suggested, style: bold),
+                const TextSpan(text: '.'),
+              ],
+            ]),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 10),
+          Text(
+            canReExtract
+                ? 'Re-extract as the suggested type, keep the current results, or discard?'
+                : 'All 3 reads are used. Keep the current results, or discard?',
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 12.5, color: Brand.hint, height: 1.45),
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            height: 46,
+            child: FilledButton(
+              onPressed: () => Navigator.pop(context, 'keep'),
+              style: FilledButton.styleFrom(
+                backgroundColor: _ink,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                textStyle: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w700, fontFamily: kFontFamily),
+              ),
+              child: const Text('Keep results'),
+            ),
+          ),
+          if (canReExtract) ...[
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              height: 46,
+              child: OutlinedButton.icon(
+                onPressed: () => Navigator.pop(context, 'reextract'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: _ink,
+                  side: const BorderSide(color: _ink, width: 1.5),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  textStyle: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w700, fontFamily: kFontFamily),
+                ),
+                icon: const Icon(Icons.refresh, size: 18),
+                label: Text('Re-extract as ${suggested ?? 'the suggested type'}', overflow: TextOverflow.ellipsis),
+              ),
+            ),
+          ],
+          const SizedBox(height: 4),
+          TextButton(
+            onPressed: () => Navigator.pop(context, 'discard'),
+            style: TextButton.styleFrom(
+              foregroundColor: Brand.error,
+              minimumSize: const Size(120, 44),
+              textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, fontFamily: kFontFamily),
+            ),
+            child: const Text('Discard'),
+          ),
         ]),
       ),
     );

@@ -7,7 +7,9 @@ import '../../widgets/auth_widgets.dart';
 import '../auth/me.dart';
 import '../auth/session_controller.dart';
 import '../scan/scan_models.dart';
+import '../scan/rejection_screens.dart';
 import '../scan/review_screen.dart';
+import '../scan/scan_details_screen.dart';
 import '../scan/scan_repository.dart';
 import '../scan/scan_status.dart';
 
@@ -17,9 +19,12 @@ typedef OpenMyScans = Future<void> Function({String? tab});
 /// Signed-in shell: Home (design 13/14), My Scans (opened as its own page) and Profile
 /// (design 15, sign-out part). The offline Queue tab comes with the offline work.
 class HomeShell extends StatefulWidget {
-  const HomeShell({super.key, required this.scans, this.onNewScan, this.onMyScans});
+  const HomeShell({super.key, required this.scans, this.onNewScan, this.onMyScans, this.onRetake});
   final ScanRepository scans;
   final OpenMyScans? onMyScans;
+
+  /// Replaces a scan by a new one (design 65, 71); true once sent.
+  final Future<bool> Function(MyScan old)? onRetake;
 
   /// Opens New scan (design 30) and completes when the technician comes back;
   /// Home then reloads. The green button is hidden when this is null.
@@ -62,6 +67,7 @@ class _HomeShellState extends State<HomeShell> {
                 scans: widget.scans,
                 onNewScan: widget.onNewScan == null ? null : _newScan,
                 onMyScans: widget.onMyScans == null ? null : _myScans,
+                onRetake: widget.onRetake,
               ) : _Profile(me)),
       ]),
       floatingActionButton: _tab == 0 && widget.onNewScan != null
@@ -153,10 +159,11 @@ class HomeData {
 }
 
 class HomeTab extends StatefulWidget {
-  const HomeTab({super.key, required this.scans, this.onNewScan, this.onMyScans, this.clock = DateTime.now});
+  const HomeTab({super.key, required this.scans, this.onNewScan, this.onMyScans, this.onRetake, this.clock = DateTime.now});
   final ScanRepository scans;
   final VoidCallback? onNewScan;
   final OpenMyScans? onMyScans;
+  final Future<bool> Function(MyScan old)? onRetake;
   final DateTime Function() clock;
 
   @override
@@ -195,6 +202,11 @@ class _HomeTabState extends State<HomeTab> {
 
   /// Opens the scan; after it is sent for review, says so and reloads (design 62).
   Future<void> _open(MyScan s) async {
+    if (s.reviewStatus == 'rejected') return _openRejected(s);
+    if (s.opensDetails) {
+      await Navigator.of(context).push<void>(MaterialPageRoute(builder: (_) => ScanDetailsScreen(scans: widget.scans, scan: s)));
+      return;
+    }
     final sent = await Navigator.of(context).push<bool>(MaterialPageRoute(
       builder: (_) => ReviewScreen(scans: widget.scans, scanId: s.scanId),
     ));
@@ -202,6 +214,26 @@ class _HomeTabState extends State<HomeTab> {
     if (sent == true) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${s.equipmentTypeName} sent to reviewer')));
     }
+    await _load();
+  }
+
+  /// Design 68-73, as from My Scans.
+  Future<void> _openRejected(MyScan s) async {
+    final done = await Navigator.of(context).push<RejectionOutcome>(MaterialPageRoute(
+      builder: (_) => RejectionNoticeScreen(
+        scans: widget.scans,
+        scanId: s.scanId,
+        onRetake: widget.onRetake == null ? null : () => widget.onRetake!(s),
+        clock: widget.clock,
+      ),
+    ));
+    if (!mounted) return;
+    final text = switch (done) {
+      RejectionOutcome.resubmitted => '${s.equipmentTypeName} resubmitted to ${s.reviewerName ?? 'the reviewer'}',
+      RejectionOutcome.retaken => 'New scan submitted · rejected scan closed',
+      null => null,
+    };
+    if (text != null) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
     await _load();
   }
 
@@ -343,7 +375,8 @@ class ScanRow extends StatelessWidget {
         Expanded(
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(scan.equipmentTypeName, style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700)),
-            Text('${scan.place} · ${ago(scan.updatedAt, now)}', style: const TextStyle(fontSize: 11, color: Brand.hint)),
+            Text('${formatScanId(scan.recordNo)} · ${scan.place}',
+                style: const TextStyle(fontSize: 11, color: Brand.hint, fontFeatures: [FontFeature.tabularFigures()])),
           ]),
         ),
         ScanStatusPill(look),

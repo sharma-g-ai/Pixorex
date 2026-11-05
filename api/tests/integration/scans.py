@@ -6,6 +6,7 @@ import uuid
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+from app.repositories.scans import record_no_for
 from tests.integration.helpers import TENANT_A
 
 P04 = str(uuid.uuid5(uuid.NAMESPACE_URL, "pixorex-seed/unit/p04"))
@@ -85,7 +86,7 @@ def waiting_scan(
     """A scan of Plant 04 waiting for approval. Serial is flagged (low confidence) and
     corrected; voltage accepted; phase unreadable."""
     _setup_once(sql)
-    scan_id, record_no = str(uuid.uuid4()), f"REC-{uuid.uuid4().int % 10**8:08d}"
+    scan_id, record_no = str(uuid.uuid4()), record_no_for(200_000_000 + uuid.uuid4().int % 10**8)
     submitted = datetime.now(UTC) - timedelta(hours=hours_waiting)
     process = sql("SELECT id FROM business_process WHERE bu_id = %s AND is_default", (bu,))[0][0]
     sql(

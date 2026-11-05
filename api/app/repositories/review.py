@@ -61,6 +61,7 @@ async def queue_items(
         "SELECT s.id AS scan_id, s.record_no, et.name AS equipment_type_name,"
         " tech.full_name AS captured_by_name, s.location_path_snapshot AS location_path,"
         " cr.submitted_at AS waiting_since, rb.batch_no, assignee.full_name AS assigned_to_name,"
+        " cr.revision_no, cr.origin = 'rejection_fix' AS resubmitted,"
         " (SELECT count(*) FROM revision_field rf JOIN ai_field_value av"
         "    ON av.id = rf.ai_field_value_id"
         "   WHERE rf.revision_id = cr.id AND cardinality(av.flag_reasons) > 0) AS flag_count,"

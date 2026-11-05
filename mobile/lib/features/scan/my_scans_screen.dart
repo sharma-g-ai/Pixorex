@@ -5,8 +5,9 @@ import 'package:flutter/material.dart';
 import '../../core/api_exception.dart';
 import '../../core/theme.dart';
 import '../../widgets/auth_widgets.dart';
-import '../home/home_screen.dart' show ago;
+import 'rejection_screens.dart';
 import 'review_screen.dart';
+import 'scan_details_screen.dart';
 import 'scan_models.dart';
 import 'scan_repository.dart';
 import 'scan_status.dart';
@@ -136,12 +137,39 @@ class _MyScansScreenState extends State<MyScansScreen> {
   void _say(String text) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
 
   Future<void> _open(MyScan s) async {
+    if (s.reviewStatus == 'rejected') return _openRejected(s);
+    if (s.opensDetails) {
+      await Navigator.of(context).push<void>(MaterialPageRoute(builder: (_) => ScanDetailsScreen(scans: widget.scans, scan: s)));
+      return;
+    }
     final sent = await Navigator.of(context).push<bool>(MaterialPageRoute(
       builder: (_) => ReviewScreen(scans: widget.scans, scanId: s.scanId),
     ));
     if (!mounted) return;
     if (sent == true) _say('${s.equipmentTypeName} sent to reviewer');
     if (sent == false) _say('${s.equipmentTypeName} discarded');
+    await _load();
+  }
+
+  /// Design 68-73: fix the fields and send them back, or retake it as a new scan.
+  Future<void> _openRejected(MyScan s) async {
+    final done = await Navigator.of(context).push<RejectionOutcome>(MaterialPageRoute(
+      builder: (_) => RejectionNoticeScreen(
+        scans: widget.scans,
+        scanId: s.scanId,
+        onRetake: widget.onRetake == null ? null : () => widget.onRetake!(s),
+        clock: widget.clock,
+      ),
+    ));
+    if (!mounted) return;
+    switch (done) {
+      case RejectionOutcome.resubmitted:
+        _say('${s.equipmentTypeName} resubmitted to ${s.reviewerName ?? 'the reviewer'}');
+      case RejectionOutcome.retaken:
+        _say('New scan submitted · rejected scan closed');
+      case null:
+        break;
+    }
     await _load();
   }
 
@@ -251,8 +279,10 @@ class _MyScansScreenState extends State<MyScansScreen> {
     final now = widget.clock();
     // "All": what needs the technician first, as on design 47.
     final grouped = _tabs[_tab].$2 == null;
-    final needs = grouped ? _items.where(needsAction).toList() : const <MyScan>[];
-    final rest = grouped ? _items.where((s) => !needsAction(s)).toList() : _items;
+    // Design 73: a retake and the scan it closed sit together at the top for a while.
+    final justNow = grouped ? _items.where((s) => isRetakePair(s) && now.difference(s.updatedAt.toLocal()).inMinutes < 15).toList() : const <MyScan>[];
+    final needs = grouped ? _items.where((s) => needsAction(s) && !justNow.contains(s)).toList() : const <MyScan>[];
+    final rest = grouped ? _items.where((s) => !needsAction(s) && !justNow.contains(s)).toList() : _items;
     return RefreshIndicator(
       onRefresh: _load,
       child: NotificationListener<ScrollNotification>(
@@ -261,8 +291,9 @@ class _MyScansScreenState extends State<MyScansScreen> {
           return false;
         },
         child: ListView(padding: const EdgeInsets.fromLTRB(16, 4, 16, 32), children: [
+          if (justNow.isNotEmpty) ...[const _Section('Just now'), for (final s in justNow) _tile(s, now)],
           if (needs.isNotEmpty) ...[const _Section('Needs your action'), for (final s in needs) _tile(s, now)],
-          if (grouped && needs.isNotEmpty && rest.isNotEmpty) const _Section('In progress & done'),
+          if (grouped && (needs.isNotEmpty || justNow.isNotEmpty) && rest.isNotEmpty) const _Section('In progress & done'),
           if (!grouped) const SizedBox(height: 8),
           for (final s in rest) _tile(s, now),
           if (_more) const Padding(padding: EdgeInsets.all(16), child: Center(child: CircularProgressIndicator())),
@@ -280,6 +311,11 @@ class _MyScansScreenState extends State<MyScansScreen> {
         onRetake: widget.onRetake == null ? null : () => _retake(s),
       );
 }
+
+/// A scan closed by a retake, or a retake still being read (design 73).
+bool isRetakePair(MyScan s) =>
+    s.reviewStatus == 'closed' ||
+    (s.retakeOfScanId != null && s.reviewStatus == 'draft' && const {'uploading', 'extracting'}.contains(s.processingStatus));
 
 /// Same split as the API's `needs_action` tab.
 bool needsAction(MyScan s) =>
@@ -319,28 +355,39 @@ class MyScanTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final s = scan;
-    final look = ScanStatusLook.of(s.processingStatus, s.reviewStatus);
+    final look = s.resubmitted
+        ? const ScanStatusLook('Resubmitted', Color(0xFFEEF1F4), Brand.navy)
+        : ScanStatusLook.of(s.processingStatus, s.reviewStatus);
+    final closed = s.reviewStatus == 'closed';
+    final retaking = s.retakeOfScanId != null && isRetakePair(s) && !closed;
     final draft = s.reviewStatus == 'draft';
     final failed = draft && s.processingStatus == 'failed';
     // Design 47, 63, 64: a failed scan can be retried while tries are left, or retaken at any time.
     final retake = (draft && (failed || s.processingStatus == 'retake_required')) || s.reviewStatus == 'rejected';
     final left = Scan.maxAttempts - s.attemptsUsed;
-    final (subtitle, red) = switch ((s.processingStatus, s.reviewStatus)) {
-      (_, 'rejected') => ('${s.place} · reviewer sent it back', false),
+    // The second line only says what the technician has to do. Where a scan is, and when
+    // things happened, is on Scan details (tap the row), not on every row.
+    final (action, red) = switch ((s.processingStatus, s.reviewStatus)) {
+      (_, 'rejected') => ('Sent back · tap to fix', true),
+      (_, 'closed') => ('Retaken as a new scan', false),
       ('failed', 'draft') => ("Couldn't read this image · try ${s.attemptsUsed} of ${Scan.maxAttempts}", true),
       ('retake_required', 'draft') => ('Failed ${Scan.maxAttempts} times — retake the photo', true),
-      ('ready_to_review', 'draft') => ('${s.place} · ready to check', false),
-      ('extracting', 'draft') when s.attemptsUsed > 1 =>
-        ('Attempt ${s.attemptsUsed} of ${Scan.maxAttempts} · ${ago(s.updatedAt, now)}', false),
-      _ => ('${s.place} · ${ago(s.updatedAt, now)}', false),
+      ('ready_to_review', 'draft') => ('Check what was read', false),
+      _ => (null, false),
     };
-    final edge = s.reviewStatus == 'rejected' || failed || retake ? Brand.error : (look.needsAction ? Brand.warn : null);
-    return Container(
+    final edge = s.reviewStatus == 'rejected' || failed || retake
+        ? Brand.error
+        : look.needsAction
+            ? Brand.warn
+            : s.resubmitted || retaking
+                ? const Color(0xFF7FA3EA)
+                : null;
+    final tile = Container(
       margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: closed ? Brand.surfaceAlt : Colors.white,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: edge ?? Brand.lineSoft, width: edge == null ? 1 : 1.5),
+        border: closed ? null : Border.all(color: edge ?? Brand.lineSoft, width: edge == null ? 1 : 1.5),
       ),
       child: InkWell(
         borderRadius: BorderRadius.circular(10),
@@ -349,17 +396,27 @@ class MyScanTile extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           child: Column(children: [
             Row(children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(color: const Color(0xFF1F1F23), borderRadius: BorderRadius.circular(8)),
-                child: const Icon(Icons.qr_code_scanner, size: 18, color: Colors.white54),
+              Opacity(
+                opacity: closed ? 0.6 : 1,
+                child: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: closed ? const Color(0xFF4A2A2A) : const Color(0xFF1F1F23),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.qr_code_scanner, size: 18, color: Colors.white54),
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(s.equipmentTypeName, style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700)),
-                  Text(subtitle, style: TextStyle(fontSize: 11, color: red ? Brand.error : Brand.hint)),
+                  Text(closed ? '${s.equipmentTypeName} · original' : s.equipmentTypeName,
+                      style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: closed ? Brand.body : null)),
+                  Text('${formatScanId(s.recordNo)} · ${s.place}',
+                      style: const TextStyle(fontSize: 11, color: Brand.hint, fontFeatures: [FontFeature.tabularFigures()])),
+                  if (action != null)
+                    Text(action, style: TextStyle(fontSize: 11, color: red ? Brand.error : (closed ? Brand.hint : Brand.warn))),
                 ]),
               ),
               ScanStatusPill(look),
@@ -383,7 +440,30 @@ class MyScanTile extends StatelessWidget {
         ),
       ),
     );
+    // Design 73: the closed original keeps its place, drawn with a dashed outline.
+    return closed ? CustomPaint(foregroundPainter: const _Dashed(), child: tile) : tile;
   }
+}
+
+class _Dashed extends CustomPainter {
+  const _Dashed();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = const Color(0xFFC5CAD1)
+      ..style = PaintingStyle.stroke;
+    // The tile's bottom margin is outside the outline.
+    final box = RRect.fromRectAndRadius(Rect.fromLTWH(0.5, 0.5, size.width - 1, size.height - 9), const Radius.circular(10));
+    for (final m in (Path()..addRRect(box)).computeMetrics()) {
+      for (var d = 0.0; d < m.length; d += 7) {
+        canvas.drawPath(m.extractPath(d, d + 4), paint);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 class _Action extends StatelessWidget {

@@ -131,6 +131,42 @@ def test_unreadable_is_not_empty_and_a_fix_goes_back_to_the_rejecter(
     assert back_to == [(ERIN, "SN-1077")]
 
 
+def test_a_rejected_scan_shows_the_note_who_and_what_was_sent(
+    api: Api, owner_sql: Any, unit: dict[str, str], uploads: dict[str, bytes]
+) -> None:
+    """Screens T 68-70, 73: the note, the reviewer, the values being fixed, then 'back with'."""
+    sid = _ready(api, owner_sql, unit)
+    sent = _submit(api, sid, [{"field_key": "serial", "verification_state": "corrected", "value": "SN-1"}])
+    assert sent.status_code == 201, sent.text
+    owner_sql(
+        "INSERT INTO review_decision (tenant_id, revision_id, decided_by, decider_role, decision,"
+        " reject_category, note) VALUES (%s, %s, %s, 'enterprise_admin', 'rejected',"
+        " 'data_correction_needed', 'Serial does not match the tag')",
+        (TENANT_A, sent.json()["revision_id"], ERIN),
+    )
+    owner_sql("UPDATE scan SET review_status = 'rejected' WHERE id = %s", (sid,))
+    erin = owner_sql("SELECT full_name FROM app_user WHERE id = %s", (ERIN,))[0][0]
+
+    scan = api.get(f"/scans/{sid}", TARA).json()
+    assert scan["rejection"]["category"] == "data_correction_needed"
+    assert scan["rejection"]["note"] == "Serial does not match the tag"
+    assert scan["rejection"]["reviewer_name"] == erin
+    by_key = {f["field_key"]: f["submitted"] for f in scan["fields"]}
+    assert by_key["serial"]["verification_state"] == "corrected" and by_key["serial"]["value"] == "SN-1"
+    assert by_key["voltage"]["verification_state"] == "accepted"
+
+    def mine() -> dict[str, Any]:
+        rows = api.get("/me/scans", TARA, params={"bu_id": unit["bu"], "limit": 100}).json()["items"]
+        return next(r for r in rows if r["scan_id"] == sid)
+
+    assert (mine()["reviewer_name"], mine()["resubmitted"]) == (erin, False)
+
+    fixed = _submit(api, sid, [{"field_key": "serial", "verification_state": "corrected", "value": "SN-2"}])
+    assert fixed.status_code == 201, fixed.text
+    assert (mine()["reviewer_name"], mine()["resubmitted"]) == (erin, True)  # back with Erin
+    assert api.get(f"/scans/{sid}", TARA).json()["rejection"] is None  # no longer rejected
+
+
 def test_my_scans_tabs_search_and_paging(
     api: Api, owner_sql: Any, unit: dict[str, str], uploads: dict[str, bytes]
 ) -> None:
@@ -173,6 +209,9 @@ def test_my_scans_tabs_search_and_paging(
         "review_status",
         "attempts_used",
         "reject_category",
+        "resubmitted",
+        "retake_of_scan_id",
+        "reviewer_name",
         "updated_at",
     }
     second = api.get(
@@ -205,3 +244,45 @@ def test_my_review_batches_are_the_active_ones_given_to_me(
         b["batch_id"] for b in api.get("/me/review-batches", TARA).json()["items"]
     ]
     _problem(api.get("/me/review-batches", BO), 403, "forbidden")
+
+
+def test_history_tells_the_scans_story_and_where_it_is_now(
+    api: Api, owner_sql: Any, unit: dict[str, str], uploads: dict[str, bytes]
+) -> None:
+    """Contract 3.16: oldest first, the same facts for the technician and the admin."""
+    sid = _ready(api, owner_sql, unit)
+    first = api.get(f"/scans/{sid}/history", TARA).json()
+    assert [e["kind"] for e in first["events"]] == ["captured", "read"]
+    assert first["events"][0]["title"] == "Scanned by you"
+    assert first["now"]["needs_technician"] is True  # waiting for the technician to check
+
+    sent = _submit(api, sid, [{"field_key": "serial", "verification_state": "corrected", "value": "SN-1"}])
+    owner_sql(
+        "INSERT INTO review_decision (tenant_id, revision_id, decided_by, decider_role, decision,"
+        " reject_category, note) VALUES (%s, %s, %s, 'enterprise_admin', 'rejected',"
+        " 'data_correction_needed', 'Serial does not match')",
+        (TENANT_A, sent.json()["revision_id"], ERIN),
+    )
+    owner_sql("UPDATE scan SET review_status = 'rejected' WHERE id = %s", (sid,))
+    erin = owner_sql("SELECT full_name FROM app_user WHERE id = %s", (ERIN,))[0][0]
+    rejected = api.get(f"/scans/{sid}/history", TARA).json()
+    assert rejected["events"][-1]["title"] == f"Rejected by {erin}"
+    assert rejected["events"][-1]["detail"] == "Data correction needed · “Serial does not match”"
+    assert rejected["now"]["needs_technician"] is True and erin in rejected["now"]["text"]
+
+    fixed = _submit(api, sid, [{"field_key": "serial", "verification_state": "corrected", "value": "SN-2"}])
+    assert fixed.status_code == 201, fixed.text
+    after = api.get(f"/scans/{sid}/history", TARA).json()
+    assert [e["kind"] for e in after["events"]] == [
+        "captured", "read", "submitted", "rejected", "resubmitted",
+    ]
+    assert after["events"][-1]["detail"] == "Serial: SN-1 → SN-2"
+    assert after["now"] == {
+        "text": f"With {erin} for review.",
+        "since": after["now"]["since"],
+        "needs_technician": False,
+    }
+    as_admin = api.get(f"/scans/{sid}/history", ERIN).json()  # the reviewer sees the same events
+    assert [e["kind"] for e in as_admin["events"]] == [e["kind"] for e in after["events"]]
+    assert as_admin["events"][0]["title"].startswith("Scanned by ") and "you" not in as_admin["events"][0]["title"]
+    _problem(api.get(f"/scans/{sid}/history", DANA), 403, "forbidden")  # another technician

@@ -23,6 +23,7 @@ let batches: Batch[] = []
 const mutation = (fn: ReturnType<typeof vi.fn>) => ({ mutateAsync: fn, isPending: false })
 vi.mock('../../api/review', () => ({
   useScanReview: () => ({ data: review, isPending: false, isError: false }),
+  useScanHistory: () => ({ data: history, isPending: false, isError: false }),
   useDecide: () => mutation(calls.decide),
   useOverride: () => mutation(calls.override),
   useReviewQueue: () => ({
@@ -66,7 +67,38 @@ function inShell(node: React.ReactNode, path = '/') {
   )
 }
 
+let history: unknown
+
 beforeEach(() => {
+  history = {
+    scan_id: 's1',
+    record_no: '1000000040',
+    now: {
+      text: 'With Bo Plant04 for review.',
+      since: '2026-10-05T10:31:00Z',
+      needs_technician: false,
+    },
+    events: [
+      {
+        kind: 'submitted',
+        at: '2026-10-03T11:45:00Z',
+        title: 'Submitted for review by J. Martinez',
+        detail: '1 corrected',
+      },
+      {
+        kind: 'rejected',
+        at: '2026-10-04T15:15:00Z',
+        title: 'Rejected by Bo Plant04',
+        detail: 'Other · “Wrong plate”',
+      },
+      {
+        kind: 'resubmitted',
+        at: '2026-10-05T10:31:00Z',
+        title: 'Fixed and sent back by J. Martinez',
+        detail: 'Serial: SN-1 → SN-2',
+      },
+    ],
+  }
   vi.useFakeTimers({ toFake: ['Date'] })
   vi.setSystemTime(new Date('2026-10-05T12:00:00Z'))
   for (const fn of Object.values(calls)) fn.mockReset().mockResolvedValue({ batch_no: 'B-16' })
@@ -112,6 +144,8 @@ beforeEach(() => {
       waiting_since: '2026-10-03T10:00:00Z',
       batch_no: null,
       assigned_to_name: null,
+      revision_no: 2,
+      resubmitted: true,
     },
     {
       scan_id: 's2',
@@ -125,6 +159,8 @@ beforeEach(() => {
       waiting_since: '2026-10-05T09:00:00Z',
       batch_no: 'B-15',
       assigned_to_name: 'A. Patel',
+      revision_no: 1,
+      resubmitted: false,
     },
   ]
   batches = [
@@ -217,6 +253,78 @@ describe('Scan review', () => {
       decision: 'rejected',
       reject_category: 'image_unclear',
     })
+  })
+})
+
+describe('Scan history', () => {
+  it('GIVEN a rejected and resubmitted scan THEN the timeline and the Now line show it', () => {
+    inShell(<ScanReviewView scanId="s1" back={{ to: '/', label: 'Back' }} />)
+    const timeline = within(screen.getByRole('list', { name: 'History' }))
+    const items = timeline.getAllByRole('listitem')
+    expect(items).toHaveLength(3)
+    expect(items[1]).toHaveTextContent('Rejected by Bo Plant04')
+    expect(items[1]).toHaveTextContent('Other · “Wrong plate”')
+    expect(items[2]).toHaveTextContent('Serial: SN-1 → SN-2')
+    expect(screen.getByText(/Now: With Bo Plant04 for review./)).toBeInTheDocument()
+  })
+})
+
+describe('Photo viewer', () => {
+  it('GIVEN photos WHEN one is clicked THEN it opens over the page, not in a new tab', () => {
+    review = {
+      ...review,
+      photos: [
+        { photo_no: 1, url: 'http://minio/1.jpg' },
+        { photo_no: 2, url: 'http://minio/2.jpg' },
+      ] as unknown as typeof review.photos,
+    }
+    inShell(<ScanReviewView scanId="s1" back={{ to: '/', label: 'Back' }} />)
+    expect(document.querySelector('a[target="_blank"]')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Open photo 1 of 2' }))
+    const viewer = within(screen.getByRole('dialog', { name: 'Photo 1 of 2' }))
+    fireEvent.click(viewer.getByRole('button', { name: 'Next photo' }))
+    expect(screen.getByRole('dialog', { name: 'Photo 2 of 2' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+    expect(screen.queryByRole('dialog')).toBeNull()
+  })
+})
+
+describe('Resubmitted scan', () => {
+  it('GIVEN revision 1 rejected and revision 2 sent back THEN Approve and Reject are offered again', async () => {
+    review = {
+      ...review,
+      current_revision: {
+        ...review.current_revision,
+        revision_id: 'r2',
+        revision_no: 2,
+        origin: 'rejection_fix',
+      },
+      decisions: [
+        {
+          decision_id: 'd1',
+          revision_id: 'r1',
+          decision: 'rejected',
+          reject_category: 'other',
+          note: 'Wrong plate',
+          decided_by_name: 'Bo Plant04',
+          decider_role: 'bu_admin',
+          is_current: true,
+          overrides_decision_id: null,
+          decided_at: '2026-10-04T12:00:00Z',
+        },
+      ],
+    }
+    inShell(<ScanReviewView scanId="s1" back={{ to: '/', label: 'Back' }} />)
+    expect(screen.getByText(/Resubmitted · revision 2./)).toBeInTheDocument()
+    expect(screen.getByText(/rejected by Bo Plant04/)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Approve' }))
+    await waitFor(() => expect(calls.decide).toHaveBeenCalled())
+  })
+
+  it('GIVEN a resubmitted scan in the queue THEN it is marked', () => {
+    inShell(<ReviewQueuePage />)
+    const table = within(screen.getByRole('table', { name: 'Scans waiting for review' }))
+    expect(table.getByText('Resubmitted · rev 2')).toBeInTheDocument()
   })
 })
 

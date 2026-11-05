@@ -38,3 +38,11 @@ export function waitedFor(iso: string, now: Date = new Date()): string {
 export function daysSince(iso: string, now: Date = new Date()): number {
   return Math.floor((now.getTime() - new Date(iso).getTime()) / DAY)
 }
+
+/** An exact time for a timeline: "4 Nov 15:15". */
+export function dateTime(iso: string): string {
+  const d = new Date(iso)
+  const date = d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+  const time = d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+  return `${date} ${time}`
+}

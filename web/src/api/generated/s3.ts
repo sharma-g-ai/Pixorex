@@ -648,6 +648,23 @@ export interface components {
             /** @description Null = no score */
             confidence: number | null;
             flag_reasons: ("low_confidence" | "format_failed" | "no_confidence" | "missing_required" | "critical_not_found")[];
+            /** @description Only while the scan is rejected - what the technician sent for this field in the rejected revision (Was, screen T 69). Null otherwise. */
+            submitted?: components["schemas"]["SubmittedField"] | null;
+        };
+        SubmittedField: {
+            /** @enum {string} */
+            verification_state: "accepted" | "corrected" | "unreadable" | "left_empty";
+            value: string | null;
+            unreadable_reason: string | null;
+            note: string | null;
+        };
+        /** @description Why the reviewer sent the scan back (screens T 68-69). */
+        Rejection: {
+            /** @enum {string} */
+            category: "image_unclear" | "data_correction_needed" | "wrong_equipment_type" | "other";
+            note: string | null;
+            reviewer_name: string;
+            decided_at: components["schemas"]["Timestamp"];
         };
         Scan: {
             scan_id: components["schemas"]["Uuid"];
@@ -666,6 +683,8 @@ export interface components {
             attempts_used: number;
             latest_attempt?: components["schemas"]["AttemptSummary"];
             fields?: components["schemas"]["AiField"][];
+            /** @description Set while review_status is rejected, otherwise null. */
+            rejection?: components["schemas"]["Rejection"] | null;
             captured_at: components["schemas"]["Timestamp"];
         };
         ScanCreate: {

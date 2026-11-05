@@ -84,7 +84,8 @@ async def scans(
             " OR cr.values_json::text ILIKE %s)"
         )
         like = "%" + q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
-        params += [like, like, like, like]
+        # The scan ID is shown grouped (100 000 004 0): match it with or without the spaces.
+        params += [like.replace(" ", ""), like, like, like]
     if since:
         where.append("s.captured_at >= %s::date")
         params.append(since)

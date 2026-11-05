@@ -25,6 +25,7 @@ import {
   statusQuery,
   type StatusFilter,
 } from './scanStatus'
+import { formatScanId } from '../../lib/scanId'
 
 const columns: Column<ScanRow>[] = [
   {
@@ -33,7 +34,7 @@ const columns: Column<ScanRow>[] = [
     cell: (s) => (
       <Link to={`/scans/${s.scan_id}`} className="block min-w-0 hover:underline">
         <span className="block truncate font-semibold">{s.equipment_type_name}</span>
-        <span className="font-mono text-meta text-ink-subtle">{s.record_no}</span>
+        <span className="font-mono text-meta text-ink-subtle">{formatScanId(s.record_no)}</span>
       </Link>
     ),
   },

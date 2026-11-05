@@ -15,6 +15,8 @@ export type TechnicianDecision = components['schemas']['TechnicianDecision']
 export type Delegate = components['schemas']['Delegate']
 export type Batch = components['schemas']['Batch']
 export type Excluded = components['schemas']['Excluded']
+export type ScanHistory = components['schemas']['ScanHistory']
+export type HistoryEvent = components['schemas']['HistoryEvent']
 
 /** Everything that changes when a scan is decided or a batch moves. */
 const reviewKeys = [
@@ -47,6 +49,15 @@ export function useScanReview(scanId: string) {
     queryKey: ['scan-review', scanId],
     queryFn: async () =>
       unwrap(await api.GET('/scans/{scanId}/review', { params: { path: { scanId } } })),
+  })
+}
+
+/** Contract 3.16: what happened to a scan, oldest first, and where it is now. */
+export function useScanHistory(scanId: string) {
+  return useQuery({
+    queryKey: ['scan-review', scanId, 'history'],
+    queryFn: async () =>
+      unwrap(await api.GET('/scans/{scanId}/history', { params: { path: { scanId } } })),
   })
 }
 

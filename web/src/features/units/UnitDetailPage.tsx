@@ -23,6 +23,7 @@ import { waitingStatus } from '../review/reviewRules'
 import { shortDate, timeAgo, waitedFor } from '../../lib/time'
 import { technicianCount } from './unitSummary'
 import { latestAdminInvite } from './vacantUnits'
+import { formatScanId } from '../../lib/scanId'
 
 /** One unit seen by the EA: its BU Admin, numbers, escalations and activity (canvas EA 25–28, 67). */
 export function UnitDetailPage() {
@@ -281,7 +282,9 @@ function EscalatedCard({ unit, count: unitCount }: { unit: BusinessUnit; count: 
                 >
                   <Link to={`/escalations/${e.scan_id}`} className="min-w-0 grow hover:underline">
                     <span className="block truncate font-semibold">{e.equipment_type_name}</span>
-                    <span className="font-mono text-meta text-ink-subtle">{e.record_no}</span>
+                    <span className="font-mono text-meta text-ink-subtle">
+                      {formatScanId(e.record_no)}
+                    </span>
                   </Link>
                   <span className="text-small text-ink-muted">{e.captured_by_name}</span>
                   <Badge tone={status.tone}>{status.label}</Badge>

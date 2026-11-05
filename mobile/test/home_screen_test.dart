@@ -127,8 +127,8 @@ void main() {
       expect(find.text('2'), findsOneWidget); // submitted (waiting + approved)
       expect(find.text('1'), findsOneWidget); // approved
       expect(find.text('AC Generator Nameplate'), findsOneWidget);
-      expect(find.text('Bin 07 · 4 min ago'), findsOneWidget);
-      expect(find.text('Bin 09 · 1 hr ago'), findsOneWidget);
+      expect(find.text('REC-1 · Bin 07'), findsOneWidget);
+      expect(find.text('REC-1 · Bin 09'), findsOneWidget);
       expect(find.text('Extracting'), findsOneWidget);
       expect(find.text('Approved'), findsWidgets);
 

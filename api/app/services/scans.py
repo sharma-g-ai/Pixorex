@@ -60,6 +60,15 @@ class AttemptSummary(BaseModel):
     suggestion_confidence: float | None
 
 
+class SubmittedField(BaseModel):
+    """What the technician sent for this field in the revision that was rejected."""
+
+    verification_state: Literal["accepted", "corrected", "unreadable", "left_empty"]
+    value: str | None
+    unreadable_reason: str | None
+    note: str | None
+
+
 class AiField(BaseModel):
     field_key: str
     label: str
@@ -69,6 +78,16 @@ class AiField(BaseModel):
     ai_value: str | None
     confidence: float | None  # None = the model gave no score
     flag_reasons: list[FlagReason]
+    submitted: SubmittedField | None = None  # only on a rejected scan: the value being fixed
+
+
+class Rejection(BaseModel):
+    """Why the reviewer sent the scan back (screens T 68-69)."""
+
+    category: Literal["image_unclear", "data_correction_needed", "wrong_equipment_type", "other"]
+    note: str | None
+    reviewer_name: str
+    decided_at: datetime
 
 
 class Scan(BaseModel):
@@ -87,6 +106,7 @@ class Scan(BaseModel):
     attempts_used: int
     latest_attempt: AttemptSummary | None
     fields: list[AiField]  # the latest attempt's answers, once it has succeeded
+    rejection: Rejection | None = None  # set while review_status is rejected
     captured_at: datetime
 
 
@@ -107,8 +127,17 @@ async def _view(session: Session, row: dict[str, Any], storage: StorageConfig | 
         if latest and latest["status"] == "succeeded"
         else []
     )
+    rejection = None
+    submitted: dict[str, SubmittedField] = {}
+    if row["review_status"] == "rejected":
+        found = await repo.rejection(session.conn, row["scan_id"])
+        rejection = Rejection(**found) if found else None
+        submitted = {
+            f["field_key"]: SubmittedField(**f)
+            for f in await repo.submitted_fields(session.conn, row["scan_id"])
+        }
     return Scan(
-        **{k: row[k] for k in Scan.model_fields if k in row},
+        **{k: row[k] for k in Scan.model_fields if k in row and k not in ("fields", "rejection")},
         photos=[
             Photo(photo_no=p["photo_no"], view_url=signed_urls.photo_url(storage, p["object_key"]))
             for p in photos
@@ -116,7 +145,8 @@ async def _view(session: Session, row: dict[str, Any], storage: StorageConfig | 
         ],
         attempts_used=len(attempts),
         latest_attempt=AttemptSummary(**latest) if latest else None,
-        fields=[AiField(**f) for f in fields],
+        fields=[AiField(**f, submitted=submitted.get(f["field_key"])) for f in fields],
+        rejection=rejection,
     )
 
 
@@ -291,9 +321,9 @@ async def confirm_upload(session: Session, scan_id: UUID) -> UploadConfirmed:
     )
 
 
-async def get(session: Session, scan_id: UUID, storage: StorageConfig | None) -> Scan:
-    """Contract 2.24: the technician who took it, admins of the unit, or the technician it is
-    assigned to for review."""
+async def visible_scan(session: Session, scan_id: UUID) -> dict[str, Any]:
+    """The scan row, if the caller may see it: the technician who took it, admins of the unit,
+    or the technician it is assigned to for review."""
     caller = session.caller
     row = await repo.scan(session.conn, scan_id)
     if row is None:
@@ -306,6 +336,13 @@ async def get(session: Session, scan_id: UUID, storage: StorageConfig | None) ->
     )
     if not allowed:
         raise ProblemError(403, "forbidden")
+    return row
+
+
+async def get(session: Session, scan_id: UUID, storage: StorageConfig | None) -> Scan:
+    """Contract 2.24: the technician who took it, admins of the unit, or the technician it is
+    assigned to for review."""
+    row = await visible_scan(session, scan_id)
     return await _view(session, row, storage)
 
 

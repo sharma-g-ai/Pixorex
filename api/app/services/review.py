@@ -41,6 +41,8 @@ class QueueItem(BaseModel):
     waiting_since: datetime
     batch_no: str | None
     assigned_to_name: str | None
+    revision_no: int
+    resubmitted: bool  # fixed by the technician after a rejection
 
 
 class ReviewQueue(BaseModel):

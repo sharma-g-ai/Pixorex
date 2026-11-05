@@ -17,6 +17,7 @@ import { DelegateBatchDialog } from './DelegateBatchDialog'
 import { MAX_BATCH, SelectionBar } from './SelectionBar'
 import { editsSummary, waitingStatus } from './reviewRules'
 import { TechnicianDecisionsTable } from './TechnicianDecisionsTable'
+import { formatScanId } from '../../lib/scanId'
 
 /** BU-03 Review queue of the current unit: review or delegate (canvas BU 05, 08, 10; contract 3.3). */
 export function ReviewQueuePage() {
@@ -60,7 +61,12 @@ function QueueOfUnit({ buId, unitName }: { buId: string; unitName: string }) {
       cell: (item) => (
         <Link to={`/review-queue/${item.scan_id}`} className="block min-w-0 hover:underline">
           <span className="block truncate font-semibold">{item.equipment_type_name}</span>
-          <span className="font-mono text-meta text-ink-subtle">{item.record_no}</span>
+          <span className="flex flex-wrap items-center gap-1.5">
+            <span className="font-mono text-meta text-ink-subtle">
+              {formatScanId(item.record_no)}
+            </span>
+            {item.resubmitted && <Badge tone="warning">Resubmitted · rev {item.revision_no}</Badge>}
+          </span>
         </Link>
       ),
     },

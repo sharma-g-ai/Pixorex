@@ -264,6 +264,39 @@ paths:
                 $ref: ./common.yaml#/components/schemas/Problem
         '404':
           $ref: ./common.yaml#/components/responses/NotFound
+  /scans/{scanId}/history:
+    get:
+      tags:
+      - Review
+      operationId: getScanHistory
+      summary: What happened to a scan, and where it is now
+      description: 'Contract ref 3.16. Built from the tables of the scan itself (attempts, revisions, decisions, retake
+        links), oldest event first, plus a Now line (who has it, since when, and whether the technician who
+        captured it has to act). The technician who took the scan, admins of the unit, or the technician it is
+        assigned to for review. Titles say "you" for the caller. Screens T Scan details; BU 07 History.'
+      x-roles:
+      - field_technician
+      - bu_admin
+      - enterprise_admin
+      x-brd:
+      - US-012b
+      - US-031
+      x-sprint: S4
+      parameters:
+      - $ref: '#/components/parameters/ScanId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScanHistory'
+        '401':
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        '403':
+          $ref: ./common.yaml#/components/responses/Forbidden
+        '404':
+          $ref: ./common.yaml#/components/responses/NotFound
   /scans/{scanId}/decisions:
     post:
       tags:
@@ -1392,6 +1425,19 @@ components:
           type:
           - string
           - 'null'
+        resubmitted:
+          type: boolean
+          description: A rejected scan the technician fixed and sent back (Resubmitted, screen T 70).
+        retake_of_scan_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        reviewer_name:
+          type:
+          - string
+          - 'null'
+          description: Who rejected it, who a fix goes back to, or who rejected the scan a retake replaces (screens T 70, 73).
         updated_at:
           $ref: ./common.yaml#/components/schemas/Timestamp
       required:
@@ -1403,6 +1449,9 @@ components:
       - review_status
       - attempts_used
       - reject_category
+      - resubmitted
+      - retake_of_scan_id
+      - reviewer_name
       - updated_at
     RevisionFieldInput:
       type: object
@@ -1476,6 +1525,66 @@ components:
       - origin
       - empty_required_fields
       - review_status
+    HistoryEvent:
+      type: object
+      properties:
+        kind:
+          type: string
+          enum:
+          - captured
+          - read
+          - read_failed
+          - submitted
+          - resubmitted
+          - rejected
+          - approved
+          - decision_changed
+          - replaces
+          - replaced_by
+        at:
+          $ref: ./common.yaml#/components/schemas/Timestamp
+        title:
+          type: string
+        detail:
+          type:
+          - string
+          - 'null'
+      required:
+      - kind
+      - at
+      - title
+      - detail
+    ScanHistory:
+      type: object
+      properties:
+        scan_id:
+          $ref: ./common.yaml#/components/schemas/Uuid
+        record_no:
+          type: string
+        events:
+          type: array
+          items:
+            $ref: '#/components/schemas/HistoryEvent'
+        now:
+          type: object
+          properties:
+            text:
+              type: string
+            since:
+              oneOf:
+              - $ref: ./common.yaml#/components/schemas/Timestamp
+              - type: 'null'
+            needs_technician:
+              type: boolean
+          required:
+          - text
+          - since
+          - needs_technician
+      required:
+      - scan_id
+      - record_no
+      - events
+      - now
     QueueItem:
       type: object
       properties:
@@ -1505,6 +1614,11 @@ components:
           type:
           - string
           - 'null'
+        revision_no:
+          type: integer
+        resubmitted:
+          type: boolean
+          description: The technician fixed it after a rejection and sent it back.
       required:
       - scan_id
       - record_no
@@ -1517,6 +1631,8 @@ components:
       - waiting_since
       - batch_no
       - assigned_to_name
+      - revision_no
+      - resubmitted
     ReviewQueue:
       type: object
       properties:

@@ -1671,6 +1671,11 @@ components:
             - no_confidence
             - missing_required
             - critical_not_found
+        submitted:
+          description: Only while the scan is rejected - what the technician sent for this field in the rejected revision (Was, screen T 69). Null otherwise.
+          oneOf:
+          - $ref: '#/components/schemas/SubmittedField'
+          - type: 'null'
       required:
       - field_key
       - label
@@ -1680,6 +1685,57 @@ components:
       - ai_value
       - confidence
       - flag_reasons
+    SubmittedField:
+      type: object
+      properties:
+        verification_state:
+          type: string
+          enum:
+          - accepted
+          - corrected
+          - unreadable
+          - left_empty
+        value:
+          type:
+          - string
+          - 'null'
+        unreadable_reason:
+          type:
+          - string
+          - 'null'
+        note:
+          type:
+          - string
+          - 'null'
+      required:
+      - verification_state
+      - value
+      - unreadable_reason
+      - note
+    Rejection:
+      type: object
+      description: Why the reviewer sent the scan back (screens T 68-69).
+      properties:
+        category:
+          type: string
+          enum:
+          - image_unclear
+          - data_correction_needed
+          - wrong_equipment_type
+          - other
+        note:
+          type:
+          - string
+          - 'null'
+        reviewer_name:
+          type: string
+        decided_at:
+          $ref: ./common.yaml#/components/schemas/Timestamp
+      required:
+      - category
+      - note
+      - reviewer_name
+      - decided_at
     Scan:
       type: object
       properties:
@@ -1720,6 +1776,11 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/AiField'
+        rejection:
+          description: Set while review_status is rejected, otherwise null.
+          oneOf:
+          - $ref: '#/components/schemas/Rejection'
+          - type: 'null'
         captured_at:
           $ref: ./common.yaml#/components/schemas/Timestamp
       required:

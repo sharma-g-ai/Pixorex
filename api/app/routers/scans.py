@@ -8,7 +8,7 @@ from fastapi.responses import JSONResponse
 
 from app.auth.context import SignedIn
 from app.core.problems import ProblemError
-from app.services import idempotency, scans
+from app.services import idempotency, scan_history, scans
 
 router = APIRouter(tags=["Capture"])
 
@@ -90,6 +90,12 @@ async def confirm_upload(scan_id: UUID, session: SignedIn) -> scans.UploadConfir
 async def get_scan(scan_id: UUID, request: Request, session: SignedIn) -> JSONResponse:
     scan = await scans.get(session, scan_id, request.app.state.storage)
     return JSONResponse(_scan_json(scan))
+
+
+@router.get("/scans/{scan_id}/history", operation_id="getScanHistory", response_model=scan_history.ScanHistory)
+async def get_scan_history(scan_id: UUID, session: SignedIn) -> scan_history.ScanHistory:
+    """Contract 3.16: what happened to the scan, oldest first, and where it is now."""
+    return await scan_history.get(session, scan_id)
 
 
 @router.post(

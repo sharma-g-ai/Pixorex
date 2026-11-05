@@ -112,7 +112,7 @@ void main() {
   testWidgets('GIVEN a scan ready to review WHEN opened THEN flagged fields show why, submit waits', (t) async {
     await pumpReview(t);
     expect(find.text('Control Valve V-071'), findsOneWidget);
-    expect(find.text('Bin 05 · Ready to Review'), findsOneWidget);
+    expect(find.text('REC-71 · Bin 05 · Ready to Review'), findsOneWidget);
     expect(find.text('0 of 3 checked'), findsOneWidget);
     expect(find.text('Likely wrong'), findsWidgets); // legend + model number
     expect(find.text('Low confidence · 42%'), findsOneWidget);
@@ -271,7 +271,7 @@ void main() {
     final api = ReviewApi()..scan = valve(processing: 'extracting');
     await pumpReview(t, api: api, settle: false);
     expect(find.text('Reading the label…'), findsOneWidget);
-    expect(find.text('Bin 05 · Extracting'), findsOneWidget);
+    expect(find.text('REC-71 · Bin 05 · Extracting'), findsOneWidget);
 
     api.scan = valve();
     await t.pump(const Duration(seconds: 1));

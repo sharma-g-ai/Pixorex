@@ -92,6 +92,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/scans/{scanId}/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * What happened to a scan, and where it is now
+         * @description Contract ref 3.16. Built from the tables of the scan itself (attempts, revisions, decisions, retake links), oldest event first, plus a Now line (who has it, since when, and whether the technician who captured it has to act). The technician who took the scan, admins of the unit, or the technician it is assigned to for review. Titles say "you" for the caller. Screens T Scan details; BU 07 History.
+         */
+        get: operations["getScanHistory"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/scans/{scanId}/decisions": {
         parameters: {
             query?: never;
@@ -537,6 +557,12 @@ export interface components {
             review_status: string;
             attempts_used: number;
             reject_category: string | null;
+            /** @description A rejected scan the technician fixed and sent back (Resubmitted, screen T 70). */
+            resubmitted: boolean;
+            /** Format: uuid */
+            retake_of_scan_id: string | null;
+            /** @description Who rejected it, who a fix goes back to, or who rejected the scan a retake replaces (screens T 70, 73). */
+            reviewer_name: string | null;
             updated_at: components["schemas"]["Timestamp"];
         };
         RevisionFieldInput: {
@@ -566,6 +592,23 @@ export interface components {
             empty_required_fields: string[];
             review_status: string;
         };
+        HistoryEvent: {
+            /** @enum {string} */
+            kind: "captured" | "read" | "read_failed" | "submitted" | "resubmitted" | "rejected" | "approved" | "decision_changed" | "replaces" | "replaced_by";
+            at: components["schemas"]["Timestamp"];
+            title: string;
+            detail: string | null;
+        };
+        ScanHistory: {
+            scan_id: components["schemas"]["Uuid"];
+            record_no: string;
+            events: components["schemas"]["HistoryEvent"][];
+            now: {
+                text: string;
+                since: components["schemas"]["Timestamp"] | null;
+                needs_technician: boolean;
+            };
+        };
         QueueItem: {
             scan_id: components["schemas"]["Uuid"];
             record_no: string;
@@ -578,6 +621,9 @@ export interface components {
             waiting_since: components["schemas"]["Timestamp"];
             batch_no: string | null;
             assigned_to_name: string | null;
+            revision_no: number;
+            /** @description The technician fixed it after a rejection and sent it back. */
+            resubmitted: boolean;
         };
         ReviewQueue: {
             counts: components["schemas"]["QueueCounts"];
@@ -1014,6 +1060,31 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getScanHistory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                scanId: components["parameters"]["ScanId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScanHistory"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
         };
     };

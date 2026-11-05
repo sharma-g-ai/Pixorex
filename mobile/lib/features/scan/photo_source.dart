@@ -93,8 +93,8 @@ class DevicePhotoSource implements PhotoSource {
             )
           else if (problem == null)
             const Center(child: CircularProgressIndicator(color: Colors.white54)),
-          const FrameOverlay(),
-          Center(child: _Hint(problem ?? hint)),
+          // No frame or dimming: the whole picture is uploaded, so the screen shows all of it.
+          Positioned(top: 14, left: 0, right: 0, child: Center(child: _Hint(problem ?? hint))),
         ]),
       ),
     );
@@ -142,45 +142,4 @@ class _Hint extends StatelessWidget {
         decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(6)),
         child: Text(text, textAlign: TextAlign.center, style: const TextStyle(fontSize: 12, color: Colors.white)),
       );
-}
-
-/// Dims everything outside a centred frame and marks its corners (from the POC app).
-class FrameOverlay extends StatelessWidget {
-  const FrameOverlay({super.key});
-
-  @override
-  Widget build(BuildContext context) => IgnorePointer(child: CustomPaint(painter: _FramePainter(), size: Size.infinite));
-}
-
-class _FramePainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final rect = Rect.fromLTRB(size.width * 0.08, size.height * 0.2, size.width * 0.92, size.height * 0.8);
-    final dim = Paint()..color = Colors.black.withValues(alpha: 0.4);
-    canvas
-      ..drawRect(Rect.fromLTRB(0, 0, size.width, rect.top), dim)
-      ..drawRect(Rect.fromLTRB(0, rect.bottom, size.width, size.height), dim)
-      ..drawRect(Rect.fromLTRB(0, rect.top, rect.left, rect.bottom), dim)
-      ..drawRect(Rect.fromLTRB(rect.right, rect.top, size.width, rect.bottom), dim);
-
-    final corner = Paint()
-      ..color = Colors.white
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 4
-      ..strokeCap = StrokeCap.round;
-    const len = 28.0;
-    for (final (p, dx, dy) in [
-      (rect.topLeft, 1.0, 1.0),
-      (rect.topRight, -1.0, 1.0),
-      (rect.bottomLeft, 1.0, -1.0),
-      (rect.bottomRight, -1.0, -1.0),
-    ]) {
-      canvas
-        ..drawLine(p, p.translate(len * dx, 0), corner)
-        ..drawLine(p, p.translate(0, len * dy), corner);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

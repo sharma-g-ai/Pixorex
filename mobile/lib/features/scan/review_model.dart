@@ -113,3 +113,67 @@ String flagText(AiField f) {
     _ => 'Flagged',
   };
 }
+
+/// Fixing a rejected scan (design 69): every field starts as the technician last sent it,
+/// and any of them can be corrected again before it goes back to the reviewer.
+class RejectionFix {
+  RejectionFix(this.scan);
+
+  final Scan scan;
+  final Map<String, String> _fixes = {};
+
+  /// Fields the technician answered in the rejected revision, in the type's order.
+  List<AiField> get fields => scan.fields.where((f) => f.submitted != null).toList();
+
+  /// What was sent last time: the corrected value, or the AI value when it was kept.
+  String? sentValue(AiField f) => switch (f.submitted?.verificationState) {
+        'corrected' => f.submitted!.value,
+        'accepted' => f.submitted!.value ?? f.aiValue,
+        _ => null,
+      };
+
+  String? fixOf(AiField f) => _fixes[f.fieldKey];
+
+  /// An empty or unchanged value undoes the fix.
+  void fix(AiField f, String value) {
+    final v = value.trim();
+    if (v.isEmpty || v == sentValue(f)) {
+      _fixes.remove(f.fieldKey);
+    } else {
+      _fixes[f.fieldKey] = v;
+    }
+  }
+
+  void undo(AiField f) => _fixes.remove(f.fieldKey);
+
+  int get corrected => _fixes.length;
+
+  /// Required fields that would still go back empty.
+  bool get _leavesRequiredEmpty =>
+      fields.any((f) => f.isRequired && fixOf(f) == null && f.submitted!.verificationState == 'left_empty');
+
+  /// Body of `POST /scans/{scanId}/revisions`: the new fixes, and every other field
+  /// answered as it was before (the API needs an answer for each flagged field again).
+  Map<String, dynamic> body() => {
+        'fields': [
+          for (final f in fields)
+            if (fixOf(f) != null)
+              {'field_key': f.fieldKey, 'verification_state': 'corrected', 'value': fixOf(f)}
+            else
+              _resend(f, f.submitted!),
+        ],
+        'submit_anyway': _leavesRequiredEmpty,
+      };
+
+  Map<String, dynamic> _resend(AiField f, SubmittedField s) => switch (s.verificationState) {
+        'corrected' => {'field_key': f.fieldKey, 'verification_state': 'corrected', 'value': s.value},
+        'unreadable' => {
+            'field_key': f.fieldKey,
+            'verification_state': 'unreadable',
+            'unreadable_reason': s.unreadableReason,
+            if (s.note != null && s.note!.isNotEmpty) 'note': s.note,
+          },
+        'left_empty' => {'field_key': f.fieldKey, 'verification_state': 'left_empty'},
+        _ => {'field_key': f.fieldKey, 'verification_state': 'accepted'},
+      };
+}
