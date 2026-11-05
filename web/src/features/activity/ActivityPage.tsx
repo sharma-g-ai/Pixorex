@@ -126,7 +126,13 @@ export function ActivityPage() {
         <Tabs
           label="Activity"
           current={tab}
-          onChange={(key) => setParams(key === 'transactions' ? {} : { tab: key })}
+          onChange={(key) => {
+            const next = new URLSearchParams(params)
+            next.delete('dn')
+            if (key === 'transactions') next.delete('tab')
+            else next.set('tab', key)
+            setParams(next)
+          }}
           tabs={[
             { key: 'transactions', label: 'Transactions' },
             { key: 'notes', label: 'Delivery notes' },

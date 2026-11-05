@@ -217,10 +217,11 @@ export function imoReviewFor(vesselIds: string[]) {
 
 // ---- Time ----
 
+/** Calendar days (UTC) from a date to now: 0 is today, 1 is yesterday. */
 export function daysSince(at: string | null): number | null {
   if (!at) return null
-  const ms = new Date(`${NOW}:00Z`).getTime() - new Date(`${at.length === 10 ? `${at}T00:00` : at}:00Z`).getTime()
-  return Math.floor(ms / 86_400_000)
+  const day = (x: string) => Date.parse(`${x.slice(0, 10)}T00:00:00Z`)
+  return Math.round((day(NOW) - day(at)) / 86_400_000)
 }
 
 export function daysAgo(days: number): string {

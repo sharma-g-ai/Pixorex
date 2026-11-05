@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Navigate, useLocation, useNavigate } from 'react-router'
+import { Navigate, useLocation } from 'react-router'
 import { DEMO_USER, useSession } from '../../app/viewer'
 import { users } from '../../data/sample'
 import { Button } from '../../components/Button'
@@ -13,7 +13,6 @@ import { resetSampleData } from '../../data/store'
  */
 export function SignInPage() {
   const { user, signIn } = useSession()
-  const navigate = useNavigate()
   const from = (useLocation().state as { from?: string } | null)?.from ?? '/'
   // A role demo offers its own account again after sign-out.
   const [email, setEmail] = useState(users.find((u) => u.id === DEMO_USER)?.email ?? '')
@@ -22,7 +21,8 @@ export function SignInPage() {
   const [mode, setMode] = useState<'sign-in' | 'forgot' | 'sent'>('sign-in')
   const [wasReset, setWasReset] = useState(false)
 
-  if (user) return <Navigate to="/" replace />
+  // Signing in lands here too, so this is what returns the user to the page they asked for.
+  if (user) return <Navigate to={from} replace />
 
   return (
     <div className="flex min-h-screen bg-page">
@@ -56,8 +56,7 @@ export function SignInPage() {
                   return
                 }
                 const result = signIn(email, password)
-                if (result.ok) navigate(from, { replace: true })
-                else setError(result.error)
+                if (!result.ok) setError(result.error)
               }}
             >
               <h2 className="text-page-title font-bold">Sign in</h2>

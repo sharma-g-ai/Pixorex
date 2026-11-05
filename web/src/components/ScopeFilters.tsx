@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import type { ReactNode } from 'react'
 import { useSearchParams } from 'react-router'
 import { useViewer } from '../app/viewer'
 import type { Vessel } from '../data/model'
@@ -17,18 +17,42 @@ export interface ScopeFilter {
 
 /**
  * Customer → vessel filters (FR-24). Each filter shows only when the user can see more than
- * one choice, so a Customer Admin gets no customer filter. A link can start on one vessel with
- * ?vessel=<id>.
+ * one choice, so a Customer Admin gets no customer filter. They live in the URL (?customer=<id>,
+ * ?vessel=<id>), so a link opens them and a link without them clears them. A value outside the
+ * user's scope behaves as if it does not exist.
  */
 export function useScopeFilter(): ScopeFilter {
   const { user } = useViewer()
-  const [params] = useSearchParams()
-  const [customer, setCustomer] = useState('')
-  const [vessel, setVessel] = useState(params.get('vessel') ?? '')
+  const [params, setParams] = useSearchParams()
 
   const customerChoices = visibleCustomers(user)
+  const askedCustomer = params.get('customer') ?? ''
+  const customer = customerChoices.some((c) => c.id === askedCustomer) ? askedCustomer : ''
   const vesselChoices = visibleVessels(user).filter((v) => !customer || v.customer === customer)
+  const askedVessel = params.get('vessel') ?? ''
+  const vessel = vesselChoices.some((v) => v.id === askedVessel) ? askedVessel : ''
   const selected = vessel ? vesselChoices.filter((v) => v.id === vessel) : vesselChoices
+
+  const change = (edit: (next: URLSearchParams) => void) =>
+    setParams(
+      (now) => {
+        const next = new URLSearchParams(now)
+        edit(next)
+        return next
+      },
+      { replace: true },
+    )
+  const setVessel = (id: string) =>
+    change((next) => {
+      if (id) next.set('vessel', id)
+      else next.delete('vessel')
+    })
+  const setCustomer = (id: string) =>
+    change((next) => {
+      next.delete('vessel')
+      if (id) next.set('customer', id)
+      else next.delete('customer')
+    })
 
   const controls = (
     <>
@@ -37,10 +61,7 @@ export function useScopeFilter(): ScopeFilter {
           label="Customer"
           className="w-60"
           value={customer}
-          onChange={(e) => {
-            setCustomer(e.target.value)
-            setVessel('')
-          }}
+          onChange={(e) => setCustomer(e.target.value)}
           options={[
             { value: '', label: 'All customers' },
             ...customerChoices.map((c) => ({ value: c.id, label: c.name })),

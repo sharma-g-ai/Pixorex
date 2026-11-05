@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, render, screen, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { users } from '../data/sample'
 import { App } from './App'
@@ -223,6 +223,95 @@ describe('roles screen', () => {
       'Maintain the master item list',
     )
     expect(screen.getByRole('table', { name: 'Permissions' })).not.toHaveTextContent('label schema')
+  })
+})
+
+describe('portal fixes', () => {
+  it('sign-in returns to the page that was asked for', async () => {
+    const { fireEvent } = await import('@testing-library/react')
+    sessionStorage.clear()
+    window.history.pushState({}, '', '/activity?tab=audit')
+    render(<App />)
+    fireEvent.change(await screen.findByLabelText('Work e-mail'), { target: { value: 'dana.whitfield@ppg.example' } })
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'SeaStock@2026' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in' }))
+    expect(await screen.findByRole('table', { name: 'Audit log' })).toBeInTheDocument()
+    expect(window.location.search).toBe('?tab=audit')
+  })
+
+  it('days go by the calendar, not by 24-hour periods', async () => {
+    const { daysSince } = await import('../data/queries')
+    expect(daysSince('2026-10-21T00:05')).toBe(0)
+    expect(daysSince('2026-10-20T22:40')).toBe(1) // 17 hours ago, but yesterday
+    expect(daysSince('2026-10-14T11:30')).toBe(7)
+    expect(daysSince('2026-10-01')).toBe(20)
+    expect(daysSince(null)).toBeNull()
+  })
+
+  it('a custom date cannot be emptied', async () => {
+    const { fireEvent } = await import('@testing-library/react')
+    await open('u01', '/consumption')
+    fireEvent.change(screen.getByLabelText('Period'), { target: { value: 'custom' } })
+    fireEvent.change(screen.getByLabelText('From'), { target: { value: '' } })
+    fireEvent.change(screen.getByLabelText('To'), { target: { value: '' } })
+    expect(document.body).not.toHaveTextContent('NaN')
+    expect(document.body).not.toHaveTextContent('undefined')
+  })
+
+  it('the sidebar shows a new name straight away', async () => {
+    const { act } = await import('@testing-library/react')
+    const { saveUser } = await import('../data/store')
+    const { users } = await import('../data/sample')
+    await open('u01', '/overview')
+    const dana = users.find((u) => u.id === 'u01')
+    if (!dana) throw new Error('sample missing')
+    act(() => saveUser({ ...dana, name: 'Dana Renamed' }, dana))
+    expect(screen.getByRole('complementary')).toHaveTextContent('Dana Renamed')
+  })
+
+  it('the sidebar link clears a vessel from a link, from the filter and from a customer', async () => {
+    const { fireEvent } = await import('@testing-library/react')
+    await open('u01', '/sea-stock?vessel=v01')
+    expect(screen.getByRole('main')).toHaveTextContent('1 vessel ·')
+    const seaStock = () => within(screen.getByRole('complementary')).getByRole('link', { name: /Sea Stock/ })
+    fireEvent.click(seaStock())
+    expect(await screen.findByText(/^12 vessels/)).toBeInTheDocument()
+
+    fireEvent.change(screen.getByLabelText('Vessel'), { target: { value: 'v02' } })
+    expect(window.location.search).toBe('?vessel=v02')
+    expect(await screen.findByRole('heading', { name: 'Nordhavn Borealis' })).toBeInTheDocument()
+    fireEvent.click(seaStock())
+    expect(await screen.findByText(/^12 vessels/)).toBeInTheDocument()
+
+    fireEvent.change(screen.getByLabelText('Customer'), { target: { value: 'c1' } })
+    expect(await screen.findByText(/^4 vessels/)).toBeInTheDocument()
+    fireEvent.click(seaStock())
+    expect(await screen.findByText(/^12 vessels/)).toBeInTheDocument()
+  })
+
+  it('a vessel outside the user’s scope is ignored, on every filtered screen', async () => {
+    for (const path of ['/sea-stock?vessel=v05', '/consumption?vessel=v05', '/activity?vessel=v05&customer=c2']) {
+      await open('u06', path)
+      expect(screen.getByRole('main')).not.toHaveTextContent('Meridian')
+      expect(screen.getByRole('main')).not.toHaveTextContent('0 vessels')
+      if (path.includes('sea-stock')) expect(screen.getByRole('main')).toHaveTextContent('4 vessels')
+      cleanup()
+    }
+  })
+
+  it('Activity keeps the vessel filter across tabs and delivery notes', async () => {
+    const { fireEvent } = await import('@testing-library/react')
+    await open('u01', '/activity?vessel=v01')
+    fireEvent.click(screen.getByRole('tab', { name: 'Delivery notes' }))
+    expect(new URLSearchParams(window.location.search).get('vessel')).toBe('v01')
+    fireEvent.click(await screen.findByRole('link', { name: /5324641215/ }))
+    const search = new URLSearchParams(window.location.search)
+    expect([search.get('vessel'), search.get('tab'), search.get('dn')]).toEqual(['v01', 'notes', '5324641215'])
+    expect(await screen.findByRole('table', { name: 'Tally' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+    expect(new URLSearchParams(window.location.search).get('vessel')).toBe('v01')
+    fireEvent.click(screen.getByRole('tab', { name: 'Transactions' }))
+    expect(window.location.search).toBe('?vessel=v01')
   })
 })
 

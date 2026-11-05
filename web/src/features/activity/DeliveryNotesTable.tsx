@@ -6,6 +6,7 @@ import type { DeliveryNote } from '../../data/model'
 import { ImoCheckBadge } from '../../components/StockBadges'
 import { vesselById } from '../../data/queries'
 import { formatDate, formatDateTime, plural } from '../../lib/format'
+import { useNoteLink } from './useNoteLink'
 
 export function differences(dn: DeliveryNote): number {
   return dn.lines.filter((l) => l.result !== 'matched').length
@@ -23,6 +24,7 @@ export function DeliveryNotesTable({
   rows: DeliveryNote[]
   showVessel?: boolean
 }) {
+  const noteLink = useNoteLink()
   return (
     <DataTable
       label="Delivery notes"
@@ -36,7 +38,7 @@ export function DeliveryNotesTable({
           cell: (dn) => (
             <div>
               <Link
-                to={`?tab=notes&dn=${dn.dnNumber}`}
+                to={noteLink(dn.dnNumber)}
                 className="font-semibold text-brand hover:underline"
               >
                 DN <Mono>{dn.dnNumber}</Mono>

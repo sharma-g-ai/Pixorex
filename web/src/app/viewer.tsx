@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, type ReactNode } from 'react'
 import type { User } from '../data/model'
 import { users } from '../data/sample'
+import { useStore } from '../data/store'
 
 /**
  * Who is signed in. Static screens: accounts are the sample users, all with one sample
@@ -59,6 +60,7 @@ export function checkSignIn(email: string, password: string): SignInResult {
 }
 
 export function SessionProvider({ children }: { children: ReactNode }) {
+  useStore()
   const [userId, setUserId] = useState(stored)
   const user = users.find((u) => u.id === userId && u.status === 'active') ?? null
   const session: Session = {

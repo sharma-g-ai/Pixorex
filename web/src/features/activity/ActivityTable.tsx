@@ -5,6 +5,7 @@ import { TransactionBadge } from '../../components/StockBadges'
 import type { Transaction } from '../../data/model'
 import { itemByArticle, liters, userById, vesselById } from '../../data/queries'
 import { formatDateTime, formatLiters } from '../../lib/format'
+import { useNoteLink } from './useNoteLink'
 
 /** The audit trail (FR-12): user, time, device and source of every transaction. */
 export function ActivityTable({
@@ -14,6 +15,7 @@ export function ActivityTable({
   rows: Transaction[]
   showVessel?: boolean
 }) {
+  const noteLink = useNoteLink()
   return (
     <DataTable
       label="Activity"
@@ -105,7 +107,7 @@ export function ActivityTable({
                 {t.dn && (
                   <>
                     {' · '}
-                    <Link className="text-brand hover:underline" to={`?dn=${t.dn}`}>
+                    <Link className="text-brand hover:underline" to={noteLink(t.dn)}>
                       DN {t.dn}
                     </Link>
                   </>

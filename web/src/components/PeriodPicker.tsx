@@ -51,7 +51,9 @@ export function usePeriod(initial: keyof typeof presets = '30d'): Period {
             className="w-40"
             value={from}
             max={to}
-            onChange={(e) => setFrom(e.target.value)}
+            onChange={(e) => {
+              if (e.target.value) setFrom(e.target.value)
+            }}
           />
           <TextField
             label="To"
@@ -60,7 +62,9 @@ export function usePeriod(initial: keyof typeof presets = '30d'): Period {
             value={to}
             min={from}
             max={TODAY}
-            onChange={(e) => setTo(e.target.value)}
+            onChange={(e) => {
+              if (e.target.value) setTo(e.target.value)
+            }}
           />
         </>
       )}
