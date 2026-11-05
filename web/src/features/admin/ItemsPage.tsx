@@ -14,6 +14,7 @@ import { TextField } from '../../components/TextField'
 import type { ComponentType, Item } from '../../data/model'
 import { items } from '../../data/sample'
 import { addItems, useStore } from '../../data/store'
+import { componentOptions, itemMatches } from '../../lib/filters'
 import { formatLiters } from '../../lib/format'
 
 /** FR-25: the master item list, with additions and bulk load. It only grows: articles are never retired. */
@@ -21,15 +22,11 @@ export function ItemsPage() {
   useStore()
   const { user } = useViewer()
   const rows = items
-  const [component, setComponent] = useState('')
+  const [component, setComponent] = useState<ComponentType | ''>('')
   const [search, setSearch] = useState('')
   const [adding, setAdding] = useState(false)
   const [bulk, setBulk] = useState(false)
-  const shown = rows.filter(
-    (i) =>
-      (!component || i.componentType === component) &&
-      `${i.articleNo} ${i.product} ${i.shade}`.toLowerCase().includes(search.trim().toLowerCase()),
-  )
+  const shown = rows.filter((i) => itemMatches(i, component, search))
 
   return (
     <>
@@ -53,13 +50,8 @@ export function ItemsPage() {
             label="Component type"
             className="w-40"
             value={component}
-            onChange={(e) => setComponent(e.target.value)}
-            options={[
-              { value: '', label: 'All' },
-              { value: 'Base', label: 'Base' },
-              { value: 'Hardener', label: 'Hardener' },
-              { value: '1K', label: '1K' },
-            ]}
+            onChange={(e) => setComponent(e.target.value as ComponentType | '')}
+            options={componentOptions}
           />
           <TextField
             label="Search"

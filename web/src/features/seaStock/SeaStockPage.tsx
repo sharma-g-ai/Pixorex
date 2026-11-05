@@ -10,21 +10,15 @@ import { SelectField } from '../../components/SelectField'
 import { SyncAge } from '../../components/StockBadges'
 import { Tabs } from '../../components/Tabs'
 import { TextField } from '../../components/TextField'
-import type { ComponentType, Item, Vessel } from '../../data/model'
-import { customerById, stockByProduct, stockLines, totals, vesselById } from '../../data/queries'
+import type { ComponentType, Vessel } from '../../data/model'
+import { customerById, oldestSync, stockByProduct, stockLines, totals, vesselById } from '../../data/queries'
 import { useStore } from '../../data/store'
 import { downloadCsv } from '../../lib/csv'
+import { componentOptions, itemMatches } from '../../lib/filters'
 import { formatLiters } from '../../lib/format'
 import { groupOfVessel, rollUpLabels, rollUpsFor, type RollUp } from '../../lib/rollUp'
 import { StockTable, TotalsLine } from './StockTable'
 import { VesselDetails } from './VesselDetails'
-
-function matches(item: Item, component: ComponentType | '', search: string): boolean {
-  const text = `${item.articleNo} ${item.product} ${item.shade}`.toLowerCase()
-  return (
-    (!component || item.componentType === component) && text.includes(search.trim().toLowerCase())
-  )
-}
 
 interface GroupRow {
   key: string
@@ -49,8 +43,8 @@ export function SeaStockPage() {
   const [search, setSearch] = useState('')
 
   const ids = scope.vessels.map((v) => v.id)
-  const lines = stockLines(ids).filter((l) => matches(l.item, component, search))
-  const products = stockByProduct(ids).filter((p) => matches(p.item, component, search))
+  const lines = stockLines(ids).filter((l) => itemMatches(l.item, component, search))
+  const products = stockByProduct(ids).filter((p) => itemMatches(p.item, component, search))
   const sum = totals(lines)
   const single = scope.vessels.length === 1 ? scope.vessels[0] : undefined
   const view: RollUp = single ? 'product' : by
@@ -174,12 +168,7 @@ export function SeaStockPage() {
             className="w-40"
             value={component}
             onChange={(e) => setComponent(e.target.value as ComponentType | '')}
-            options={[
-              { value: '', label: 'All' },
-              { value: 'Base', label: 'Base' },
-              { value: 'Hardener', label: 'Hardener' },
-              { value: '1K', label: '1K' },
-            ]}
+            options={componentOptions}
           />
           <TextField
             label="Search"
@@ -275,14 +264,7 @@ export function SeaStockPage() {
                     header: view === 'vessel' ? 'Last sync' : 'Oldest sync',
                     width: 1.2,
                     cell: (g) => (
-                      <SyncAge
-                        at={g.vessels
-                          .map((v) => v.lastSync)
-                          .reduce<string | null>(
-                            (a, b) => (a === null || b === null ? null : a < b ? a : b),
-                            g.vessels[0]?.lastSync ?? null,
-                          )}
-                      />
+                      <SyncAge at={oldestSync(g.vessels)} />
                     ),
                   },
                 ]}

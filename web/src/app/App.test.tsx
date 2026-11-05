@@ -315,6 +315,49 @@ describe('portal fixes', () => {
   })
 })
 
+describe('Consumption (FR-20, FR-24)', () => {
+  it('shows the last sync, for one vessel and across vessels', async () => {
+    const { fireEvent } = await import('@testing-library/react')
+    await open('u01', '/consumption?vessel=v01')
+    expect(screen.getByText('Last sync')).toBeInTheDocument()
+    expect(screen.getByRole('main')).toHaveTextContent('21 Oct 2026, 08:12')
+    cleanup()
+    await open('u01', '/consumption')
+    expect(screen.getByText('Oldest sync of these vessels')).toBeInTheDocument()
+    // Straits Endeavour never synced, but it has no consumption, so it does not count here.
+    expect(screen.getByRole('main')).toHaveTextContent('12 Oct 2026, 16:00')
+    expect(screen.getByRole('main')).not.toHaveTextContent('Never synced')
+    fireEvent.click(screen.getByRole('tab', { name: 'By vessel' }))
+    const byVessel = await screen.findByRole('table', { name: 'Consumption by vessel' })
+    expect(byVessel).toHaveTextContent('Last sync')
+    expect(byVessel).toHaveTextContent('21 Oct 2026, 08:12')
+    fireEvent.click(screen.getByRole('tab', { name: 'By customer' }))
+    expect(await screen.findByRole('table', { name: 'Consumption by customer' })).toHaveTextContent('Oldest sync')
+  })
+
+  it('filters by component type and search, and the totals follow', async () => {
+    const { fireEvent } = await import('@testing-library/react')
+    await open('u01', '/consumption')
+    const table = () => screen.getByRole('table', { name: 'Consumption by product' })
+    expect(table()).toHaveTextContent('Hardener')
+    fireEvent.change(screen.getByLabelText('Component type'), { target: { value: 'Base' } })
+    expect(table()).not.toHaveTextContent('Hardener')
+    fireEvent.change(screen.getByLabelText('Component type'), { target: { value: '' } })
+    fireEvent.change(screen.getByLabelText('Search'), { target: { value: '100293' } })
+    expect(table()).toHaveTextContent('PPG THINNER 21-06')
+    expect(table()).not.toHaveTextContent('SIGMACOVER')
+  })
+
+  it('oldest sync is null when a vessel has never synced', async () => {
+    const { oldestSync } = await import('../data/queries')
+    const { vessels } = await import('../data/sample')
+    const pick = (...ids: string[]) => vessels.filter((v) => ids.includes(v.id))
+    expect(oldestSync(pick('v01', 'v04'))).toBe('2026-10-14T11:30')
+    expect(oldestSync(pick('v01', 'v12'))).toBeNull()
+    expect(oldestSync([])).toBeNull()
+  })
+})
+
 describe('data model V2', () => {
   const pickFile = async (name: string) => {
     const { fireEvent } = await import('@testing-library/react')

@@ -7,17 +7,21 @@ import { PageHeader } from '../../components/layout/PageHeader'
 import { Card, Muted, Note, PageBody } from '../../components/Page'
 import { usePeriod } from '../../components/PeriodPicker'
 import { FilterBar, useScopeFilter } from '../../components/ScopeFilters'
-import { ComponentBadge } from '../../components/StockBadges'
+import { SelectField } from '../../components/SelectField'
+import { ComponentBadge, SyncAge } from '../../components/StockBadges'
 import { Tabs } from '../../components/Tabs'
-import type { Transaction } from '../../data/model'
+import { TextField } from '../../components/TextField'
+import type { ComponentType, Transaction } from '../../data/model'
 import {
   consumptionLines,
   customerById,
   itemByArticle,
   liters,
+  oldestSync,
   vesselById,
 } from '../../data/queries'
 import { downloadCsv } from '../../lib/csv'
+import { componentOptions, itemMatches } from '../../lib/filters'
 import { formatDate, formatLiters } from '../../lib/format'
 import { rollUpLabels, rollUpsFor, type RollUp } from '../../lib/rollUp'
 
@@ -48,18 +52,30 @@ function groupKey(t: Transaction, by: GroupBy): { key: string; name: string } {
   }
 }
 
-/** Consumption (FR-07 deductions) rolled up by product, vessel or customer (FR-24). */
+/**
+ * Consumption (FR-07 deductions) by product, vessel or customer (FR-24), with the last sync of the
+ * vessels it covers (FR-20): consumption is only known up to that sync.
+ */
 export function ConsumptionPage() {
   const { user } = useViewer()
   const rollUps = rollUpsFor[user.role]
   const scope = useScopeFilter()
   const period = usePeriod()
   const [by, setBy] = useState<GroupBy>('product')
+  const [component, setComponent] = useState<ComponentType | ''>('')
+  const [search, setSearch] = useState('')
   const lines = consumptionLines(
     scope.vessels.map((v) => v.id),
     period.from,
     period.to,
-  )
+  ).filter((t) => {
+    const item = itemByArticle(t.articleNo)
+    return item !== undefined && itemMatches(item, component, search)
+  })
+
+  // One vessel always shows its sync; otherwise only the vessels behind the figures count.
+  const single = scope.vessels.length === 1
+  const syncVessels = single ? scope.vessels : scope.vessels.filter((v) => lines.some((t) => t.vessel === v.id))
 
   const groups = new Map<string, Group>()
   for (const t of lines) {
@@ -111,6 +127,7 @@ export function ConsumptionPage() {
                     'Pack size',
                     'Cans',
                     'Liters',
+                    'Last sync (UTC)',
                   ],
                   lines.map((t) => {
                     const v = vesselById(t.vessel)
@@ -127,6 +144,7 @@ export function ConsumptionPage() {
                       item?.packSize ?? '',
                       -t.cans,
                       -liters(t.articleNo, t.cans),
+                      v?.lastSync ?? '',
                     ]
                   }),
                 )
@@ -141,6 +159,20 @@ export function ConsumptionPage() {
         <FilterBar>
           {period.controls}
           {scope.controls}
+          <SelectField
+            label="Component type"
+            className="w-40"
+            value={component}
+            onChange={(e) => setComponent(e.target.value as ComponentType | '')}
+            options={componentOptions}
+          />
+          <TextField
+            label="Search"
+            placeholder="Article no., product or shade"
+            className="w-64"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
         </FilterBar>
 
         <Card flush>
@@ -156,6 +188,12 @@ export function ConsumptionPage() {
               {formatLiters(sum.liters)}
             </Muted>
           </div>
+          {by === 'product' && syncVessels.length > 0 && (
+            <div className="flex items-center gap-2 px-5 pt-3 text-small">
+              <Muted>{single ? 'Last sync' : 'Oldest sync of these vessels'}</Muted>
+              <SyncAge at={oldestSync(syncVessels)} />
+            </div>
+          )}
           <div className="p-4">
             <DataTable
               label={`Consumption by ${by}`}
@@ -196,6 +234,17 @@ export function ConsumptionPage() {
                   align: 'right',
                   cell: (r) => <b>{formatLiters(r.liters)}</b>,
                 },
+                ...(by === 'product'
+                  ? []
+                  : [
+                      {
+                        header: by === 'vessel' ? 'Last sync' : 'Oldest sync',
+                        width: 1.2,
+                        cell: (r: Group) => (
+                          <SyncAge at={oldestSync(scope.vessels.filter((v) => (by === 'vessel' ? v.id : v.customer) === r.key))} />
+                        ),
+                      },
+                    ]),
               ]}
             />
           </div>

@@ -155,6 +155,13 @@ export function byProductOrder(a: { item: Item }, b: { item: Item }): number {
   )
 }
 
+/** The oldest last sync of some vessels; null if any has never synced. */
+export function oldestSync(vessels: Vessel[]): string | null {
+  const dates = vessels.map((v) => v.lastSync)
+  if (dates.length === 0 || dates.includes(null)) return null
+  return dates.reduce((a, b) => ((a ?? '') < (b ?? '') ? a : b))
+}
+
 export function totals(lines: { cans: number; liters: number }[]): { cans: number; liters: number } {
   return lines.reduce((acc, l) => ({ cans: acc.cans + l.cans, liters: acc.liters + l.liters }), { cans: 0, liters: 0 })
 }
