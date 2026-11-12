@@ -229,9 +229,18 @@ async def finish(conn: Conn, event: dict[str, Any], job: Job, outcome: Outcome) 
     if result is None:
         await _end_without_values(conn, row, outcome.status)
         return
-    for field in job.fields:
+    checked = [
+        (field, *checked_value(field, result.fields.get(field["field_key"], {}).get("value")))
+        for field in job.fields
+    ]
+    if job.fields and all(value is None for _, value, _ in checked):
+        # Nothing was read at all (a blank screen, a photo of something that isn't a label):
+        # a failed attempt, so the technician gets Retry (up to 3 tries) or Retake.
+        _log.warning("extraction_nothing_read", attempt_no=job.attempt_no)
+        await _end_without_values(conn, row, "failed")
+        return
+    for field, value, fits in checked:
         item = result.fields.get(field["field_key"], {})
-        value, fits = checked_value(field, item.get("value"))
         fits = fits and item.get("format_ok", True)
         confidence = item.get("confidence")
         await repo.save_ai_value(
