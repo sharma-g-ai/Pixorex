@@ -99,6 +99,7 @@ Lanes: **FSD-A** Foundation · **FSD-B** API & Security · **Divya** web · **Fl
 - 2026-11-02 — O-13 (Vishnu, to confirm with Manager / TA): the technicians list reads each lock from Keycloak's attack-detection API, cached 30 s; locked until = last failure + 30 min.
 - 2026-11-02 — Keycloak event reconciliation (docs/keycloak.md 8.4) built in the worker, every 5 min, events since yesterday. Needs `view-events` on `pixorex-api-admin` (Iswarya) and architect review of `keycloak_admin.events` (A0).
 - 2026-11-02 — Phone-change event format proposed in `docs/proposals/phone-change-event.md`; to agree with Iswarya before building.
+- 2026-11-05 — Scan IDs (`scan.record_no`) are 10 digits: a 9-digit counter per tenant from 100000001 plus a Luhn check digit; apps show them grouped (`100 000 004 0`). Asked for by the lead on 5 Nov (per Amrutha's commit 7f8c3ee). Migration 0004 renumbers existing `REC-n` once and adds a check constraint; no new column. Lead to confirm.
 - 2026-11-02 — AI calls go straight to OpenAI, not through Portkey (confirmed to Vishnu). `ai_proxy.py` stays the only path; settings `PIXOREX_OPENAI_API_KEY`, `PIXOREX_OPENAI_MODEL` (default `gpt-5.6-terra`, reasoning effort low, photos at "high" detail; test `gpt-5.6-luna` on real nameplates before switching). P-14 (US / zero retention) still open.
 - 2026-10-15 — Dashboard decisions D-01 to D-07, delegated by the lead to the dashboard team ("implement the best way possible"); detail and reasoning in `docs/proposals/web-dashboard-stack.md`:
 

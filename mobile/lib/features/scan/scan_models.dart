@@ -248,7 +248,7 @@ String formatScanId(String recordNo) {
   return m == null ? recordNo : '${m[1]} ${m[2]} ${m[3]} ${m[4]}';
 }
 
-/// One event in a scan's story (contract 3.16). The API words the title; "you" is the caller.
+/// One event in a scan's story (contract 3.28). The API words the title; "you" is the caller.
 class HistoryEvent {
   const HistoryEvent({required this.kind, required this.at, required this.title, this.detail});
   final String kind;
@@ -264,7 +264,7 @@ class HistoryEvent {
       );
 }
 
-/// What happened to a scan and where it is now (contract 3.16).
+/// What happened to a scan and where it is now (contract 3.28).
 class ScanHistory {
   const ScanHistory({required this.recordNo, required this.events, required this.nowText, this.since, required this.needsTechnician});
   final String recordNo;

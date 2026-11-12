@@ -319,9 +319,7 @@ async def field_labels(conn: Conn, contract_id: UUID) -> dict[str, str]:
 
 async def related_scans(conn: Conn, scan_id: UUID, retake_of: UUID | None) -> dict[str, Any]:
     """The scan this one replaces, and the scan that replaced it."""
-    cur = await conn.execute(
-        "SELECT s.id, s.record_no FROM scan s WHERE s.id = %s", (retake_of,)
-    )
+    cur = await conn.execute("SELECT s.id, s.record_no FROM scan s WHERE s.id = %s", (retake_of,))
     replaces = await cur.fetchone() if retake_of else None
     cur = await conn.execute(
         "SELECT s.id, s.record_no, s.captured_at FROM scan s WHERE s.retake_of_scan_id = %s"
@@ -329,6 +327,12 @@ async def related_scans(conn: Conn, scan_id: UUID, retake_of: UUID | None) -> di
         (scan_id,),
     )
     return {"replaces": replaces, "replaced_by": await cur.fetchone()}
+
+
+async def full_name(conn: Conn, user_id: UUID) -> str | None:
+    cur = await conn.execute("SELECT full_name FROM app_user WHERE id = %s", (user_id,))
+    found = await cur.fetchone()
+    return found["full_name"] if found else None
 
 
 async def holder(conn: Conn, scan_id: UUID, technician_id: UUID) -> dict[str, Any] | None:
@@ -427,19 +431,20 @@ async def my_scans(
         " s.location_path_snapshot AS location_path, s.processing_status, s.review_status,"
         " (SELECT count(*) FROM extraction_attempt a WHERE a.scan_id = s.id) AS attempts_used,"
         " CASE WHEN s.review_status = 'rejected' THEN cd.reject_category END AS reject_category,"
-        " (cr.origin = 'rejection_fix' AND s.review_status = 'waiting_for_approval') AS resubmitted,"
+        " (cr.origin = 'rejection_fix' AND s.review_status = 'waiting_for_approval')"
+        "   AS resubmitted,"
         " s.retake_of_scan_id,"
         # Who the scan is with after a rejection: the reviewer who sent it back, the one a fix
         # went back to, or (on a retake) the one who rejected the scan it replaces.
         " coalesce(CASE WHEN cd.decision = 'rejected' THEN du.full_name END, ru.full_name,"
-        "   (SELECT ou.full_name FROM revision orr JOIN review_decision od ON od.revision_id = orr.id"
-        "      AND od.is_current AND od.decision = 'rejected'"
+        "   (SELECT ou.full_name FROM revision orr JOIN review_decision od"
+        "      ON od.revision_id = orr.id AND od.is_current AND od.decision = 'rejected'"
         "      JOIN app_user ou ON ou.id = od.decided_by"
         "      WHERE orr.scan_id = s.retake_of_scan_id ORDER BY orr.revision_no DESC LIMIT 1)"
         " ) AS reviewer_name,"
         " s.updated_at FROM scan s JOIN equipment_type et ON et.id = s.equipment_type_id"
-        " LEFT JOIN LATERAL (SELECT r.id, r.values_json, r.origin, r.resubmit_to_user_id FROM revision r"
-        "   WHERE r.scan_id = s.id ORDER BY r.revision_no DESC LIMIT 1) cr ON true"
+        " LEFT JOIN LATERAL (SELECT r.id, r.values_json, r.origin, r.resubmit_to_user_id"
+        "   FROM revision r WHERE r.scan_id = s.id ORDER BY r.revision_no DESC LIMIT 1) cr ON true"
         " LEFT JOIN review_decision cd ON cd.revision_id = cr.id AND cd.is_current"
         " LEFT JOIN app_user du ON du.id = cd.decided_by"
         " LEFT JOIN app_user ru ON ru.id = cr.resubmit_to_user_id"

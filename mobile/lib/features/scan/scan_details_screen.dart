@@ -17,7 +17,7 @@ String eventTime(DateTime t) {
   return '${l.day} ${_months[l.month - 1]} ${l.hour.toString().padLeft(2, '0')}:${l.minute.toString().padLeft(2, '0')}';
 }
 
-/// Where a scan is and what happened to it (contract 3.16). Opened by tapping a row that has
+/// Where a scan is and what happened to it (contract 3.28). Opened by tapping a row that has
 /// nothing for the technician to fill in: submitted, approved, closed, or out of reads.
 class ScanDetailsScreen extends StatefulWidget {
   const ScanDetailsScreen({super.key, required this.scans, required this.scan});

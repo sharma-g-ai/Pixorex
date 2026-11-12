@@ -52,7 +52,7 @@ export function useScanReview(scanId: string) {
   })
 }
 
-/** Contract 3.16: what happened to a scan, oldest first, and where it is now. */
+/** Contract 3.28: what happened to a scan, oldest first, and where it is now. */
 export function useScanHistory(scanId: string) {
   return useQuery({
     queryKey: ['scan-review', scanId, 'history'],

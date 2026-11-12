@@ -11,7 +11,7 @@ const dot: Partial<Record<HistoryEvent['kind'], string>> = {
 }
 
 /**
- * What happened to a scan and where it is now (contract 3.16), so nobody has to read the
+ * What happened to a scan and where it is now (contract 3.28), so nobody has to read the
  * audit log to find the status. Oldest first; the phone shows the same events.
  */
 export function ScanHistoryCard({ scanId }: { scanId: string }) {

@@ -101,7 +101,7 @@ export interface paths {
         };
         /**
          * What happened to a scan, and where it is now
-         * @description Contract ref 3.16. Built from the tables of the scan itself (attempts, revisions, decisions, retake links), oldest event first, plus a Now line (who has it, since when, and whether the technician who captured it has to act). The technician who took the scan, admins of the unit, or the technician it is assigned to for review. Titles say "you" for the caller. Screens T Scan details; BU 07 History.
+         * @description Contract ref 3.28. Built from the tables of the scan itself (attempts, revisions, decisions, retake links), oldest event first, plus a Now line (who has it, since when, and whether the technician who captured it has to act). The technician who took the scan, admins of the unit, or the technician it is assigned to for review. Titles say "you" for the caller. Screens T Scan details; BU 07 History.
          */
         get: operations["getScanHistory"];
         put?: never;

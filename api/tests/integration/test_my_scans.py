@@ -136,7 +136,9 @@ def test_a_rejected_scan_shows_the_note_who_and_what_was_sent(
 ) -> None:
     """Screens T 68-70, 73: the note, the reviewer, the values being fixed, then 'back with'."""
     sid = _ready(api, owner_sql, unit)
-    sent = _submit(api, sid, [{"field_key": "serial", "verification_state": "corrected", "value": "SN-1"}])
+    sent = _submit(
+        api, sid, [{"field_key": "serial", "verification_state": "corrected", "value": "SN-1"}]
+    )
     assert sent.status_code == 201, sent.text
     owner_sql(
         "INSERT INTO review_decision (tenant_id, revision_id, decided_by, decider_role, decision,"
@@ -152,16 +154,23 @@ def test_a_rejected_scan_shows_the_note_who_and_what_was_sent(
     assert scan["rejection"]["note"] == "Serial does not match the tag"
     assert scan["rejection"]["reviewer_name"] == erin
     by_key = {f["field_key"]: f["submitted"] for f in scan["fields"]}
-    assert by_key["serial"]["verification_state"] == "corrected" and by_key["serial"]["value"] == "SN-1"
+    assert (
+        by_key["serial"]["verification_state"] == "corrected"
+        and by_key["serial"]["value"] == "SN-1"
+    )
     assert by_key["voltage"]["verification_state"] == "accepted"
 
     def mine() -> dict[str, Any]:
-        rows = api.get("/me/scans", TARA, params={"bu_id": unit["bu"], "limit": 100}).json()["items"]
+        rows = api.get("/me/scans", TARA, params={"bu_id": unit["bu"], "limit": 100}).json()[
+            "items"
+        ]
         return next(r for r in rows if r["scan_id"] == sid)
 
     assert (mine()["reviewer_name"], mine()["resubmitted"]) == (erin, False)
 
-    fixed = _submit(api, sid, [{"field_key": "serial", "verification_state": "corrected", "value": "SN-2"}])
+    fixed = _submit(
+        api, sid, [{"field_key": "serial", "verification_state": "corrected", "value": "SN-2"}]
+    )
     assert fixed.status_code == 201, fixed.text
     assert (mine()["reviewer_name"], mine()["resubmitted"]) == (erin, True)  # back with Erin
     assert api.get(f"/scans/{sid}", TARA).json()["rejection"] is None  # no longer rejected
@@ -256,7 +265,9 @@ def test_history_tells_the_scans_story_and_where_it_is_now(
     assert first["events"][0]["title"] == "Scanned by you"
     assert first["now"]["needs_technician"] is True  # waiting for the technician to check
 
-    sent = _submit(api, sid, [{"field_key": "serial", "verification_state": "corrected", "value": "SN-1"}])
+    sent = _submit(
+        api, sid, [{"field_key": "serial", "verification_state": "corrected", "value": "SN-1"}]
+    )
     owner_sql(
         "INSERT INTO review_decision (tenant_id, revision_id, decided_by, decider_role, decision,"
         " reject_category, note) VALUES (%s, %s, %s, 'enterprise_admin', 'rejected',"
@@ -270,11 +281,17 @@ def test_history_tells_the_scans_story_and_where_it_is_now(
     assert rejected["events"][-1]["detail"] == "Data correction needed · “Serial does not match”"
     assert rejected["now"]["needs_technician"] is True and erin in rejected["now"]["text"]
 
-    fixed = _submit(api, sid, [{"field_key": "serial", "verification_state": "corrected", "value": "SN-2"}])
+    fixed = _submit(
+        api, sid, [{"field_key": "serial", "verification_state": "corrected", "value": "SN-2"}]
+    )
     assert fixed.status_code == 201, fixed.text
     after = api.get(f"/scans/{sid}/history", TARA).json()
     assert [e["kind"] for e in after["events"]] == [
-        "captured", "read", "submitted", "rejected", "resubmitted",
+        "captured",
+        "read",
+        "submitted",
+        "rejected",
+        "resubmitted",
     ]
     assert after["events"][-1]["detail"] == "Serial: SN-1 → SN-2"
     assert after["now"] == {
@@ -284,5 +301,8 @@ def test_history_tells_the_scans_story_and_where_it_is_now(
     }
     as_admin = api.get(f"/scans/{sid}/history", ERIN).json()  # the reviewer sees the same events
     assert [e["kind"] for e in as_admin["events"]] == [e["kind"] for e in after["events"]]
-    assert as_admin["events"][0]["title"].startswith("Scanned by ") and "you" not in as_admin["events"][0]["title"]
+    assert (
+        as_admin["events"][0]["title"].startswith("Scanned by ")
+        and "you" not in as_admin["events"][0]["title"]
+    )
     _problem(api.get(f"/scans/{sid}/history", DANA), 403, "forbidden")  # another technician

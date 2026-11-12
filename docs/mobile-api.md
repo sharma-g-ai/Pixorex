@@ -87,6 +87,7 @@ All of these are built and tested.
 | Photos | `PUT /scans/{scanId}/photos/{photoNo}` | 2.22 |
 | Upload done | `POST /scans/{scanId}/upload-complete` | 2.23 |
 | Results | `GET /scans/{scanId}` | 2.24 |
+| Scan details, history | `GET /scans/{scanId}/history` | 3.28 |
 | Retry, type mismatch | `POST /scans/{scanId}/retry-extraction`, `POST /scans/{scanId}/re-extract` | 2.25, 2.26 |
 | Discard | `POST /scans/{scanId}/discard` | 2.27 |
 | My Scans | `GET /me/scans` | 3.1 |
@@ -100,7 +101,7 @@ All of these are built and tested.
 
 1. **On the phone:** make `client_capture_id` (a UUID) when the photo is taken, and keep it with the queued scan. The offline queue lives only on the phone.
 2. **Create the scan** with `client_capture_id`, `equipment_type_id`, `location_node_id`, `photo_count` (1–4), `captured_at`, and `retake_of_scan_id` for a retake. Send `Idempotency-Key` = `client_capture_id`.
-   - **201:** new scan, `processing_status: "uploading"`, with its `record_no`, e.g. `REC-12`.
+   - **201:** new scan, `processing_status: "uploading"`, with its `record_no`, 10 digits, e.g. `1000000040` (show it as `100 000 004 0`).
    - **200:** the same capture was sent before; this is the same scan. Safe after a lost connection, and never counted twice.
    - **409:**
      - `idempotency-conflict`: same id, different details;

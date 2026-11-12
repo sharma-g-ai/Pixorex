@@ -1,4 +1,4 @@
-"""Contract 3.16: what happened to a scan and where it is now, built from the scan's own
+"""Contract 3.28: what happened to a scan and where it is now, built from the scan's own
 tables (attempts, revisions, decisions, retake links), not from the audit log text. The phone
 and the web dashboard both read this, so they show the same events and times."""
 
@@ -132,9 +132,7 @@ async def get(session: Session, scan_id: UUID) -> ScanHistory:
         overrode = by_id.get(d["overrides_decision_id"]) if d["overrides_decision_id"] else None
         verdict = "Approved" if d["decision"] == "approved" else "Rejected"
         reason = CATEGORY.get(d["reject_category"] or "", None)
-        detail = " · ".join(
-            x for x in (reason, f"“{d['note']}”" if d["note"] else None) if x
-        )
+        detail = " · ".join(x for x in (reason, f"“{d['note']}”" if d["note"] else None) if x)
         events.append(
             HistoryEvent(
                 kind="decision_changed" if overrode else d["decision"],
@@ -166,9 +164,7 @@ async def get(session: Session, scan_id: UUID) -> ScanHistory:
 
 
 async def _name(session: Session, user_id: UUID) -> str:
-    cur = await session.conn.execute("SELECT full_name FROM app_user WHERE id = %s", (user_id,))
-    found = await cur.fetchone()
-    return found["full_name"] if found else "someone"
+    return await repo.full_name(session.conn, user_id) or "someone"
 
 
 def _now(
@@ -189,7 +185,10 @@ def _now(
     if review == "discarded":
         return Now(text="Discarded.", since=last_at, needs_technician=False)
     if review == "rejected":
-        who = next((d["by_name"] for d in reversed(decisions) if d["decision"] == "rejected"), "the reviewer")
+        who = next(
+            (d["by_name"] for d in reversed(decisions) if d["decision"] == "rejected"),
+            "the reviewer",
+        )
         return Now(
             text=f"Sent back by {who}. Fix the fields or retake the photo.",
             since=last_at,
@@ -208,7 +207,9 @@ def _now(
         since = attempts[-1]["created_at"] if attempts else row["captured_at"]
         return Now(text="The label is being read by the AI.", since=since, needs_technician=False)
     if processing == "ready_to_review":
-        return Now(text="Waiting for you to check what was read.", since=last_at, needs_technician=True)
+        return Now(
+            text="Waiting for you to check what was read.", since=last_at, needs_technician=True
+        )
     if processing == "retake_required":
         return Now(
             text=f"All {scans.MAX_ATTEMPTS} reads failed. Retake the photo.",

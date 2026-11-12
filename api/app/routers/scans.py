@@ -92,9 +92,13 @@ async def get_scan(scan_id: UUID, request: Request, session: SignedIn) -> JSONRe
     return JSONResponse(_scan_json(scan))
 
 
-@router.get("/scans/{scan_id}/history", operation_id="getScanHistory", response_model=scan_history.ScanHistory)
+@router.get(
+    "/scans/{scan_id}/history",
+    operation_id="getScanHistory",
+    response_model=scan_history.ScanHistory,
+)
 async def get_scan_history(scan_id: UUID, session: SignedIn) -> scan_history.ScanHistory:
-    """Contract 3.16: what happened to the scan, oldest first, and where it is now."""
+    """Contract 3.28: what happened to the scan, oldest first, and where it is now."""
     return await scan_history.get(session, scan_id)
 
 
