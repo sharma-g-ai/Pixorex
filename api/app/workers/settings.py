@@ -4,7 +4,7 @@ from functools import lru_cache
 from typing import Literal
 
 from psycopg.conninfo import conninfo_to_dict
-from pydantic import AnyHttpUrl, SecretStr, field_validator
+from pydantic import AnyHttpUrl, Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -13,7 +13,13 @@ class WorkerSettings(BaseSettings):
 
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
     worker_database_url: SecretStr  # the pixorex_worker role
-    worker_tick_s: float = 15.0  # how often due emails are sent
+    # all: every job. extraction: AI extraction of scans only. general: everything else
+    # (emails, exports, scheduled jobs, Keycloak re-read).
+    worker_role: Literal["all", "extraction", "general"] = "all"
+    worker_tick_s: float = 15.0  # how often the outbox is checked (Compose sets 1 for extraction)
+    # Extraction role: claim loops per container, so AI calls open at once per container. Keep
+    # containers times this within what the OpenAI account accepts at the same time.
+    extraction_concurrency: int = Field(default=4, ge=1, le=32)
     worker_jobs_every_s: float = 60.0  # how often the scheduled jobs run
     worker_keycloak_every_s: float = 300.0  # how often Keycloak's stored events are re-read
 

@@ -48,7 +48,8 @@ Run each command in PowerShell from the repo folder.
 | Check | Good result |
 |---|---|
 | `docker compose ps` | Every service `Up`; `migrate` shows `Exited (0)`, which is normal |
-| `docker compose logs worker` | `worker_started`; then `jobs_done` / `outbox_done` lines when it has work |
+| `docker compose logs worker` | `worker_started` with `role=general`; then `jobs_done` / `outbox_done` lines when it has work |
+| `docker compose logs extraction-worker` | `worker_started` with `role=extraction`; then, after a scan upload, an `extraction_timing` line (milliseconds spent waiting and calling the AI) and an `outbox_done` line |
 | http://localhost:8000/api/v1/ready | `"status":"ready"` (wait about 1 minute after starting: Keycloak is slow to start) |
 | http://localhost:5173 | The sign-in page |
 

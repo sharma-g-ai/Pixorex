@@ -117,7 +117,11 @@ All of these are built and tested.
 4. **Confirm**: `POST /scans/{scanId}/upload-complete` → **202** `{attempt_no: 1, processing_status: "extracting"}`.
    - Safe to repeat.
    - **409** `photos-missing`: a photo number is missing.
-5. **Wait for the AI:** poll `GET /scans/{scanId}` until `processing_status` is `ready_to_review` or `failed`. There is no push.
+   - **409** `invalid-state`: already confirmed, for example a repeat after a lost answer once extraction has moved on. Not an error: read `GET /scans/{scanId}` and carry on from its `processing_status`.
+5. **Wait for the AI:** poll `GET /scans/{scanId}` until `processing_status` is `ready_to_review`, `failed` or `retake_required`. There is no push.
+   - Pace: every 2 seconds for the first 20 seconds, then every 5 seconds.
+   - After about 30 seconds, show "taking longer than usual" and keep polling. A busy queue or a retry on the backend can keep the scan in `extracting` longer than that.
+   - `failed`: the technician can retry (step 7). `retake_required`: all 3 attempts are used, so only a retake is left (step 2, `retake_of_scan_id`).
 6. **Results** (`GET /scans/{scanId}`):
    - `fields`: each with `ai_value`, `confidence` and `flag_reasons`.
    - `latest_attempt`: holds `detected_label` and `suggested_type_id` for the type mismatch screen.
@@ -130,6 +134,8 @@ All of these are built and tested.
    Retry and re-extract need the scan still unsubmitted. **3 attempts** in total, then `409 scan-attempts-used`: retake only.
 
 **Status names** (`processing_status`): `uploading`, `extracting`, `ready_to_review`, `failed`, `retake_required`. `queued_on_phone` exists only on the phone. `review_status`: `draft`, `waiting_for_approval`, `approved`, `rejected`, `closed` (replaced by a retake), `discarded`.
+
+**Sending a backlog.** When the network returns, send the queued scans oldest first, and no more than 2 at a time (steps 2 to 4 for one scan, then the next). The AI works through scans in the order they are confirmed, so one large burst makes every other scan wait, including one the technician is watching. Every call in steps 2 to 4 is safe to repeat after a lost connection.
 
 ---
 
