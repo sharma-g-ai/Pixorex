@@ -192,7 +192,8 @@ paths:
       description: 'Contract ref 3.3 in the API Contracts doc.
 
 
-        Counts also feed the BU Admin home cards. Screens BU 03, 05, 08, 10.'
+        Counts also feed the BU Admin home cards. filter=approved_this_week lists the scans counted in
+        counts.approved_this_week (current decision approved since Monday 00:00 UTC). Screens BU 03, 05, 08, 10.'
       x-roles: &id009
       - bu_admin
       - enterprise_admin
@@ -214,6 +215,7 @@ paths:
           - over_1w
           - delegated
           - decided_by_technicians
+          - approved_this_week
       - *id002
       - *id003
       responses:

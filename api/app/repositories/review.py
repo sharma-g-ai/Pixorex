@@ -20,6 +20,13 @@ _CURRENT = (
 )
 
 
+# Current decision approved since Monday 00:00 UTC: the home card count and its queue tab.
+_APPROVED_THIS_WEEK = (
+    "cd.decision = 'approved'"
+    " AND cd.decided_at >= date_trunc('week', now() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC'"
+)
+
+
 async def queue_counts(conn: Conn, bu_id: UUID) -> dict[str, int]:
     cur = await conn.execute(
         "SELECT"
@@ -32,9 +39,7 @@ async def queue_counts(conn: Conn, bu_id: UUID) -> dict[str, int]:
         "   AND ra.id IS NOT NULL) AS delegated,"
         " count(*) FILTER (WHERE cd.decider_role = 'delegated_technician')"
         "   AS decided_by_technicians,"
-        " count(*) FILTER (WHERE cd.decision = 'approved'"
-        "   AND cd.decided_at >= date_trunc('week', now() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC')"
-        "   AS approved_this_week"
+        f" count(*) FILTER (WHERE {_APPROVED_THIS_WEEK}) AS approved_this_week"
         f" FROM scan s {_CURRENT} WHERE s.bu_id = %s",
         (bu_id,),
     )
@@ -49,6 +54,7 @@ _QUEUE_FILTERS = {
     "over_1w": f"{_WAITING} AND cr.submitted_at < now() - interval '7 days'",
     "delegated": f"{_WAITING} AND ra.id IS NOT NULL",
     "decided_by_technicians": "cd.decider_role = 'delegated_technician'",
+    "approved_this_week": _APPROVED_THIS_WEEK,
 }
 
 

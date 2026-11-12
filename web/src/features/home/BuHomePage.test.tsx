@@ -116,8 +116,10 @@ describe('BU Home (canvas BU 03)', () => {
       'href',
       '/review-queue',
     )
-    expect(screen.getByText('approved this week')).toBeInTheDocument()
-    expect(screen.getByText('112')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /112\s*approved this week/ })).toHaveAttribute(
+      'href',
+      '/review-queue?tab=approved',
+    )
     const batch = within(screen.getByRole('region', { name: 'Batch with no progress' }))
     expect(batch.getByText('B-14 · T. Nguyen · 0 of 30')).toBeInTheDocument()
     expect(batch.getByRole('link', { name: 'Remind or take back →' })).toHaveAttribute(

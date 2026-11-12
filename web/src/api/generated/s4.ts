@@ -59,7 +59,7 @@ export interface paths {
          * Review queue with tab counts
          * @description Contract ref 3.3 in the API Contracts doc.
          *
-         *     Counts also feed the BU Admin home cards. Screens BU 03, 05, 08, 10.
+         *     Counts also feed the BU Admin home cards. filter=approved_this_week lists the scans counted in counts.approved_this_week (current decision approved since Monday 00:00 UTC). Screens BU 03, 05, 08, 10.
          */
         get: operations["getReviewQueue"];
         put?: never;
@@ -1003,7 +1003,7 @@ export interface operations {
     getReviewQueue: {
         parameters: {
             query?: {
-                filter?: "waiting" | "over_1d" | "over_1w" | "delegated" | "decided_by_technicians";
+                filter?: "waiting" | "over_1d" | "over_1w" | "delegated" | "decided_by_technicians" | "approved_this_week";
                 /** @description Opaque cursor from the previous page's next_cursor. */
                 cursor?: components["parameters"]["Cursor"];
                 limit?: components["parameters"]["Limit"];

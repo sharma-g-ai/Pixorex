@@ -3,7 +3,8 @@ import { api, unwrap } from './client'
 import type { components } from './generated/s4'
 import { useRefreshingMutation } from './useRefreshingMutation'
 
-export type QueueFilter = 'waiting' | 'over_1d' | 'over_1w' | 'delegated' | 'decided_by_technicians'
+export type QueueFilter =
+  'waiting' | 'over_1d' | 'over_1w' | 'delegated' | 'decided_by_technicians' | 'approved_this_week'
 export type QueueItem = components['schemas']['QueueItem']
 export type QueueCounts = components['schemas']['QueueCounts']
 export type ScanReview = components['schemas']['ScanReview']

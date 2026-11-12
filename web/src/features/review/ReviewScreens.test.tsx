@@ -19,6 +19,7 @@ const calls = {
 let review: ScanReview
 let items: QueueItem[] = []
 let batches: Batch[] = []
+const queueFilters: string[] = []
 
 const mutation = (fn: ReturnType<typeof vi.fn>) => ({ mutateAsync: fn, isPending: false })
 vi.mock('../../api/review', () => ({
@@ -26,14 +27,24 @@ vi.mock('../../api/review', () => ({
   useScanHistory: () => ({ data: history, isPending: false, isError: false }),
   useDecide: () => mutation(calls.decide),
   useOverride: () => mutation(calls.override),
-  useReviewQueue: () => ({
-    data: {
-      counts: { waiting: 3, over_1d: 1, over_1w: 0, delegated: 1, decided_by_technicians: 2 },
-      items,
-    },
-    isPending: false,
-    isError: false,
-  }),
+  useReviewQueue: (_buId: string, filter: string) => {
+    queueFilters.push(filter)
+    return {
+      data: {
+        counts: {
+          waiting: 3,
+          over_1d: 1,
+          over_1w: 0,
+          delegated: 1,
+          decided_by_technicians: 2,
+          approved_this_week: 5,
+        },
+        items,
+      },
+      isPending: false,
+      isError: false,
+    }
+  },
   useTechnicianDecisions: () => ({ data: [], isPending: false }),
   useDelegates: () => ({
     data: [
@@ -352,6 +363,29 @@ describe('Review queue', () => {
       scanIds: ['s1'],
       idempotencyKey: expect.any(String),
     })
+  })
+
+  it('GIVEN BU Home "approved this week" (?tab=approved) THEN opens on Approved, nothing to pick', () => {
+    queueFilters.length = 0
+    inShell(<ReviewQueuePage />, '/review-queue?tab=approved')
+    const tab = screen.getByRole('tab', { name: /Approved this week/ })
+    expect(tab).toHaveAttribute('aria-selected', 'true')
+    expect(tab).toHaveTextContent('5')
+    expect(queueFilters).toContain('approved_this_week')
+    expect(queueFilters).not.toContain('waiting')
+    const table = within(screen.getByRole('table', { name: 'Scans approved this week' }))
+    expect(table.queryByRole('checkbox')).not.toBeInTheDocument()
+    expect(table.queryByRole('columnheader', { name: 'Waiting' })).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: 'Delegate to technicians' }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('GIVEN the Waiting tab WHEN Approved this week is picked THEN contract 3.3 is asked for it', () => {
+    queueFilters.length = 0
+    inShell(<ReviewQueuePage />)
+    fireEvent.click(screen.getByRole('tab', { name: /Approved this week/ }))
+    expect(queueFilters.at(-1)).toBe('approved_this_week')
   })
 
   it('GIVEN the technician captured every selected scan THEN they cannot get the batch', () => {

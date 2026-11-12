@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link } from 'react-router'
+import { Link, useSearchParams } from 'react-router'
 import type { ExportJob } from '../../api/exports'
 import { useReviewQueue, type QueueFilter, type QueueItem } from '../../api/review'
 import { useDashboard } from '../../app/DashboardContext'
@@ -27,7 +27,12 @@ export function ReviewQueuePage() {
 }
 
 function QueueOfUnit({ buId, unitName }: { buId: string; unitName: string }) {
-  const [filter, setFilter] = useState<QueueFilter>('waiting')
+  const [params] = useSearchParams()
+  // BU Home's "approved this week" card opens this tab (?tab=approved).
+  const [filter, setFilter] = useState<QueueFilter>(
+    params.get('tab') === 'approved' ? 'approved_this_week' : 'waiting',
+  )
+  const approved = filter === 'approved_this_week'
   const queue = useReviewQueue(buId, filter === 'decided_by_technicians' ? 'waiting' : filter)
   const [selected, setSelected] = useState<string[]>([])
   const [delegating, setDelegating] = useState(false)
@@ -39,7 +44,7 @@ function QueueOfUnit({ buId, unitName }: { buId: string; unitName: string }) {
   const toggle = (scanId: string, on: boolean) =>
     setSelected((s) => (on ? [...s, scanId].slice(0, MAX_BATCH) : s.filter((id) => id !== scanId)))
 
-  const columns: Column<QueueItem>[] = [
+  const allColumns: Column<QueueItem>[] = [
     {
       header: 'Select',
       width: 0.3,
@@ -103,6 +108,16 @@ function QueueOfUnit({ buId, unitName }: { buId: string; unitName: string }) {
         ),
     },
   ]
+  // Approved scans are done: nothing to pick or delegate, and no wait or assignment to show.
+  const columns = approved
+    ? allColumns.filter((c) => !['Select', 'Waiting', 'Assigned'].includes(c.header))
+    : allColumns
+  const allScope = { key: 'all', label: `All scans in ${unitName}`, filters: { bu_id: buId } }
+  const approvedScope = {
+    key: 'approved',
+    label: 'Approved scans only',
+    filters: { bu_id: buId, review_status: 'approved' },
+  }
 
   return (
     <>
@@ -134,6 +149,11 @@ function QueueOfUnit({ buId, unitName }: { buId: string; unitName: string }) {
               label: 'Decided by technicians',
               count: counts?.decided_by_technicians,
             },
+            {
+              key: 'approved_this_week',
+              label: 'Approved this week',
+              count: counts?.approved_this_week,
+            },
           ]}
           current={filter}
           onChange={(key) => {
@@ -146,23 +166,25 @@ function QueueOfUnit({ buId, unitName }: { buId: string; unitName: string }) {
           <TechnicianDecisionsTable buId={buId} scanPath={(id) => `/review-queue/${id}`} />
         ) : (
           <>
-            <SelectionBar
-              count={selected.length}
-              hint={`Select up to ${MAX_BATCH} to delegate as one batch`}
-              onClear={() => setSelected([])}
-              onDelegate={() => setDelegating(true)}
-            />
+            {!approved && (
+              <SelectionBar
+                count={selected.length}
+                hint={`Select up to ${MAX_BATCH} to delegate as one batch`}
+                onClear={() => setSelected([])}
+                onDelegate={() => setDelegating(true)}
+              />
+            )}
             {queue.isPending ? (
               <Card>Loading the review queue…</Card>
             ) : queue.isError ? (
               <Card>We couldn't load the review queue. Please refresh.</Card>
             ) : (
               <DataTable
-                label="Scans waiting for review"
+                label={approved ? 'Scans approved this week' : 'Scans waiting for review'}
                 columns={columns}
                 rows={queue.data.items}
                 rowKey={(item) => item.scan_id}
-                empty="Nothing waiting here."
+                empty={approved ? 'Nothing approved this week yet.' : 'Nothing waiting here.'}
               />
             )}
           </>
@@ -185,19 +207,21 @@ function QueueOfUnit({ buId, unitName }: { buId: string; unitName: string }) {
         <ExportDialog
           kind="scans"
           title="Export scans to CSV"
-          scopes={[
-            {
-              key: 'view',
-              label: `What you're looking at · ${counts?.waiting ?? 0} waiting scans`,
-              filters: { bu_id: buId, review_status: 'waiting_for_approval' },
-            },
-            { key: 'all', label: `All scans in ${unitName}`, filters: { bu_id: buId } },
-            {
-              key: 'approved',
-              label: 'Approved scans only',
-              filters: { bu_id: buId, review_status: 'approved' },
-            },
-          ]}
+          scopes={
+            // Export filters date by capture, not decision, so "approved this week" can't be
+            // exported as such: the Approved tab offers approved scans first, and no waiting option.
+            approved
+              ? [approvedScope, allScope]
+              : [
+                  {
+                    key: 'view',
+                    label: `What you're looking at · ${counts?.waiting ?? 0} waiting scans`,
+                    filters: { bu_id: buId, review_status: 'waiting_for_approval' },
+                  },
+                  allScope,
+                  approvedScope,
+                ]
+          }
           note="Only scans from your units are included. Up to 1,000 rows download straight away; bigger exports arrive as a dashboard notice and an email with a link valid for 1 hour. Recorded in the audit log."
           onClose={() => setExporting(false)}
           onDownloaded={() => {

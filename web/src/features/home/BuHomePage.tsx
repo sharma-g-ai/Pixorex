@@ -54,7 +54,11 @@ function HomeOfUnit({
             label="in delegated batches"
             to="/delegations"
           />
-          <StatTile value={counts?.approved_this_week ?? '–'} label="approved this week" />
+          <StatTile
+            value={counts?.approved_this_week ?? '–'}
+            label="approved this week"
+            to="/review-queue?tab=approved"
+          />
           <StatTile
             value={counts?.over_1d ?? '–'}
             label={

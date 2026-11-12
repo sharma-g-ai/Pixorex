@@ -15,7 +15,9 @@ from app.core.storage import StorageConfig
 from app.repositories import audit, notifications
 from app.repositories import review as repo
 
-QueueFilter = Literal["waiting", "over_1d", "over_1w", "delegated", "decided_by_technicians"]
+QueueFilter = Literal[
+    "waiting", "over_1d", "over_1w", "delegated", "decided_by_technicians", "approved_this_week"
+]
 RejectCategory = Literal["image_unclear", "data_correction_needed", "wrong_equipment_type", "other"]
 Role = Literal["bu_admin", "enterprise_admin", "delegated_technician"]
 

@@ -72,6 +72,29 @@ def test_queue_counts_and_items(api: Api, owner_sql: Any) -> None:
     )  # only a technician in P04
 
 
+def test_the_approved_tab_lists_what_the_home_count_counts(api: Api, owner_sql: Any) -> None:
+    """GIVEN one scan approved now and one still waiting WHEN the BU Admin opens the queue on
+    approved_this_week THEN only the approved one is listed, and the tab count matches the
+    approved_this_week count on the home cards."""
+    approved = waiting_scan(owner_sql, TARA)
+    waiting = waiting_scan(owner_sql, TARA)
+    assert _decide(api, BO, approved["scan_id"]).status_code == 201
+    queue = api.get(f"/business-units/{P04}/review-queue?filter=approved_this_week&limit=100", BO)
+    assert queue.status_code == 200, queue.text
+    ids = {i["scan_id"] for i in queue.json()["items"]}
+    assert approved["scan_id"] in ids and waiting["scan_id"] not in ids
+    week = owner_sql(
+        "SELECT count(*) FROM scan s JOIN LATERAL (SELECT r.id FROM revision r"
+        " WHERE r.scan_id = s.id ORDER BY r.revision_no DESC LIMIT 1) cr ON true"
+        " JOIN review_decision cd ON cd.revision_id = cr.id AND cd.is_current"
+        " WHERE s.bu_id = %s AND cd.decision = 'approved'"
+        " AND cd.decided_at >= date_trunc('week', now() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC'",
+        (P04,),
+    )[0][0]
+    assert queue.json()["counts"]["approved_this_week"] == week
+    assert len(ids) == min(week, 100)
+
+
 def test_scan_review_shows_ai_and_verdicts_never_to_the_own_technician(
     api: Api, owner_sql: Any
 ) -> None:
