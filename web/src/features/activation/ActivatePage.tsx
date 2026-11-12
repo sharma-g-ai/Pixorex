@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { useNavigate } from 'react-router'
 import { z } from 'zod'
@@ -14,7 +14,13 @@ import { AuthCard } from '../../components/layout/AuthCard'
 import { fullNameField } from '../../lib/validation'
 import { timeLeft } from '../../lib/time'
 import { zodResolver } from '../../lib/zodResolver'
-import { inviteProblem, isDeadInvite, takeInviteToken } from './inviteLink'
+import {
+  appInviteLink,
+  inviteProblem,
+  isDeadInvite,
+  isMobileDevice,
+  takeInviteToken,
+} from './inviteLink'
 
 const schema = z.object({ full_name: fullNameField() })
 type Values = z.infer<typeof schema>
@@ -39,15 +45,40 @@ export function ActivatePage() {
   }
   if (preview.isPending) return <AuthCard>Checking your invite…</AuthCard>
   if (preview.isError) return <Problem {...inviteProblem(preview.error)} />
-  if (preview.data.role === 'field_technician') {
-    return (
-      <Problem
-        title="Activate in the mobile app"
-        text="This invite is for a field technician. Open the link on your phone with the Pixorex app installed."
-      />
-    )
-  }
+  if (preview.data.role === 'field_technician') return <OpenInApp token={token} />
   return <ActivateForm token={token} invite={preview.data} />
+}
+
+/** A technician's invite is activated in the mobile app: on a phone, open the app right away. */
+function OpenInApp({ token }: { token: string }) {
+  const link = appInviteLink(token)
+  const onPhone = isMobileDevice()
+  const tried = useRef(false)
+  useEffect(() => {
+    // Once only: Strict Mode runs effects twice in development.
+    if (tried.current || !onPhone) return
+    tried.current = true
+    window.location.href = link
+  }, [link, onPhone])
+
+  return (
+    <AuthCard>
+      <h1 className="text-page-title font-bold">Activate in the mobile app</h1>
+      <p className="text-body-sm text-ink-muted">
+        {onPhone
+          ? 'Opening the Pixorex app… If nothing happens, tap the button below.'
+          : 'This invite is for a field technician. Open this link on your phone with the Pixorex app installed.'}
+      </p>
+      {onPhone && (
+        <a
+          href={link}
+          className="flex h-12 items-center justify-center rounded-lg bg-brand-navy text-card-title font-semibold text-white"
+        >
+          Open in the Pixorex app
+        </a>
+      )}
+    </AuthCard>
+  )
 }
 
 function ActivateForm({ token, invite }: { token: string; invite: InvitePreview }) {

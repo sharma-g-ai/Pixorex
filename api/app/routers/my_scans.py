@@ -15,6 +15,7 @@ router = APIRouter(tags=["My Scans"])
 
 @router.get("/me/scans", operation_id="listMyScans")
 async def list_my_scans(
+    request: Request,
     session: SignedIn,
     bu_id: UUID | None = None,
     tab: Literal["all", "needs_action", "in_progress", "approved"] | None = None,
@@ -37,6 +38,7 @@ async def list_my_scans(
         q=q,
         cursor=cursor,
         limit=limit,
+        storage=request.app.state.storage,
     )
 
 

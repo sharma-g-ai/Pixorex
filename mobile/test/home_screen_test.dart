@@ -22,6 +22,9 @@ Map<String, dynamic> row(String type, String processing, String review, {int min
       'attempts_used': 1,
       'reject_category': null,
       'updated_at': now.subtract(Duration(minutes: minAgo)).toUtc().toIso8601String(),
+      // Taken 20 minutes before the last update: a scan's own time, apart from updated_at.
+      'captured_at': now.subtract(Duration(minutes: minAgo + 20)).toUtc().toIso8601String(),
+      'thumbnail_url': null,
     };
 
 Map<String, dynamic> page(List<Map<String, dynamic>> items) => {'items': items, 'page': {'next_cursor': null}};

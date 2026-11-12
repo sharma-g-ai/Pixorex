@@ -11,6 +11,7 @@ import 'scan_details_screen.dart';
 import 'scan_models.dart';
 import 'scan_repository.dart';
 import 'scan_status.dart';
+import 'scan_thumb.dart';
 
 /// My Scans (design 47-49, 62-67): search, tabs, and what to do with each scan.
 class MyScansScreen extends StatefulWidget {
@@ -396,18 +397,7 @@ class MyScanTile extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           child: Column(children: [
             Row(children: [
-              Opacity(
-                opacity: closed ? 0.6 : 1,
-                child: Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: closed ? const Color(0xFF4A2A2A) : const Color(0xFF1F1F23),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Icon(Icons.qr_code_scanner, size: 18, color: Colors.white54),
-                ),
-              ),
+              ScanThumb(url: s.thumbnailUrl, faded: closed),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -415,6 +405,10 @@ class MyScanTile extends StatelessWidget {
                       style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: closed ? Brand.body : null)),
                   Text('${formatScanId(s.recordNo)} · ${s.place}',
                       style: const TextStyle(fontSize: 11, color: Brand.hint, fontFeatures: [FontFeature.tabularFigures()])),
+                  if (s.capturedAt != null)
+                    Text('Scanned ${eventTime(s.capturedAt!)}',
+                        key: Key('scanned-${s.scanId}'),
+                        style: const TextStyle(fontSize: 11, color: Brand.hint, fontFeatures: [FontFeature.tabularFigures()])),
                   if (action != null)
                     Text(action, style: TextStyle(fontSize: 11, color: red ? Brand.error : (closed ? Brand.hint : Brand.warn))),
                 ]),

@@ -280,6 +280,27 @@ describe('Scan history', () => {
   })
 })
 
+describe('Low confidence and photos', () => {
+  it('GIVEN a low-confidence value THEN it is shown with its score and marked for review', () => {
+    inShell(<ScanReviewView scanId="s1" back={{ to: '/', label: 'Back' }} />)
+    const fields = within(screen.getByRole('table', { name: 'Extracted fields' }))
+    expect(fields.getByText('CR 32-4-1 G')).toBeInTheDocument()
+    expect(fields.getByText('42% confidence · needs review')).toBeInTheDocument()
+  })
+
+  it('GIVEN a photo that fails to load THEN a message replaces the broken image', () => {
+    review = {
+      ...review,
+      photos: [{ photo_no: 1, url: 'http://minio/1.jpg' }] as unknown as typeof review.photos,
+    }
+    inShell(<ScanReviewView scanId="s1" back={{ to: '/', label: 'Back' }} />)
+    expect(screen.getByRole('status')).toHaveTextContent('Loading photo…')
+    fireEvent.error(screen.getByAltText('Photo 1 of 1'))
+    expect(screen.getByRole('alert')).toHaveTextContent("We couldn't load this photo")
+    expect(screen.queryByAltText('Photo 1 of 1')).toBeNull()
+  })
+})
+
 describe('Photo viewer', () => {
   it('GIVEN photos WHEN one is clicked THEN it opens over the page, not in a new tab', () => {
     review = {

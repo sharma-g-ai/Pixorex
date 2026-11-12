@@ -153,7 +153,6 @@ def _log_timing(job: Job, outcome: str, started: float) -> None:
         provider_ms=round((time.monotonic() - started) * 1000),
     )
 
-
 async def prepare(conn: Conn, settings: WorkerSettings, event: dict[str, Any]) -> Job | None:
     """Step 1 of 3, inside the outbox's claim transaction: what the call needs, or None when
     there is nothing to call for."""

@@ -85,13 +85,32 @@ void main() {
     expect(find.text('No retries left'), findsOneWidget);
     expect(find.text('Retake photo'), findsNWidgets(2)); // with Retry while tries are left (design 47)
     expect(find.text('Check what was read'), findsOneWidget);
-    // Where a scan is and when things happened is on Scan details, not on every row.
+    // Where a scan is and what happened to it is on Scan details; a row only says when it was scanned.
     expect(find.text('Attempt 2 of 3 · 5 min ago'), findsNothing);
     expect(find.textContaining('min ago'), findsNothing);
     expect(
       t.getTopLeft(find.text('Control Valve')).dy,
       lessThan(t.getTopLeft(find.text('AC Generator')).dy),
     );
+  });
+
+  testWidgets('GIVEN scans taken at different times THEN each row shows its own scan time', (t) async {
+    final api = ScansApi()
+      ..items = [
+        scanRow('Paint Label', 'ready_to_review', 'approved')..['captured_at'] = DateTime(2026, 10, 1, 10, 30).toUtc().toIso8601String(),
+        scanRow('Chemical Label', 'ready_to_review', 'approved')..['captured_at'] = DateTime(2026, 10, 1, 10, 32).toUtc().toIso8601String(),
+        scanRow('Control Valve', 'ready_to_review', 'approved')..['captured_at'] = null, // an older server
+      ];
+    await pumpMyScans(t, api: api);
+    expect(find.text('Scanned 1 Oct 10:30'), findsOneWidget);
+    expect(find.text('Scanned 1 Oct 10:32'), findsOneWidget);
+    expect(find.textContaining('Scanned'), findsNWidgets(2)); // no time known, none invented
+  });
+
+  testWidgets('GIVEN a scan without a photo THEN the row shows a neutral picture, not a QR icon', (t) async {
+    await pumpMyScans(t);
+    expect(find.byIcon(Icons.qr_code_scanner), findsNothing);
+    expect(find.byIcon(Icons.image_not_supported_outlined), findsWidgets);
   });
 
   testWidgets('GIVEN a tab or a search WHEN chosen THEN the API is asked with it', (t) async {

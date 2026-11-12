@@ -190,6 +190,8 @@ class MyScan {
     this.resubmitted = false,
     this.retakeOfScanId,
     this.reviewerName,
+    this.capturedAt,
+    this.thumbnailUrl,
   });
   final String scanId;
   final String recordNo;
@@ -209,6 +211,12 @@ class MyScan {
 
   /// Who rejected it, who a fix goes back to, or who rejected the scan a retake replaces.
   final String? reviewerName;
+
+  /// When the photo was taken: set once, so it never moves when the scan is updated.
+  final DateTime? capturedAt;
+
+  /// Signed link to photo 1 (valid 15 minutes), or null when the scan has no photo.
+  final String? thumbnailUrl;
 
   String get place => shortPlace(locationPath);
 
@@ -231,6 +239,8 @@ class MyScan {
         resubmitted: j['resubmitted'] as bool? ?? false,
         retakeOfScanId: j['retake_of_scan_id'] as String?,
         reviewerName: j['reviewer_name'] as String?,
+        capturedAt: j['captured_at'] == null ? null : DateTime.parse(j['captured_at'] as String),
+        thumbnailUrl: j['thumbnail_url'] as String?,
       );
 }
 

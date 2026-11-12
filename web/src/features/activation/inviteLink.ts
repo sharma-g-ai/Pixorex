@@ -74,3 +74,22 @@ export function inviteProblem(err: unknown): { title: string; text: string; canS
       }
   }
 }
+
+const APP_ID = 'com.pixorex.mobile'
+
+/**
+ * The link that opens the Pixorex mobile app on the invite (the app reads `pixorex://activate`).
+ * Android Chrome opens an `intent:` link reliably, and goes to the Play Store if the app is not
+ * installed. The token stays on the device: it is never sent to a server.
+ */
+export function appInviteLink(token: string, userAgent: string = navigator.userAgent): string {
+  const query = `token=${encodeURIComponent(token)}`
+  return /android/i.test(userAgent)
+    ? `intent://activate?${query}#Intent;scheme=pixorex;package=${APP_ID};end`
+    : `pixorex://activate?${query}`
+}
+
+/** Phones and tablets, where the app can open; a laptop shows the instructions instead. */
+export function isMobileDevice(userAgent: string = navigator.userAgent): boolean {
+  return /android|iphone|ipad|ipod/i.test(userAgent)
+}

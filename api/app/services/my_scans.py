@@ -11,9 +11,11 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
+from app.auth import signed_urls
 from app.auth.context import Session
 from app.core.paging import PageInfo, decode_cursor, encode_cursor
 from app.core.problems import ProblemError
+from app.core.storage import StorageConfig
 from app.repositories import audit
 from app.repositories import scans as repo
 
@@ -34,6 +36,8 @@ class MyScan(BaseModel):
     retake_of_scan_id: UUID | None
     reviewer_name: str | None  # who rejected it, or who a fix or retake goes to
     updated_at: datetime
+    captured_at: datetime  # when the technician took the photo; set once, never changes
+    thumbnail_url: str | None = None  # signed link to photo 1 (15 minutes); None without a photo
 
 
 class MyScanPage(BaseModel):
@@ -79,6 +83,7 @@ async def list_mine(
     q: str | None,
     cursor: str | None,
     limit: int,
+    storage: StorageConfig | None = None,
 ) -> MyScanPage:
     """Contract 3.1. The phone's offline queue is not here: it lives only on the phone."""
     _require_technician(session)
@@ -102,7 +107,15 @@ async def list_mine(
     more = len(rows) > limit
     rows = rows[:limit]
     return MyScanPage(
-        items=[MyScan(**r) for r in rows],
+        items=[
+            MyScan(
+                **{k: v for k, v in r.items() if k != "photo_key"},
+                thumbnail_url=signed_urls.photo_url(storage, r["photo_key"])
+                if storage is not None and r["photo_key"]
+                else None,
+            )
+            for r in rows
+        ],
         page=PageInfo(
             next_cursor=encode_cursor(rows[-1]["updated_at"].isoformat(), rows[-1]["scan_id"])
             if more

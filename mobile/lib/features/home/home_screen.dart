@@ -12,6 +12,7 @@ import '../scan/review_screen.dart';
 import '../scan/scan_details_screen.dart';
 import '../scan/scan_repository.dart';
 import '../scan/scan_status.dart';
+import '../scan/scan_thumb.dart';
 
 /// Opens My Scans, optionally on one tab (`needs_action`, ...); completes on the way back.
 typedef OpenMyScans = Future<void> Function({String? tab});
@@ -365,18 +366,16 @@ class ScanRow extends StatelessWidget {
             : Border.all(color: Brand.lineSoft),
       ),
       child: Row(children: [
-        Container(
-          width: 40,
-          height: 40,
-          decoration: BoxDecoration(color: const Color(0xFF1F1F23), borderRadius: BorderRadius.circular(8)),
-          child: const Icon(Icons.qr_code_scanner, size: 18, color: Colors.white54),
-        ),
+        ScanThumb(url: scan.thumbnailUrl),
         const SizedBox(width: 12),
         Expanded(
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(scan.equipmentTypeName, style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700)),
             Text('${formatScanId(scan.recordNo)} · ${scan.place}',
                 style: const TextStyle(fontSize: 11, color: Brand.hint, fontFeatures: [FontFeature.tabularFigures()])),
+            if (scan.capturedAt != null)
+              Text('Scanned ${eventTime(scan.capturedAt!)}',
+                  style: const TextStyle(fontSize: 11, color: Brand.hint, fontFeatures: [FontFeature.tabularFigures()])),
           ]),
         ),
         ScanStatusPill(look),

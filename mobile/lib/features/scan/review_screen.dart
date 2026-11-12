@@ -11,6 +11,7 @@ import 'review_model.dart';
 import 'scan_details_screen.dart' show ScanHistoryScreen;
 import 'scan_models.dart';
 import 'scan_repository.dart';
+import 'scan_thumb.dart' show NetworkPhoto;
 
 const _green = Color(0xFF3C9F40);
 const _amber = Color(0xFFE8A02C);
@@ -407,8 +408,7 @@ class _Photos extends StatelessWidget {
         child: ClipRRect(
           borderRadius: BorderRadius.circular(10),
           child: Stack(fit: StackFit.expand, children: [
-            Image.network(urls[i], fit: BoxFit.cover,
-                errorBuilder: (_, _, _) => const ColoredBox(color: Color(0xFF2E3640))),
+            NetworkPhoto(url: urls[i], compact: label == null),
             if (label != null)
               Positioned(
                 right: 10,
@@ -435,7 +435,7 @@ class PhotoZoom extends StatelessWidget {
         appBar: AppBar(backgroundColor: Colors.black, foregroundColor: Colors.white),
         body: PageView(
           controller: PageController(initialPage: first),
-          children: [for (final u in urls) InteractiveViewer(maxScale: 5, child: Center(child: Image.network(u)))],
+          children: [for (final u in urls) InteractiveViewer(maxScale: 5, child: Center(child: NetworkPhoto(url: u, fit: BoxFit.contain)))],
         ),
       );
 }

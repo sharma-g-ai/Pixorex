@@ -222,7 +222,13 @@ def test_my_scans_tabs_search_and_paging(
         "retake_of_scan_id",
         "reviewer_name",
         "updated_at",
+        "captured_at",
+        "thumbnail_url",
     }
+    # Each scan carries its own capture time (from the phone), and the list is not the place
+    # that changes it: updated_at moves on every status change, captured_at never does.
+    every = api.get("/me/scans", TARA, params={"bu_id": unit["bu"], "limit": 100}).json()["items"]
+    assert all(s["captured_at"] for s in every)
     second = api.get(
         "/me/scans",
         TARA,

@@ -151,7 +151,8 @@ function Photos({ photos }: { photos: { no: number; url: string }[] }) {
         aria-label={`Open photo ${photo.no} of ${photos.length}`}
         className="relative block w-full cursor-zoom-in overflow-hidden rounded-xl bg-ink"
       >
-        <img
+        <PhotoImage
+          key={photo.url}
           src={photo.url}
           alt={`Photo ${photo.no} of ${photos.length}`}
           className="h-75 w-full object-contain"
@@ -181,6 +182,43 @@ function Photos({ photos }: { photos: { no: number; url: string }[] }) {
   )
 }
 
+/**
+ * A signed photo: a loading note while it arrives, and a message instead of a broken image
+ * if it can't be loaded (for example the 15-minute link ran out). Render with a key on the
+ * url so a new photo starts from loading again.
+ */
+function PhotoImage({ src, alt, className }: { src: string; alt: string; className: string }) {
+  const [state, setState] = useState<'loading' | 'loaded' | 'failed'>('loading')
+  return (
+    <>
+      {state === 'loading' && (
+        <div
+          role="status"
+          className="absolute inset-0 flex items-center justify-center text-small text-white/70"
+        >
+          Loading photo…
+        </div>
+      )}
+      {state === 'failed' ? (
+        <div
+          role="alert"
+          className="flex h-75 items-center justify-center px-4 text-center text-small text-white/70"
+        >
+          We couldn't load this photo. Refresh the page to get a new link.
+        </div>
+      ) : (
+        <img
+          src={src}
+          alt={alt}
+          className={`${className} ${state === 'loaded' ? '' : 'invisible'}`}
+          onLoad={() => setState('loaded')}
+          onError={() => setState('failed')}
+        />
+      )}
+    </>
+  )
+}
+
 function FieldsTable({ fields }: { fields: ReviewField[] }) {
   const columns: Column<ReviewField>[] = [
     { header: 'Field', width: 1, cell: (f) => <span className="font-semibold">{f.label}</span> },
@@ -188,11 +226,22 @@ function FieldsTable({ fields }: { fields: ReviewField[] }) {
       header: 'AI read',
       width: 1.5,
       cell: (f) => (
-        <span
-          className={`font-mono ${f.verification_state === 'corrected' ? 'text-ink-subtle line-through' : 'text-ink-muted'}`}
-        >
-          {f.ai_value ?? '—'}
-        </span>
+        <div className="flex flex-col gap-0.5">
+          <span
+            className={`font-mono ${f.verification_state === 'corrected' ? 'text-ink-subtle line-through' : 'text-ink-muted'}`}
+          >
+            {f.ai_value ?? '—'}
+          </span>
+          {/* The value always shows; the score sits beside it, and a low one says so. */}
+          {f.ai_value !== null && f.confidence !== null && (
+            <span
+              className={`text-meta ${f.flag_reasons.includes('low_confidence') ? 'font-semibold text-warning' : 'text-ink-subtle'}`}
+            >
+              {Math.round(f.confidence * 100)}% confidence
+              {f.flag_reasons.includes('low_confidence') ? ' · needs review' : ''}
+            </span>
+          )}
+        </div>
       ),
     },
     {

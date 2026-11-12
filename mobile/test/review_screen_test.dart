@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:pixorex_mobile/features/scan/review_screen.dart';
 import 'package:pixorex_mobile/features/scan/scan_repository.dart';
+import 'package:pixorex_mobile/features/scan/scan_thumb.dart' show NetworkPhoto;
 import 'package:pixorex_mobile/widgets/auth_widgets.dart';
 
 import 'auth_flow_test.dart' show json, problem;
@@ -109,6 +110,21 @@ Future<void> scrollTo(WidgetTester t, Finder f) async {
 }
 
 void main() {
+  testWidgets('GIVEN a low-confidence value THEN it is shown (editable) with its score beside it', (t) async {
+    await pumpReview(t);
+    // 42% is below the threshold: the value is still there to review and correct.
+    expect(find.widgetWithText(TextField, 'CR 32-4-1 A-G-A-E-HQQE'), findsOneWidget);
+    expect(find.text('Low confidence · 42%'), findsOneWidget);
+  });
+
+  testWidgets('GIVEN a photo that cannot be loaded THEN the review says so, with a way to retry', (t) async {
+    final api = ReviewApi()..scan = (valve()..['photos'] = [{'photo_no': 1, 'view_url': 'http://127.0.0.1:1/missing.jpg'}]);
+    await pumpReview(t, api: api);
+    await t.pump(const Duration(seconds: 1));
+    expect(find.byType(NetworkPhoto), findsOneWidget);
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+  });
+
   testWidgets('GIVEN a scan ready to review WHEN opened THEN flagged fields show why, submit waits', (t) async {
     await pumpReview(t);
     expect(find.text('Control Valve V-071'), findsOneWidget);
