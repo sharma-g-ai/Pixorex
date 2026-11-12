@@ -78,9 +78,19 @@ def _new_token() -> tuple[str, str]:
     return token, hash_token(token)
 
 
+def _group_status(rows: list[dict[str, Any]]) -> str:
+    """One invite's status over all its unit rows: a used or cancelled row ends the whole link
+    (rows cancelled one unit at a time before 1.16 cancelled whole invites)."""
+    statuses = {r["status"] for r in rows}
+    for status in ("accepted", "cancelled"):
+        if status in statuses:
+            return status
+    return str(rows[0]["status"]) if rows else "missing"
+
+
 def _dead_link(rows: list[dict[str, Any]]) -> ProblemError | None:
     """Contract 1.6/1.7 409 types, or None while the link still works."""
-    status = rows[0]["status"] if rows else "missing"
+    status = _group_status(rows)
     if status == "accepted":
         return ProblemError(409, "invite-used", "This invite was already used.")
     if status == "cancelled":
@@ -310,7 +320,7 @@ async def _own_group(session: Session, invite_id: UUID) -> list[dict[str, Any]]:
 async def resend(session: Session, invite_id: UUID) -> tuple[datetime, str, str, str]:
     """New link and 24 hours; returns (expires_at, email, role, token) to email after commit."""
     rows = await _own_group(session, invite_id)
-    if rows[0]["status"] in ("accepted", "cancelled"):
+    if _group_status(rows) in ("accepted", "cancelled"):
         raise ProblemError(409, "invalid-state", "This invite was already used or cancelled.")
     token, token_hash = _new_token()
     expires = datetime.now(UTC) + LIFETIME
@@ -321,9 +331,10 @@ async def resend(session: Session, invite_id: UUID) -> tuple[datetime, str, str,
 
 async def cancel(session: Session, invite_id: UUID) -> None:
     rows = await _own_group(session, invite_id)
-    if rows[0]["status"] == "accepted":
+    status = _group_status(rows)
+    if status == "accepted":
         raise ProblemError(409, "invalid-state", "This invite was already used.")
-    if rows[0]["status"] == "cancelled":
+    if status == "cancelled" and all(r["status"] == "cancelled" for r in rows):
         return  # already cancelled: same outcome
     await invites.set_status(session.conn, [r["id"] for r in rows], "cancelled")
     await _audit_each(

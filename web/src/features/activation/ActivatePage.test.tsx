@@ -12,6 +12,19 @@ vi.mock('../../api/activation', () => ({
   useAcceptInvite: () => ({ mutateAsync: accept }),
 }))
 
+const auth = vi.hoisted(() => ({ mode: 'mock' as 'mock' | 'oidc', signInAs: vi.fn() }))
+vi.mock('../../auth/authConfig', () => ({
+  authConfig: {
+    get mode() {
+      return auth.mode
+    },
+  },
+}))
+vi.mock('../../auth/session', () => ({
+  signIn: vi.fn(),
+  signInAs: (...a: unknown[]) => auth.signInAs(...a),
+}))
+
 const invite = {
   role: 'bu_admin',
   email: 'm.lopez@ppg.com',
@@ -85,6 +98,19 @@ describe('Activate your account (canvas BU 01; contracts 1.6, 1.7)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Activate account' }))
     expect(await screen.findByRole('heading', { name: 'Dashboard home' })).toBeInTheDocument()
     expect(accept).toHaveBeenCalledWith({ token: 't1', full_name: 'Maria Lopez' })
+  })
+
+  it('GIVEN Keycloak WHEN activating THEN signs in as the invited email (never as whoever was signed in)', async () => {
+    auth.mode = 'oidc'
+    auth.signInAs.mockReset().mockResolvedValue(undefined)
+    try {
+      openLink('/activate#token=t1')
+      fireEvent.change(screen.getByLabelText('Full name'), { target: { value: 'Maria Lopez' } })
+      fireEvent.click(screen.getByRole('button', { name: 'Activate account' }))
+      await waitFor(() => expect(auth.signInAs).toHaveBeenCalledWith('/', 'm.lopez@ppg.com'))
+    } finally {
+      auth.mode = 'mock'
+    }
   })
 
   it('GIVEN the link expired while the page was open THEN the form is replaced by the reason', async () => {

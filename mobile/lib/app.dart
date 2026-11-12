@@ -64,6 +64,9 @@ class _PixorexAppState extends State<PixorexApp> {
   StreamSubscription<Uri>? _sub;
   String? _openToken;
 
+  /// Invite tokens accepted in this run of the app.
+  final _accepted = <String>{};
+
   @override
   void initState() {
     super.initState();
@@ -82,18 +85,28 @@ class _PixorexAppState extends State<PixorexApp> {
 
   void _onLink(Uri uri) {
     final token = parseInviteToken(uri);
-    if (token == null || token == _openToken) return;
+    // Android can hand the app the same invite link again after it was used (app_links
+    // re-reads the launch intent when the activity attaches again, e.g. on return from the
+    // sign-in browser). An invite this app already accepted is never reopened, so the
+    // technician is not sent to "This invite was already used".
+    if (token == null || token == _openToken || _accepted.contains(token)) return;
     _openToken = token;
+    final controller = ActivationController(repository: widget.invites, token: token);
     // Wait a frame so a link that launched the app finds a mounted navigator.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final nav = _navigator.currentState;
       if (nav == null) return;
       nav.push(MaterialPageRoute<void>(
-        builder: (_) => ActivateScreen(
-          controller: ActivationController(repository: widget.invites, token: token),
-        ),
-      )).whenComplete(() => _openToken = null);
+        builder: (_) => ActivateScreen(controller: controller),
+      )).whenComplete(() {
+        if (controller.status == ActivationStatus.accepted) {
+          _accepted.add(token);
+        }
+        _openToken = null;
+      });
     });
+    // A link can arrive while the app is idle; make sure the frame above happens.
+    WidgetsBinding.instance.ensureVisualUpdate();
   }
 
   @override

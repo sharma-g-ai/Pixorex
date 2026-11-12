@@ -34,8 +34,11 @@ export async function getAccessToken(): Promise<string | null> {
 }
 
 /** Sends the browser to Keycloak. `loginHint` pre-fills the email (activation, D-08). */
-export async function signIn(returnTo: string, loginHint?: string): Promise<void> {
-  const um = userManager()
+export async function signIn(
+  returnTo: string,
+  loginHint?: string,
+  um: Pick<UserManager, 'signinRedirect'> | null = userManager(),
+): Promise<void> {
   if (!um) return
   await um.signinRedirect({
     state: { returnTo } satisfies SignInState,
@@ -43,20 +46,64 @@ export async function signIn(returnTo: string, loginHint?: string): Promise<void
   })
 }
 
-let completing: { url: string; result: Promise<string> } | null = null
+// Sign-in as one particular person (right after accepting an invite). Keycloak reuses a session
+// already in this browser (its cookie step runs first and ignores login_hint), so whoever was
+// signed in before — e.g. the EA who sent the invite — would come back instead, and the invited
+// person would never get their code. prompt=login cannot fix it: Keycloak then re-authenticates
+// the existing user and refuses a different one. So the callback checks who came back and, if it
+// is someone else, ends that session and signs in again as the invited email (keys per tab).
+const EXPECTED_EMAIL_KEY = 'pixorex.auth.expected_email'
+const SWITCHED_KEY = 'pixorex.auth.switched'
+
+/** Signs in as `email`; another person's Keycloak session in this browser is ended first. */
+export async function signInAs(
+  returnTo: string,
+  email: string,
+  um: Pick<UserManager, 'signinRedirect'> | null = userManager(),
+  storage: Storage = window.sessionStorage,
+): Promise<void> {
+  if (!um) return
+  storage.setItem(EXPECTED_EMAIL_KEY, email.trim().toLowerCase())
+  storage.removeItem(SWITCHED_KEY)
+  await signIn(returnTo, email, um)
+}
+
+/** After signInAs ended someone else's session: the email to sign in as now, else null. */
+export function pendingSignInEmail(storage: Storage = window.sessionStorage): string | null {
+  return storage.getItem(SWITCHED_KEY) ? storage.getItem(EXPECTED_EMAIL_KEY) : null
+}
+
+let completing: { url: string; result: Promise<string | null> } | null = null
+
+type CallbackManager = Pick<UserManager, 'signinRedirectCallback'> &
+  Partial<Pick<UserManager, 'removeUser' | 'signoutRedirect'>>
 
 /**
  * Finishes the Keycloak redirect and says where the user was going. The code in the URL can be
  * used once, so a second call for the same URL (React runs effects twice in development, or a
  * double render) shares the first call's result instead of failing.
+ * Resolves null when the browser is on its way to Keycloak again (wrong person, see signInAs).
  */
 export function completeSignIn(
   url: string = window.location.href,
-  um: Pick<UserManager, 'signinRedirectCallback'> | null = userManager(),
-): Promise<string> {
+  um: CallbackManager | null = userManager(),
+  storage: Storage = window.sessionStorage,
+): Promise<string | null> {
   if (!um) return Promise.resolve('/')
   if (completing?.url !== url) {
-    const result = um.signinRedirectCallback(url).then((user) => {
+    const result = um.signinRedirectCallback(url).then(async (user) => {
+      const expected = storage.getItem(EXPECTED_EMAIL_KEY)
+      const email = String(user.profile?.email ?? '').toLowerCase()
+      if (expected && email !== expected && !storage.getItem(SWITCHED_KEY)) {
+        // Someone else's session came back: end it, then /signed-out signs in as `expected`.
+        storage.setItem(SWITCHED_KEY, '1')
+        await um.removeUser?.()
+        await um.signoutRedirect?.({ id_token_hint: user.id_token })
+        return null
+      }
+      // Done (right person, or already switched once: never loop).
+      storage.removeItem(EXPECTED_EMAIL_KEY)
+      storage.removeItem(SWITCHED_KEY)
       const state = user.state as Partial<SignInState> | undefined
       return safeReturnPath(state?.returnTo)
     })

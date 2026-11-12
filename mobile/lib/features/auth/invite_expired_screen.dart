@@ -4,7 +4,8 @@ import '../../core/theme.dart';
 import '../../widgets/auth_widgets.dart';
 
 /// Invite link expired (design 04). Also used for used / cancelled / unreadable links.
-/// The design has no button here; the system back gesture leaves the screen.
+/// The design has no button here; the system back gesture leaves the screen. A used invite
+/// is the exception: the account exists, so it offers Sign in.
 class InviteExpiredScreen extends StatelessWidget {
   const InviteExpiredScreen({super.key, this.problem = 'invite-expired'});
 
@@ -48,6 +49,13 @@ class InviteExpiredScreen extends StatelessWidget {
                   const SizedBox(height: 14),
                   Text(_body, textAlign: TextAlign.center, style: const TextStyle(fontSize: 14, color: Brand.body, height: 1.55)),
                   const SizedBox(height: 18),
+                  // A used invite means the account exists: offer sign-in instead of a new invite.
+                  if (problem == 'invite-used')
+                    PillButton(
+                      label: 'Sign in',
+                      onPressed: () => Navigator.of(context).popUntil((r) => r.isFirst),
+                    )
+                  else ...[
                   // The design names the inviter here ("R. Kowalski · Process Manager", unit).
                   // The 409 problem from /invites/preview carries no inviter, so this stays generic
                   // until the API returns it.
@@ -70,6 +78,7 @@ class InviteExpiredScreen extends StatelessWidget {
                     textAlign: TextAlign.center,
                     style: TextStyle(fontSize: 12, color: Brand.hint, height: 1.5),
                   ),
+                  ],
                 ],
               ),
             ),

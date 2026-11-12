@@ -195,6 +195,22 @@ def test_bu_admin_invite_from_link_to_account(api: Api, owner_sql: Any) -> None:
     assert statuses[email] == "accepted"
 
 
+def test_a_new_bu_admin_invite_keeps_the_pending_one(api: Api) -> None:
+    # GIVEN a vacant unit with a pending BU Admin invite
+    unit = _new_vacant_unit(api)
+    old = api.sent[-1]["token"]
+    # WHEN the EA invites someone else to it
+    made = api.post(
+        "/invites",
+        ERIN,
+        json={"role": "bu_admin", "email": f"{uuid.uuid4().hex[:6]}@example.com", "bu_ids": [unit]},
+        headers=_key(),
+    )
+    assert made.status_code == 201, made.text
+    # THEN the previous invite is not cancelled: its link still works
+    assert api.post("/invites/preview", json={"token": old}).status_code == 200
+
+
 def test_technician_invite_rules(api: Api) -> None:
     _problem(
         api.post(

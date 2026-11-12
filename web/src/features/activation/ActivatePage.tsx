@@ -5,7 +5,7 @@ import { z } from 'zod'
 import { useAcceptInvite, useInvitePreview, type InvitePreview } from '../../api/activation'
 import { errorMessage } from '../../api/client'
 import { authConfig } from '../../auth/authConfig'
-import { signIn } from '../../auth/session'
+import { signIn, signInAs } from '../../auth/session'
 import { Alert } from '../../components/Alert'
 import { Badge } from '../../components/Badge'
 import { Button } from '../../components/Button'
@@ -104,7 +104,8 @@ function ActivateForm({ token, invite }: { token: string; invite: InvitePreview 
       return
     }
     // Keycloak emails the code that verifies the address (D-08); in mock mode go straight in.
-    if (authConfig.mode === 'oidc') await signIn('/', invite.email)
+    // signInAs: a session of another person already in this browser is ended first.
+    if (authConfig.mode === 'oidc') await signInAs('/', invite.email)
     else await navigate('/', { replace: true })
   }
 

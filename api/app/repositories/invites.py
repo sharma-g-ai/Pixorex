@@ -116,11 +116,18 @@ async def page(
     return await cur.fetchall()
 
 
-async def cancel_pending_for_units(conn: Conn, bu_ids: list[UUID], role: str) -> list[UUID]:
-    """Contract 1.16: giving a unit to a BU Admin cancels that unit's pending invites."""
+async def cancel_pending_for_units(
+    conn: Conn, bu_ids: list[UUID], role: str
+) -> list[dict[str, Any]]:
+    """Contract 1.16: the pending invites that cover any of these units end, each one
+    whole (every unit row of its link), so no link is left half cancelled.
+    Returns the cancelled rows (id, bu_id, email)."""
     cur = await conn.execute(
         "UPDATE invite SET status = 'cancelled'"
-        " WHERE bu_id = ANY(%s) AND role = %s AND status = 'pending' RETURNING id",
+        " WHERE status = 'pending' AND token_hash IN ("
+        "  SELECT token_hash FROM invite"
+        "  WHERE bu_id = ANY(%s) AND role = %s AND status = 'pending')"
+        " RETURNING id, bu_id, email",
         (bu_ids, role),
     )
-    return [r["id"] for r in await cur.fetchall()]
+    return await cur.fetchall()

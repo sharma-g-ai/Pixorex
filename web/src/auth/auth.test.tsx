@@ -93,6 +93,90 @@ describe('401 handling (loop guard)', () => {
   })
 })
 
+describe('signing in as the invited person (activation)', () => {
+  const real = () => vi.importActual<typeof import('./session')>('./session')
+  const memory = () => {
+    const data = new Map<string, string>()
+    return {
+      getItem: (k: string) => data.get(k) ?? null,
+      setItem: (k: string, v: string) => void data.set(k, v),
+      removeItem: (k: string) => void data.delete(k),
+    } as unknown as Storage
+  }
+  const returning = (email: string) => ({
+    signinRedirectCallback: vi.fn().mockResolvedValue({
+      state: { returnTo: '/' },
+      profile: { email },
+      id_token: `id-of-${email}`,
+    }),
+    removeUser: vi.fn(),
+    signoutRedirect: vi.fn(),
+  })
+
+  it('GIVEN an invite was accepted THEN signs in with the invited email as the hint', async () => {
+    const um = { signinRedirect: vi.fn() }
+    await (await real()).signInAs('/', 'New.Admin@ppg.com', um as never, memory())
+    expect(um.signinRedirect).toHaveBeenCalledWith({
+      state: { returnTo: '/' },
+      login_hint: 'New.Admin@ppg.com',
+    })
+  })
+
+  it('GIVEN another person was already signed in to Keycloak WHEN they come back THEN their session is ended', async () => {
+    // Keycloak reuses the session in the browser (e.g. the EA who sent the invite).
+    const { signInAs, completeSignIn, pendingSignInEmail } = await real()
+    const store = memory()
+    await signInAs('/', 'new.admin@ppg.com', { signinRedirect: vi.fn() } as never, store)
+    const um = returning('ea@ppg.com')
+    const next = await completeSignIn(
+      'http://localhost/auth/callback?code=ea-1',
+      um as never,
+      store,
+    )
+    expect(next).toBeNull() // no dashboard as the wrong person
+    expect(um.removeUser).toHaveBeenCalled()
+    expect(um.signoutRedirect).toHaveBeenCalledWith({ id_token_hint: 'id-of-ea@ppg.com' })
+    expect(pendingSignInEmail(store)).toBe('new.admin@ppg.com') // /signed-out signs them in
+  })
+
+  it('GIVEN the invited person comes back THEN goes in and forgets the pending email', async () => {
+    const { signInAs, completeSignIn, pendingSignInEmail } = await real()
+    const store = memory()
+    await signInAs('/', 'new.admin@ppg.com', { signinRedirect: vi.fn() } as never, store)
+    const um = returning('NEW.ADMIN@ppg.com')
+    expect(
+      await completeSignIn('http://localhost/auth/callback?code=ok-1', um as never, store),
+    ).toBe('/')
+    expect(um.signoutRedirect).not.toHaveBeenCalled()
+    expect(pendingSignInEmail(store)).toBeNull()
+  })
+
+  it('GIVEN the switch already happened once THEN never loops, even if the email still differs', async () => {
+    const { signInAs, completeSignIn } = await real()
+    const store = memory()
+    await signInAs('/', 'new.admin@ppg.com', { signinRedirect: vi.fn() } as never, store)
+    await completeSignIn(
+      'http://localhost/auth/callback?code=ea-2',
+      returning('ea@ppg.com') as never,
+      store,
+    )
+    const again = returning('other@ppg.com')
+    expect(
+      await completeSignIn('http://localhost/auth/callback?code=x-2', again as never, store),
+    ).toBe('/')
+    expect(again.signoutRedirect).not.toHaveBeenCalled()
+  })
+
+  it('GIVEN an ordinary sign-in THEN nothing is checked or ended', async () => {
+    const um = returning('ea@ppg.com')
+    const next = await (
+      await real()
+    ).completeSignIn('http://localhost/auth/callback?code=plain', um as never, memory())
+    expect(next).toBe('/')
+    expect(um.signoutRedirect).not.toHaveBeenCalled()
+  })
+})
+
 describe('403 account-removed', () => {
   it('GIVEN the account was removed THEN clears the user and leaves without signing in again', async () => {
     const um = { removeUser: vi.fn() }
@@ -176,6 +260,17 @@ describe('after sign-out (canvas: straight to sign-in)', () => {
     signedOut('oidc')
     await waitFor(() => expect(signIn).toHaveBeenCalledWith('/'))
     expect(screen.queryByRole('heading', { name: "You're signed out" })).not.toBeInTheDocument()
+  })
+
+  it('GIVEN an activation ended another person session THEN signs in as the invited email', async () => {
+    window.sessionStorage.setItem('pixorex.auth.expected_email', 'new.admin@ppg.com')
+    window.sessionStorage.setItem('pixorex.auth.switched', '1')
+    try {
+      signedOut('oidc')
+      await waitFor(() => expect(signIn).toHaveBeenCalledWith('/', 'new.admin@ppg.com'))
+    } finally {
+      window.sessionStorage.clear()
+    }
   })
 
   it('GIVEN mock mode (no sign-in screen) THEN shows the signed-out card', () => {

@@ -14,6 +14,9 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [react(), tailwindcss()],
     server: {
+      // IPv4 loopback: on Windows "localhost" binds only [::1], which `adb reverse` (127.0.0.1)
+      // cannot reach, so invite links opened on a USB-connected phone would not load.
+      host: '127.0.0.1',
       proxy: {
         // App calls /api/v1/... — FastAPI serves that prefix; Prism does not (needs rewrite).
         '/api/v1': {

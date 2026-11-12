@@ -68,16 +68,19 @@ DATABASE_OWNER_URL=postgresql://pixorex_owner:local-only@localhost:5433/pixorex
 KC_ISSUER=http://localhost:8180/realms/pixorex
 KC_API_ADMIN_CLIENT_ID=pixorex-api-admin
 KC_API_ADMIN_SECRET=<from Keycloak console — Clients → pixorex-api-admin → Credentials>
-INVITE_APP_BASE_URL=http://localhost:5173
+# Where invite links point. Must be reachable by the person invited: localhost only works on
+# this laptop. For phones and other people use the LAN IP or the shared host, e.g.
+# PIXOREX_INVITE_BASE_URL=http://192.168.1.20:5173
+PIXOREX_INVITE_BASE_URL=http://localhost:5173
 
 # Invite SMTP — Mailpit (local) OR SendGrid (same as Keycloak realm SMTP)
-SMTP_HOST=localhost
-SMTP_PORT=1025
-# SMTP_HOST=smtp.sendgrid.net
-# SMTP_PORT=587
-# SMTP_USER=apikey
-# SMTP_PASSWORD=<SendGrid API key>
-# SMTP_STARTTLS=true
+PIXOREX_SMTP_HOST=localhost
+PIXOREX_SMTP_PORT=1025
+# PIXOREX_SMTP_HOST=smtp.sendgrid.net
+# PIXOREX_SMTP_PORT=587
+# PIXOREX_SMTP_USER=apikey
+# PIXOREX_SMTP_PASSWORD=<SendGrid API key>
+# PIXOREX_SMTP_STARTTLS=true
 # SMTP_FROM=myworkmate@amzur.com
 # SMTP_FROM_NAME=Pixorex
 ```
@@ -296,6 +299,8 @@ Do **not** invite the same EA email as BU Admin for a clean first test.
 | Accept 409 `unit-has-bu-admin` | Unit already has a BU Admin | Remove via 1.17 (or vacant the role), then invite again |
 | Accept 500 UniqueViolation | Same as above (older builds) | Update API; remove previous admin first |
 | API ignores `.env` SMTP host | Shell still has old `SMTP_HOST` | Restart uvicorn in a **new** shell |
+| Accept 409 `email-in-use` ("already signs in elsewhere") | Keycloak still has this email from an older tenant: the API database was reset or re-bootstrapped but Keycloak was not | Reset both together (`make reset`), or delete that user in the Keycloak console, then accept again |
+| Invite link opens "site can't be reached" | `PIXOREX_INVITE_BASE_URL` is `localhost` and the link was opened on another device | Set it to the LAN IP / shared host, restart the API, then **Resend** the invite |
 | Notifications / locations / scans 404 | Not implemented yet | Expected for this MVP |
 
 ---

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -16,6 +17,7 @@ import 'package:pixorex_mobile/features/auth/activate_screen.dart';
 import 'package:pixorex_mobile/features/auth/activation_controller.dart';
 import 'package:pixorex_mobile/features/auth/invite_repository.dart';
 import 'package:pixorex_mobile/features/auth/session_controller.dart';
+import 'package:pixorex_mobile/widgets/auth_widgets.dart';
 
 class FakeOidc implements OidcClient {
   String? lastHint;
@@ -47,6 +49,16 @@ class NoLinks implements LinkSource {
   Future<Uri?> initialLink() async => null;
   @override
   Stream<Uri> get links => const Stream.empty();
+}
+
+/// Links pushed by the test, like Android delivering (or re-delivering) an invite link.
+class TestLinks implements LinkSource {
+  final controller = StreamController<Uri>.broadcast();
+  void open(String link) => controller.add(Uri.parse(link));
+  @override
+  Future<Uri?> initialLink() async => null;
+  @override
+  Stream<Uri> get links => controller.stream;
 }
 
 Map<String, dynamic> meJson({String role = 'field_technician'}) => {
@@ -94,12 +106,22 @@ http.Response json(Object body, [int status = 200]) =>
 http.Response problem(int status, String code) =>
     json({'type': '/problems/$code', 'title': code, 'status': status, 'detail': 'detail for $code'}, status);
 
-Future<void> pumpApp(WidgetTester t, Rig rig, {PhotoSource Function()? photoSource}) async {
+/// The app opens a link in a post-frame callback, so pump a frame after it arrives.
+Future<void> openLink(WidgetTester t, TestLinks links, String link) async {
+  await t.runAsync(() async {
+    links.open(link);
+    await Future<void>.delayed(Duration.zero);
+  });
+  await t.pump();
+  await t.pumpAndSettle();
+}
+
+Future<void> pumpApp(WidgetTester t, Rig rig, {PhotoSource Function()? photoSource, LinkSource? links}) async {
   await t.pumpWidget(ChangeNotifierProvider<SessionController>.value(
     value: rig.session,
     child: PixorexApp(
       invites: rig.invites,
-      linkSource: NoLinks(),
+      linkSource: links ?? NoLinks(),
       photoSource: photoSource,
       store: rig.mem,
     ),
@@ -257,6 +279,31 @@ void main() {
       expect(c.linkProblem, 'invite-used');
     });
 
+    test('a 409 phone-in-use on accept keeps the form and marks the phone field', () async {
+      // GIVEN the number already belongs to another account
+      final rig = Rig((r) async => r.url.path.endsWith('/accept') ? problem(409, 'phone-in-use') : json(preview));
+      final c = ActivationController(repository: rig.invites, token: 't');
+      await c.load();
+      // WHEN the technician activates
+      final errors = await c.submit(fullName: 'Jorge', phoneE164: '+12165550148');
+      // THEN the form stays, with the error on the phone field (not the expired screen)
+      expect(c.status, ActivationStatus.ready);
+      expect(c.linkProblem, isNull);
+      expect(errors?.phone, contains('already used'));
+    });
+
+    for (final code in ['email-in-use', 'unit-has-bu-admin']) {
+      test('a 409 $code on accept keeps the form with the server message', () async {
+        final rig = Rig((r) async => r.url.path.endsWith('/accept') ? problem(409, code) : json(preview));
+        final c = ActivationController(repository: rig.invites, token: 't');
+        await c.load();
+        await c.submit(fullName: 'Jorge', phoneE164: '+12165550148');
+        expect(c.status, ActivationStatus.ready);
+        expect(c.linkProblem, isNull);
+        expect(c.message, isNotNull);
+      });
+    }
+
     test('a 400 on accept returns to the form with the server message', () async {
       final rig = Rig((r) async => r.url.path.endsWith('/accept')
           ? json({
@@ -314,6 +361,56 @@ void main() {
       await t.tap(find.text('Send code'));
       await t.pumpAndSettle();
       expect(rig.oidc.lastHint, 'j.martinez@ppg-plant04.com');
+    });
+
+    testWidgets('an invite link delivered again after activating is not reopened', (t) async {
+      // GIVEN a technician who opens their invite link and activates
+      const link = 'pixorex://activate?token=tok-1234567890abcdef';
+      final rig = Rig((r) async {
+        final p = r.url.path;
+        if (p.endsWith('/invites/preview')) {
+          return json({
+            'role': 'field_technician',
+            'email': 'j.martinez@ppg-plant04.com',
+            'invited_by_name': 'R. Kowalski',
+            'expires_at': '2030-01-01T00:00:00Z',
+            'units': [
+              {'bu_id': 'b1', 'name': 'PPG Plant 04 — Coatings'}
+            ],
+          });
+        }
+        if (p.endsWith('/invites/accept')) return json({'user_id': 'u1', 'next_step': 'verify_phone'}, 201);
+        if (p.endsWith('/me/scans')) return json({'items': [], 'page': {'next_cursor': null}});
+        return json(meJson());
+      });
+      final links = TestLinks();
+      await pumpApp(t, rig, links: links);
+      await openLink(t, links, link);
+      expect(find.text('Activate your account'), findsOneWidget);
+      await t.enterText(find.byType(TextField).first, 'Jorge Martinez');
+      await t.enterText(find.byType(TextField).last, '2165550148');
+      await t.tap(find.text('Activate account'));
+      await t.pumpAndSettle();
+      expect(find.text('Welcome, Jorge'), findsOneWidget);
+
+      // WHEN Android hands the app the same invite link again (e.g. returning from sign-in)
+      await openLink(t, links, link);
+
+      // THEN it is ignored: no second preview, no "already used" screen, still on Home
+      expect(rig.calls.where((c) => c.endsWith('/invites/preview')).length, 1);
+      expect(find.text('This invite was already used'), findsNothing);
+      expect(find.text('Welcome, Jorge'), findsOneWidget);
+    });
+
+    testWidgets('a used invite link offers Sign in, which goes to the sign-in screen', (t) async {
+      final rig = Rig((_) async => problem(409, 'invite-used'));
+      final links = TestLinks();
+      await pumpApp(t, rig, links: links);
+      await openLink(t, links, 'pixorex://activate?token=tok-used-1234567890');
+      expect(find.text('This invite was already used'), findsOneWidget);
+      await t.tap(find.widgetWithText(PillButton, 'Sign in'));
+      await t.pumpAndSettle();
+      expect(find.text('Send code'), findsOneWidget);
     });
 
     testWidgets('an expired invite shows the expired screen', (t) async {

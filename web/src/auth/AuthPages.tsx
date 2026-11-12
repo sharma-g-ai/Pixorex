@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router'
 import { Button } from '../components/Button'
 import { AuthCard } from '../components/layout/AuthCard'
 import { authConfig, type AuthMode } from './authConfig'
-import { completeSignIn, signIn } from './session'
+import { completeSignIn, pendingSignInEmail, signIn } from './session'
 
 /** Keycloak sends the browser back here with the code; finish sign-in and go on (D-11). */
 export function AuthCallbackPage() {
@@ -13,7 +13,8 @@ export function AuthCallbackPage() {
   useEffect(() => {
     let active = true
     completeSignIn()
-      .then((returnTo) => active && navigate(returnTo, { replace: true }))
+      // null: on the way back to Keycloak as another person (see signInAs); stay on this card.
+      .then((returnTo) => active && returnTo !== null && navigate(returnTo, { replace: true }))
       .catch(() => active && setFailed(true))
     return () => {
       active = false
@@ -51,7 +52,10 @@ export function SignedOutPage({ mode = authConfig.mode }: { mode?: AuthMode }) {
   const removed = params.get('reason') === 'removed'
 
   useEffect(() => {
-    if (mode === 'oidc' && !removed) void signIn('/')
+    if (mode !== 'oidc' || removed) return
+    // After an activation ended someone else's session, sign in as the invited email.
+    const email = pendingSignInEmail()
+    void (email ? signIn('/', email) : signIn('/'))
   }, [mode, removed])
 
   if (removed) {

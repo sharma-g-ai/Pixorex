@@ -89,7 +89,7 @@ Slice 1 gives every surface the signed-in user, their units and roles, unit swit
 | 1.13 | POST /business-units | enterprise\_admin | {name, facility\_name, bu\_admin: {invite\_email} or {user\_id}} | 201 {bu\_id} | Creates business\_unit, its default business\_process (is\_default \= true) and its location\_hierarchy\_version (not\_published). user\_id must be an existing BU Admin; invite\_email runs 1.8. **Audit** (users). | EA 11 |
 | 1.14 | GET /business-units/{buId} | enterprise\_admin | — | {bu\_id, name, facility\_name, bu\_admin, counts {waiting, escalated, delegated}, technician\_count, scans\_this\_month, vacant\_since, previous\_bu\_admin, locations\_status} | vacant\_since and previous\_bu\_admin are set only while the unit has no BU Admin. | EA 25–28, 67 |
 | 1.15 | GET /bu-admins | enterprise\_admin | — | List of {user\_id, full\_name, email, units \[{bu\_id, name}\], status, last\_active\_at} | Pending invites come from 1.9. | EA 13 |
-| 1.16 | PUT /bu-admins/{userId}/business-units | enterprise\_admin | {bu\_ids\[\]} | Same row as 1.15 | A unit run by someone else → 409 unit-has-bu-admin. Adding a unit that has a pending BU Admin invite cancels that invite. Sets business\_unit.bu\_admin\_user\_id. **Audit** (users). | EA 15 |
+| 1.16 | PUT /bu-admins/{userId}/business-units | enterprise\_admin | {bu\_ids\[\]} | Same row as 1.15 | A unit run by someone else → 409 unit-has-bu-admin. Adding a unit that has a pending BU Admin invite cancels that invite (the whole invite, every unit it covers). Sets business\_unit.bu\_admin\_user\_id. **Audit** (users). | EA 15 |
 | 1.17 | POST /bu-admins/{userId}/remove | enterprise\_admin | {bu\_ids\[\], replacement\_invite\_email (optional)} | 204 | Sets user\_unit\_role.removed\_at; units get bu\_admin\_user\_id \= null ("No BU Admin"). Account and history kept. All units removed → every session revoked at once. Optional email runs 1.8 for those units. **Audit** (users). | EA 16–18, 70–73 |
 
 ### **1E. Technicians (BU Admin)**
@@ -307,7 +307,8 @@ Every error is RFC 9457 problem+json, as in the earlier contract set; code is th
 | 409 | flags-not-reviewed, required-fields-empty | Self-review gate not met | 3.2 |
 | 409 | already-decided | Someone decided this revision first | 3.5 |
 | 409 | already-assigned | Scan already in an open batch | 3.9 |
-| 409 | unit-has-bu-admin, not-a-bu-admin, no-bu-admin | BU Admin rules | 1.8, 1.13, 1.16, 3.17 |
+| 409 | unit-has-bu-admin, not-a-bu-admin, no-bu-admin | BU Admin rules | 1.7, 1.8, 1.13, 1.16, 3.17 |
+| 409 | email-in-use | The email already signs in to another tenant | 1.7 |
 | 409 | phone-in-use, code-invalid, phone-change-locked | Phone change and activation | 1.4–1.5, 1.7 |
 | 409 | invite-expired, invite-used, invite-cancelled | Invite link no longer valid | 1.6–1.7 |
 | 409 | link-expired | Export link older than 1 hour | 4.2 |

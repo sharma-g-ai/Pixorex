@@ -78,6 +78,34 @@ def test_adding_a_unit_assigns_it_and_cancels_its_pending_invite(api: Api, owner
     assert [s[0] for s in statuses] == ["cancelled"]
 
 
+def test_adding_one_unit_of_a_multi_unit_invite_cancels_the_whole_invite(
+    api: Api, owner_sql: Any
+) -> None:
+    # GIVEN a pending BU Admin invite that covers two vacant units
+    admin, first = _new_admin(api)
+    second, third = _vacant_unit(api), _vacant_unit(api)
+    made = api.post(
+        "/invites",
+        ERIN,
+        json={
+            "role": "bu_admin",
+            "email": f"{uuid.uuid4().hex[:6]}@example.com",
+            "bu_ids": [second, third],
+        },
+        headers=_key(),
+    )
+    invite_id, token = made.json()["invite_ids"][0], api.sent[-1]["token"]
+    # WHEN the EA gives one of those units to an existing BU Admin
+    saved = api.put(f"/bu-admins/{admin}/business-units", ERIN, json={"bu_ids": [first, second]})
+    assert saved.status_code == 200, saved.text
+    # THEN the whole invite ends: the link and resend refuse it, no unit row stays pending
+    rows = owner_sql("SELECT status FROM invite WHERE id = %s OR bu_id = %s", (invite_id, third))
+    assert {r[0] for r in rows} == {"cancelled"}
+    preview = api.post("/invites/preview", json={"token": token})
+    assert preview.json()["type"] == "/problems/invite-cancelled", preview.text
+    assert api.post(f"/invites/{invite_id}/resend", ERIN).status_code == 409
+
+
 def test_dropping_a_unit_leaves_it_without_a_bu_admin(api: Api) -> None:
     admin, first = _new_admin(api)
     second = _vacant_unit(api)

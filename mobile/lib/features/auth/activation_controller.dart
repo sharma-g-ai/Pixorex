@@ -30,6 +30,8 @@ class ActivationFormErrors {
   bool get hasAny => name != null || phone != null;
 }
 
+const _deadLinkCodes = {'invite-expired', 'invite-used', 'invite-cancelled'};
+
 class ActivationController extends ChangeNotifier {
   ActivationController({required InviteRepository repository, required this.token})
       : _repo = repository;
@@ -104,13 +106,22 @@ class ActivationController extends ChangeNotifier {
       notifyListeners();
       return null;
     } on ApiException catch (e) {
-      if (e.status == 409) {
+      // Only a dead link replaces the form. Other 409s (phone-in-use, email-in-use,
+      // unit-has-bu-admin; contract 1.7) are fixable or need the admin, so the form stays.
+      if (e.status == 409 && _deadLinkCodes.contains(e.code)) {
         _linkProblem = e.code;
         _status = ActivationStatus.linkInvalid;
         notifyListeners();
         return null;
       }
       _status = ActivationStatus.ready;
+      if (e.code == 'phone-in-use') {
+        _message = null;
+        notifyListeners();
+        return const ActivationFormErrors(
+          phone: 'This number is already used by another account. Enter a different number.',
+        );
+      }
       _message = e.message;
       String? firstFor(String key) {
         for (final f in e.fieldErrors) {

@@ -343,8 +343,10 @@ paths:
         '400':
           $ref: ./common.yaml#/components/responses/BadRequest
         '409':
-          description: 'Invite link no longer valid, or phone number already used. Problem types: /problems/invite-expired,
-            /problems/invite-used, /problems/invite-cancelled, /problems/phone-in-use.'
+          description: 'Invite link no longer valid, phone number already used, email already signs in to another
+            tenant, or a unit got a BU Admin meanwhile. Only the first three end the link. Problem types: /problems/invite-expired,
+            /problems/invite-used, /problems/invite-cancelled, /problems/phone-in-use, /problems/email-in-use,
+            /problems/unit-has-bu-admin.'
           content:
             application/problem+json:
               schema:
@@ -731,7 +733,8 @@ paths:
       description: 'Contract ref 1.16 in the API Contracts doc.
 
 
-        Adding a unit that has a pending BU Admin invite cancels that invite. Sets business_unit.bu_admin_user_id.
+        Adding a unit that has a pending BU Admin invite cancels that invite (the whole invite, every unit it covers).
+        Sets business_unit.bu_admin_user_id.
         Removing units follows removeBuAdmin rules. Audit (users). Screen EA 15.'
       x-roles: *id007
       x-brd:

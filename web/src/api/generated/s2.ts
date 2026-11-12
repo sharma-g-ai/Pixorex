@@ -316,7 +316,7 @@ export interface paths {
          * Set a BU Admin's units
          * @description Contract ref 1.16 in the API Contracts doc.
          *
-         *     Adding a unit that has a pending BU Admin invite cancels that invite. Sets business_unit.bu_admin_user_id. Removing units follows removeBuAdmin rules. Audit (users). Screen EA 15.
+         *     Adding a unit that has a pending BU Admin invite cancels that invite (the whole invite, every unit it covers). Sets business_unit.bu_admin_user_id. Removing units follows removeBuAdmin rules. Audit (users). Screen EA 15.
          */
         put: operations["setBuAdminUnits"];
         post?: never;
@@ -816,7 +816,7 @@ export interface operations {
                 };
             };
             400: components["responses"]["BadRequest"];
-            /** @description Invite link no longer valid, or phone number already used. Problem types: /problems/invite-expired, /problems/invite-used, /problems/invite-cancelled, /problems/phone-in-use. */
+            /** @description Invite link no longer valid, phone number already used, email already signs in to another tenant, or a unit got a BU Admin meanwhile. Only the first three end the link. Problem types: /problems/invite-expired, /problems/invite-used, /problems/invite-cancelled, /problems/phone-in-use, /problems/email-in-use, /problems/unit-has-bu-admin. */
             409: {
                 headers: {
                     [name: string]: unknown;
