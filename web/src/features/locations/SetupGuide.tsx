@@ -114,7 +114,7 @@ export function SetupGuide({ levels, siteName, busy, error, onCreate }: SetupGui
                     value={p.kind}
                     onChange={(e) => update(i, { kind: e.target.value })}
                   />
-                  {i > 0 && i < parts.length - 1 && (
+                  {i > 0 && (
                     <ChoiceCard
                       type="checkbox"
                       title={`Not every ${parts[i - 1]?.kind.trim() || 'place above'} has a ${p.kind.trim() || 'place like this'}`}
@@ -127,7 +127,13 @@ export function SetupGuide({ levels, siteName, busy, error, onCreate }: SetupGui
               ))}
             </ol>
             <div className="flex flex-wrap gap-2.5">
-              <Button variant="secondary" onClick={() => setStep(1)}>
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  setProblems([])
+                  setStep(1)
+                }}
+              >
                 Back
               </Button>
               <Button

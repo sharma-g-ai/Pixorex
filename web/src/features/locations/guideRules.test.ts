@@ -105,7 +105,7 @@ describe('guideProblems', () => {
 })
 
 describe('guideLevels', () => {
-  it('GIVEN parts THEN contract 2.2 gets them in order; only middle kinds can be optional (R4)', () => {
+  it('GIVEN parts THEN contract 2.2 gets them in order; only the top is always required (R4)', () => {
     const parts = [
       part('Plant 04', ' Plant ', { optional: true }),
       part('Paint Shop', 'Shop', { optional: true }),
@@ -114,7 +114,7 @@ describe('guideLevels', () => {
     expect(guideLevels(parts, [])).toEqual([
       { level_id: null, level_name: 'Plant', requirement: 'required' },
       { level_id: null, level_name: 'Shop', requirement: 'optional' },
-      { level_id: null, level_name: 'Bin', requirement: 'required' },
+      { level_id: null, level_name: 'Bin', requirement: 'optional' },
     ])
   })
 

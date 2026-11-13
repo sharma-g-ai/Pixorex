@@ -52,6 +52,7 @@ describe('Guided setup (plan R1–R3)', () => {
     click('Next')
     click('Facility › Building › Bin')
     fireEvent.click(screen.getByLabelText(/Not every Facility has a Building/))
+    expect(screen.getByLabelText(/Not every Building has a Bin/)).not.toBeChecked()
     click('Create and add more places')
     expect(onCreate).toHaveBeenCalledWith([
       { place: 'Plant 04', kind: 'Facility', optional: false, level_id: null },
@@ -83,5 +84,33 @@ describe('Guided setup (plan R1–R3)', () => {
     expect(screen.getByLabelText('Kind of Bin 07')).toHaveValue('Bin')
     click('Back')
     expect(screen.getByLabelText('Place 2')).toHaveValue('Bin 07')
+  })
+
+  it('GIVEN a 5-part place WHEN its common setup is picked THEN the last kind stays optional', () => {
+    const onCreate = guide()
+    for (const [i, place] of ['B', 'S', 'Bin 1', 'Sub 1'].entries()) {
+      if (i > 0) click('+ Add a smaller part')
+      type(`Place ${i + 2}`, place)
+    }
+    click('Next')
+    click('Facility › Building › Shop › Bin › Sub-bin')
+    click('Create and add more places')
+    expect(onCreate.mock.calls[0]?.[0].map((p: { optional: boolean }) => p.optional)).toEqual([
+      false,
+      false,
+      true,
+      false,
+      true,
+    ])
+  })
+
+  it('GIVEN a message on step 2 WHEN Back THEN the message is gone', () => {
+    guide()
+    type('Place 2', 'Bin 07')
+    click('Next')
+    click('Create and add more places')
+    expect(screen.getByText('Part 1: name its kind.')).toBeInTheDocument()
+    click('Back')
+    expect(screen.queryByText('Part 1: name its kind.')).not.toBeInTheDocument()
   })
 })

@@ -10,7 +10,7 @@ import { canScanAt, sortLevels } from './locationTree'
 export interface GuidePart {
   place: string
   kind: string
-  /** Middle kinds only: "Not every Building has a Shop". */
+  /** Any kind below the top: "Not every Building has a Shop". */
   optional: boolean
   /** The saved level this kind came from, when a unit was set up half-way. */
   level_id: string | null
@@ -78,14 +78,14 @@ export function guideProblems(
 }
 
 /**
- * The body of contract 2.2. The top and bottom kinds are always required; an Off level saved
+ * The body of contract 2.2. Only the top kind is always required; an Off level saved
  * earlier is sent back unchanged, right after the kind it followed.
  */
 export function guideLevels(parts: GuidePart[], levels: Level[]): LevelInput[] {
   const result: LevelInput[] = parts.map((p, i) => ({
     level_id: p.level_id,
     level_name: clean(p.kind),
-    requirement: i > 0 && i < parts.length - 1 && p.optional ? 'optional' : 'required',
+    requirement: i > 0 && p.optional ? 'optional' : 'required',
   }))
   const saved = sortLevels(levels)
   saved.forEach((l, i) => {
