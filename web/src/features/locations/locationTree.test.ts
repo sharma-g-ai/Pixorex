@@ -1,12 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import type { Level, LocationNode } from '../../api/locations'
 import {
+  canScanAt,
   childLevels,
   countsByLevel,
   descendantCount,
   filterRows,
   moveTargets,
   rangeNames,
+  rowStatus,
   treeRows,
 } from './locationTree'
 
@@ -59,6 +61,36 @@ describe('childLevels', () => {
       l.level_id === 'shp' ? { ...l, requirement: 'off' as const } : l,
     )
     expect(childLevels(withOff, 'bld').map((l) => l.level_name)).toEqual(['Bin'])
+  })
+})
+
+describe('canScanAt', () => {
+  it('GIVEN the deepest required level or below THEN a technician can scan there', () => {
+    // The API's publish check and the phone use the same rule (deepest required level).
+    expect(['fac', 'bld', 'shp', 'bin', 'sub'].map((id) => canScanAt(levels, id))).toEqual([
+      false,
+      false,
+      false,
+      true,
+      true,
+    ])
+  })
+})
+
+describe('rowStatus', () => {
+  it('GIVEN any row THEN it has a status: placeholder, scan place, needs more, or ready', () => {
+    const placeholder = { ...node('p', 'Building', 'bld', 'f'), is_placeholder: true }
+    const rows = treeRows(levels, [...nodes, placeholder])
+    const status = (id: string) => {
+      const row = rows.find((r) => r.node.node_id === id)
+      return row ? rowStatus(levels, row) : null
+    }
+    expect(status('p')).toEqual({ label: 'Placeholder', tone: 'warning' })
+    expect(status('b10')).toEqual({ label: 'Scan here', tone: 'neutral' })
+    // Building B is named but has nothing inside: a technician can't finish picking there.
+    expect(status('b')).toEqual({ label: 'Needs a Bin', tone: 'warning' })
+    expect(status('a')).toEqual({ label: 'Ready', tone: 'success' })
+    expect(status('f')).toEqual({ label: 'Ready', tone: 'success' })
   })
 })
 

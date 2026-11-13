@@ -8,7 +8,7 @@ import { buttonClasses } from '../../components/buttonClasses'
 import { Card } from '../../components/Card'
 import { DataTable, type Column } from '../../components/DataTable'
 import { TextField } from '../../components/TextField'
-import { filterRows, treeRows, type TreeRow } from './locationTree'
+import { filterRows, rowStatus, treeRows, type TreeRow } from './locationTree'
 import { NodeDialogs, type NodeAction } from './NodeDialogs'
 
 interface LocationTreeViewProps {
@@ -86,12 +86,10 @@ export function LocationTreeView({ buId, setup, onEditLevels }: LocationTreeView
     {
       header: 'Status',
       width: 1,
-      cell: (r) =>
-        r.node.is_placeholder ? (
-          <Badge tone="warning">Placeholder</Badge>
-        ) : r.childLevels.length === 0 ? (
-          <Badge tone="neutral">Scan here</Badge>
-        ) : null,
+      cell: (r) => {
+        const status = rowStatus(setup.levels, r)
+        return <Badge tone={status.tone}>{status.label}</Badge>
+      },
     },
     ...(locked
       ? []

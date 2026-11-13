@@ -1,4 +1,5 @@
 import type { Level, LevelInput, LocationNode, Requirement } from '../../api/locations'
+import type { BadgeStatus } from '../../components/Badge'
 
 /** Quick-start level sets (canvas EA 12). */
 export const presets: Record<2 | 3 | 4 | 5, LevelInput[]> = {
@@ -53,6 +54,19 @@ export function childLevels(levels: Level[], parentLevelId: string): Level[] {
   return result
 }
 
+/**
+ * Whether a technician can place a scan at a location of this level: at the deepest required
+ * level or below it. The same rule as the API's publish check and the phone's picker.
+ */
+export function canScanAt(levels: Level[], levelId: string): boolean {
+  const deepestRequired = Math.max(
+    0,
+    ...levels.filter((l) => l.requirement === 'required').map((l) => l.level_order),
+  )
+  const level = levels.find((l) => l.level_id === levelId)
+  return level !== undefined && level.level_order >= deepestRequired
+}
+
 export interface TreeRow {
   node: LocationNode
   depth: number
@@ -92,6 +106,19 @@ export function treeRows(levels: Level[], nodes: LocationNode[]): TreeRow[] {
   }
   walk(null, 0, [])
   return rows
+}
+
+/**
+ * The Status column of the tree: every row says where it stands. A named location with nothing
+ * inside that stops above a required level is what the publish check calls an empty branch.
+ */
+export function rowStatus(levels: Level[], row: TreeRow): BadgeStatus {
+  if (row.node.is_placeholder) return { label: 'Placeholder', tone: 'warning' }
+  if (canScanAt(levels, row.node.level_id)) return { label: 'Scan here', tone: 'neutral' }
+  const needed = row.childLevels.find((l) => l.requirement === 'required')
+  if (row.children === 0 && needed)
+    return { label: `Needs a ${needed.level_name}`, tone: 'warning' }
+  return { label: 'Ready', tone: 'success' }
 }
 
 /** Rows whose name or path matches the search, plus every row above a match. */
