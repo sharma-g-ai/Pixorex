@@ -41,8 +41,15 @@ export function startGuide(levels: Level[], siteName: string): GuidePart[] {
   return parts
 }
 
-/** What stops Create, in plain words; empty when the API will accept it. */
-export function guideProblems(parts: GuidePart[], levels: Level[]): string[] {
+/**
+ * What stops Next (scope 'places') or Create ('all'), in plain words; empty when the API will
+ * accept it.
+ */
+export function guideProblems(
+  parts: GuidePart[],
+  levels: Level[],
+  scope: 'places' | 'all' = 'all',
+): string[] {
   if (parts.length < 2) return ['Describe at least 2 parts, from the site down.']
   const problems: string[] = []
   parts.forEach((p, i) => {
@@ -51,10 +58,12 @@ export function guideProblems(parts: GuidePart[], levels: Level[]): string[] {
     if (!place) problems.push(`Part ${i + 1}: type the place.`)
     else if (place.length > MAX_PLACE)
       problems.push(`Part ${i + 1}: the place can have at most ${MAX_PLACE} characters.`)
+    if (scope === 'places') return
     if (!kind) problems.push(`Part ${i + 1}: name its kind.`)
     else if (kind.length > MAX_KIND)
       problems.push(`Part ${i + 1}: the kind can have at most ${MAX_KIND} characters.`)
   })
+  if (scope === 'places') return problems
   // Level names are unique per unit, Off levels included (contract 2.2).
   const off = levels.filter((l) => l.requirement === 'off').map((l) => l.level_name)
   const seen = new Set<string>()
