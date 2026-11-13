@@ -174,6 +174,14 @@ describe('Guided setup and the working page (plan R4–R6)', () => {
     expect(screen.getByText('Kinds: Facility › Bin')).toBeInTheDocument()
   })
 
+  it('GIVEN the working page WHEN a place is picked THEN the phone preview shows it (R7)', () => {
+    renderPage()
+    const phone = () => within(screen.getByRole('region', { name: "On the technician's phone" }))
+    expect(phone().getByText('Plant 04 › Bin 01')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Preview Plant 04 on the phone' }))
+    expect(phone().getByText(/pick a place further down/)).toBeInTheDocument()
+  })
+
   it('GIVEN placeholders or empty places THEN the banner says what is left to fix', () => {
     setup = {
       ...withTree,

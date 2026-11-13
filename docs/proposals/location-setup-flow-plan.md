@@ -1,6 +1,6 @@
 # Location setup: guided flow — implementation plan
 
-Status: **in progress** (T00–T02 done). Vishnu, 13 Nov 2026.
+Status: **in progress** (T00–T07 done; T08, T09 left). Vishnu, 13 Nov 2026.
 Go-ahead: given by the manager for the proposal page (reported by Vishnu, 13 Nov 2026). To be recorded in `STATE.md` → *Decisions* as task T01 below.
 Proposal with screen mock-ups: https://claude.ai/artifact/Aksmr3FLPxsY6DUQPzgpzv
 
@@ -101,11 +101,11 @@ Each task: tests first, ≤ 5 files, ≤ 200 changed lines, its own PR. Web only
 | T00 | **Done** (`2ed97f0`): Status column shows a status on every row; shared `canScanAt` and `rowStatus` rules | `locationTree.ts`, `locationTree.test.ts`, `LocationTreeView.tsx` | — |
 | T01 | **Done** (`9db1a0c`): Record D1–D7 in `STATE.md`; note the canvas difference in `docs/design/README.md` | 2 docs | decisions |
 | T02 | **Done**, split for the size rule. T02a (`fbbf03d`): which screen to show, step 1's start values, the checks; plus an API test proving a same-name rename clears the placeholder flag. T02b: the 2.2 body, the renames, the phone-preview data | `guideRules.ts` (new, keeps these rules apart from the tree helpers; first named `setupGuide.ts`, renamed in T03 because it clashed with `SetupGuide.tsx` on case-insensitive file systems), `guideRules.test.ts`, `api/tests/integration/test_locations.py` | T01 |
-| T03 | Guided setup, step 1 and step 2 (new component `SetupGuide.tsx`) | `SetupGuide.tsx`, its test | T02 |
-| T04 | Create sequence 2.2 → 2.3 → 2.5 with the failure path (R4, R5); Locations page chooses the screen and drops the tabs | `LocationsPage.tsx`, `SetupGuide.tsx`, `api/locations.ts`, tests | T03 |
-| T05 | Working page: banner with things to fix, "Kinds … · Edit kinds", named add buttons, remove "skeleton" wording | `LocationTreeView.tsx`, `LocationsPage.tsx`, tests | T04 |
-| T06 | "Edit kinds" dialog: today's `LevelsEditor` shown inside a `Dialog`. Its rules and its Required / Optional / Off choice are not rewritten | `LevelsEditor.tsx`, `LocationTreeView.tsx`, tests | T05 |
-| T07 | Phone preview (new component `PhonePreview.tsx`) on the working page | `PhonePreview.tsx`, `LocationTreeView.tsx`, tests | T02, T05 |
+| T03 | **Done** (`c735dbf`, `fc00fb6`): Guided setup, step 1 and step 2 (new component `SetupGuide.tsx`) | `SetupGuide.tsx`, its test | T02 |
+| T04 | **Done** (`965e703`): Create sequence 2.2 → 2.3 → 2.5 with the failure path (R4, R5); Locations page chooses the screen and drops the tabs | `LocationsPage.tsx`, `SetupGuide.tsx`, `api/locations.ts`, tests | T03 |
+| T05 | **Done** (`3b97c88`): Working page: banner with things to fix, "Kinds … · Edit kinds", named add buttons, remove "skeleton" wording | `LocationTreeView.tsx`, `LocationsPage.tsx`, tests | T04 |
+| T06 | **Covered by T04** (`965e703`): "Edit kinds" / "View kinds" opens today's `LevelsEditor` in place on the working page, with "Back to places". Its rules and its Required / Optional / Off choice are not rewritten. A pop-up was not used: the editor's two-column layout does not fit the dialog, and a pop-up adds nothing | — | T05 |
+| T07 | **Done**: phone preview (new `PhonePreview.tsx`) beside the list; each place's name is a button that previews it; starts on the first place a technician can scan at | `PhonePreview.tsx`, `LocationTreeView.tsx`, tests | T02, T05 |
 | T08 | Publish dialog: warning first, counts by kind, named problems, "Show me" | `PublishDialog.tsx`, `LocationsPage.tsx`, tests | T05 |
 | T09 | Clean-up and proof: remove unused code and old texts; full web suite; manual end-to-end run (section 8); update `docs/handover.md` | ≤ 5 files | all |
 

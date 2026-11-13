@@ -6,7 +6,15 @@ import { buttonClasses } from '../../components/buttonClasses'
 import { Card } from '../../components/Card'
 import { DataTable, type Column } from '../../components/DataTable'
 import { TextField } from '../../components/TextField'
-import { filterRows, rowStatus, sortLevels, treeRows, type TreeRow } from './locationTree'
+import {
+  canScanAt,
+  filterRows,
+  rowStatus,
+  sortLevels,
+  treeRows,
+  type TreeRow,
+} from './locationTree'
+import { PhonePreview } from './PhonePreview'
 import { NodeDialogs, type NodeAction } from './NodeDialogs'
 
 interface LocationTreeViewProps {
@@ -22,17 +30,28 @@ export function LocationTreeView({ buId, setup }: LocationTreeViewProps) {
 
   const locked = setup.status === 'published'
   const rows = treeRows(setup.levels, setup.nodes)
+  // The phone preview starts on the first place a technician can scan at.
+  const [previewId, setPreviewId] = useState<string | null>(
+    () => rows.find((r) => canScanAt(setup.levels, r.node.level_id))?.node.node_id ?? null,
+  )
 
   const columns: Column<TreeRow>[] = [
     {
       header: 'Location',
       width: 2.4,
       cell: (r) => (
-        <div
-          className="truncate font-semibold"
-          style={{ paddingLeft: `calc(var(--spacing) * ${r.depth * 5})` }}
-        >
-          {r.node.name}
+        <div className="truncate" style={{ paddingLeft: `calc(var(--spacing) * ${r.depth * 5})` }}>
+          <button
+            type="button"
+            className={`truncate text-left font-semibold hover:underline ${
+              r.node.node_id === previewId ? 'text-brand-navy' : ''
+            }`}
+            aria-label={`Preview ${r.node.name} on the phone`}
+            aria-pressed={r.node.node_id === previewId}
+            onClick={() => setPreviewId(r.node.node_id)}
+          >
+            {r.node.name}
+          </button>
         </div>
       ),
     },
@@ -74,33 +93,37 @@ export function LocationTreeView({ buId, setup }: LocationTreeViewProps) {
           {notice}
         </Alert>
       )}
-      <Card
-        title="Locations"
-        action={
-          <span className="text-small text-ink-muted">
-            {`Kinds: ${sortLevels(setup.levels)
-              .filter((l) => l.requirement !== 'off')
-              .map((l) => l.level_name)
-              .join(' › ')}`}
-          </span>
-        }
-      >
-        <TextField
-          label="Search locations"
-          hideLabel
-          placeholder="Search locations"
-          className="mb-3 max-w-80"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-        />
-        <DataTable
-          label="Location tree"
-          columns={columns}
-          rows={filterRows(rows, query)}
-          rowKey={(r) => r.node.node_id}
-          empty="No location matches your search."
-        />
-      </Card>
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
+        <Card
+          className="min-w-0 grow"
+          title="Locations"
+          action={
+            <span className="text-small text-ink-muted">
+              {`Kinds: ${sortLevels(setup.levels)
+                .filter((l) => l.requirement !== 'off')
+                .map((l) => l.level_name)
+                .join(' › ')}`}
+            </span>
+          }
+        >
+          <TextField
+            label="Search locations"
+            hideLabel
+            placeholder="Search locations"
+            className="mb-3 max-w-80"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+          <DataTable
+            label="Location tree"
+            columns={columns}
+            rows={filterRows(rows, query)}
+            rowKey={(r) => r.node.node_id}
+            empty="No location matches your search."
+          />
+        </Card>
+        <PhonePreview levels={setup.levels} nodes={setup.nodes} nodeId={previewId} />
+      </div>
       {action && (
         <NodeDialogs
           buId={buId}
