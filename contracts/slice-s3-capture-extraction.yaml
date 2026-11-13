@@ -1429,8 +1429,18 @@ components:
           type: integer
         empty_branches:
           type: array
+          description: Locations with nothing inside that stop above the deepest required level. A warning; they do not block publishing.
           items:
             type: object
+            properties:
+              node_id:
+                $ref: ./common.yaml#/components/schemas/Uuid
+              path:
+                type: string
+                description: Readable path, e.g. "Plant 04 › Warehouse D"
+            required:
+            - node_id
+            - path
         sample_path:
           type:
           - string

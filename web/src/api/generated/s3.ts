@@ -560,7 +560,12 @@ export interface components {
             /** @description Node count per level */
             counts: Record<string, never>;
             placeholders_left: number;
-            empty_branches: Record<string, never>[];
+            /** @description Locations with nothing inside that stop above the deepest required level. A warning; they do not block publishing. */
+            empty_branches: {
+                node_id: components["schemas"]["Uuid"];
+                /** @description Readable path, e.g. "Plant 04 › Warehouse D" */
+                path: string;
+            }[];
             sample_path: string | null;
             can_publish: boolean;
         };
