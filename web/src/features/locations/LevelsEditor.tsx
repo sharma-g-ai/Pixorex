@@ -7,7 +7,7 @@ import { buttonClasses } from '../../components/buttonClasses'
 import { Card } from '../../components/Card'
 import { SelectField } from '../../components/SelectField'
 import { TextField } from '../../components/TextField'
-import { countsByLevel, presets, requirementLabels, sortLevels } from './locationTree'
+import { countsByLevel, requirementLabels, sortLevels } from './locationTree'
 
 interface LevelsEditorProps {
   buId: string
@@ -20,7 +20,10 @@ const ruleOptions = (['required', 'optional', 'off'] as const).map((value) => ({
   label: requirementLabels[value],
 }))
 
-/** Tab 1 · Levels (canvas EA 12): the levels this unit uses, top to bottom. */
+/**
+ * "Edit kinds" on the working page: the levels this unit uses, top to bottom. Opened only once
+ * places exist; a new unit sets its kinds in the guided setup.
+ */
 export function LevelsEditor({ buId, setup, onDone }: LevelsEditorProps) {
   const saved = sortLevels(setup.levels)
   const [draft, setDraft] = useState<LevelInput[]>(() =>
@@ -83,18 +86,6 @@ export function LevelsEditor({ buId, setup, onDone }: LevelsEditorProps) {
           <p className="mb-3 text-body text-ink-muted">
             You can still change anything here until you publish. After that, the levels are locked.
           </p>
-        )}
-
-        {!locked && !hasNodes && (
-          <div className="mb-4 flex flex-wrap items-center gap-2">
-            <span className="text-small font-semibold text-ink-muted">Quick start</span>
-            {([2, 3, 4, 5] as const).map((n) => (
-              <Button key={n} variant="secondary" onClick={() => setDraft(presets[n])}>
-                {n} levels
-              </Button>
-            ))}
-            <span className="text-small text-ink-subtle">or add your own below</span>
-          </div>
         )}
 
         <ol className="flex flex-col gap-2">

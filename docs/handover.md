@@ -16,7 +16,7 @@ Branch: `feature/PX-02-mobile-api`. Read this first. It says what is done, what 
 
 **Web dashboard** (Enterprise Admin and BU Admin), built from the canvas screens:
 - Overview, units and the unit page; BU Admins; invites; technicians.
-- Location tree setup and publish; equipment types and fields.
+- Location setup and publish; equipment types and fields. Since 13 Nov, location setup is a guided flow (describe one place, name each kind, then a working page with a phone preview): web only, same contracts and data. See `docs/proposals/location-setup-flow-plan.md`.
 - Review queue, scan review, approve and reject, override; delegation to technicians.
 - Escalated scans; all scans; audit log; notifications bell; CSV export (large exports as a download link).
 

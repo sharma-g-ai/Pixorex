@@ -1,7 +1,7 @@
 import type { Level, LevelInput, LocationNode, Requirement } from '../../api/locations'
 import type { BadgeStatus } from '../../components/Badge'
 
-/** Quick-start level sets (canvas EA 12). */
+/** Ready-made level sets: the guided setup's "Common setups" (canvas EA 12 quick start). */
 export const presets: Record<2 | 3 | 4 | 5, LevelInput[]> = {
   2: [
     { level_name: 'Facility', requirement: 'required' },
@@ -133,14 +133,23 @@ export function toFix(levels: Level[], rows: TreeRow[]): { placeholders: number;
   }
 }
 
-/** Rows whose name or path matches the search, plus every row above a match. */
+/**
+ * Rows whose name matches the search, plus every row above a match. Walks each match's real
+ * parents (not path text, where "Building 1" looks like the start of "Building 10"), once per
+ * row, so it stays fast for units with thousands of locations.
+ */
 export function filterRows(rows: TreeRow[], query: string): TreeRow[] {
   const q = query.trim().toLowerCase()
   if (!q) return rows
-  const matches = rows.filter((r) => r.node.name.toLowerCase().includes(q))
+  const byId = new Map(rows.map((r) => [r.node.node_id, r.node]))
   const keep = new Set<string>()
-  for (const match of matches) {
-    for (const row of rows) if (match.path.startsWith(row.path)) keep.add(row.node.node_id)
+  for (const row of rows) {
+    if (!row.node.name.toLowerCase().includes(q)) continue
+    let node: LocationNode | undefined = row.node
+    while (node && !keep.has(node.node_id)) {
+      keep.add(node.node_id)
+      node = node.parent_id ? byId.get(node.parent_id) : undefined
+    }
   }
   return rows.filter((r) => keep.has(r.node.node_id))
 }

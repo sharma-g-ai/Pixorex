@@ -1,6 +1,6 @@
 # Location setup: guided flow — implementation plan
 
-Status: **in progress** (T00–T07 done; T08, T09 left). Vishnu, 13 Nov 2026.
+Status: **built** (T00–T09). Manual end-to-end run (section 8) still to do by a person. Vishnu, 13 Nov 2026.
 Go-ahead: given by the manager for the proposal page (reported by Vishnu, 13 Nov 2026). To be recorded in `STATE.md` → *Decisions* as task T01 below.
 Proposal with screen mock-ups: https://claude.ai/artifact/Aksmr3FLPxsY6DUQPzgpzv
 
@@ -106,8 +106,8 @@ Each task: tests first, ≤ 5 files, ≤ 200 changed lines, its own PR. Web only
 | T05 | **Done** (`3b97c88`): Working page: banner with things to fix, "Kinds … · Edit kinds", named add buttons, remove "skeleton" wording | `LocationTreeView.tsx`, `LocationsPage.tsx`, tests | T04 |
 | T06 | **Covered by T04** (`965e703`): "Edit kinds" / "View kinds" opens today's `LevelsEditor` in place on the working page, with "Back to places". Its rules and its Required / Optional / Off choice are not rewritten. A pop-up was not used: the editor's two-column layout does not fit the dialog, and a pop-up adds nothing | — | T05 |
 | T07 | **Done**: phone preview (new `PhonePreview.tsx`) beside the list; each place's name is a button that previews it; starts on the first place a technician can scan at | `PhonePreview.tsx`, `LocationTreeView.tsx`, tests | T02, T05 |
-| T08 | Publish dialog: warning first, counts by kind, named problems, "Show me" | `PublishDialog.tsx`, `LocationsPage.tsx`, tests | T05 |
-| T09 | Clean-up and proof: remove unused code and old texts; full web suite; manual end-to-end run (section 8); update `docs/handover.md` | ≤ 5 files | all |
+| T08 | **Done** (`712ff6e` contract fix, `dd91cb3` dialog): Publish dialog: warning first, counts by kind, named problems, "Show me" | `PublishDialog.tsx`, `LocationsPage.tsx`, tests | T05 |
+| T09 | **Done**: Clean-up and proof: remove unused code and old texts; full web suite; manual end-to-end run (section 8); update `docs/handover.md` | ≤ 5 files | all |
 
 New components (`SetupGuide`, `PhonePreview`) are needed because nothing existing fits; all other UI reuses `Dialog`, `ConfirmDialog`, `DataTable`, `TextField`, `SelectField`, `Badge`, `Button`, `Alert`, `Card`. No new library.
 
@@ -150,7 +150,7 @@ New components (`SetupGuide`, `PhonePreview`) are needed because nothing existin
 | Units set up half-way under the old screens | Section 4 table; tested in section 8. |
 | A half-set-up unit has a level that is Off | The skeleton makes no place for an Off level, so the guided steps show boxes only for levels in use and send the Off level back unchanged. T02 tests this case. |
 | Task size limits | Tasks are split so each stays within 5 files and 200 lines; split further if one grows. |
-| Very large trees | The list loads and draws every place of a unit at once, as it does today; this work does not change that and adds no extra requests per row. How it behaves with thousands of places has **not been measured**. T09 measures it with a seeded large tree and reports the result. |
+| Very large trees | **Measured in T09** (rules only, test environment, this laptop): building the list 31 ms / 58 ms / 270 ms for 1,000 / 5,000 / 20,000 places; statuses 3–18 ms; phone preview 1–3 ms. **Search was 1.1 s at 5,000 and 16 s at 20,000 places** and also kept look-alike parents ("Building 1" for "Building 10"): rewritten in T09 to follow real parents, now 1–12 ms and correct. **Not measured:** drawing the rows in a real browser; the list draws every place at once (no virtual scrolling), as before this work. |
 | Audit log | Create writes one "levels saved", one "placeholders created" and one "renamed" entry per place. These are true records of what happened; no audit code changes. |
 
 ## 10. Order of work
@@ -162,3 +162,10 @@ T01 → T02 → T03 → T04 → T05 → (T06, T07, T08 in any order) → T09. T0
 - Create-unit screen: the label "Facility (top location level)" reads like a level but is the name of the top place. Needs a canvas decision (EA-01).
 - Empty branches: decide whether publishing should be blocked (contracts 2.7, 2.8).
 - A `specs/SPEC-PX-05.md` file, so later tasks have a spec to cite.
+
+## 12. Result of the build (13 Nov 2026)
+
+- Built on branch `PX-08-T02-next-changes`, commits `2ed97f0` … T09. Not pushed.
+- Checks: web 268+ tests, type check, lint, format clean; API location tests 10/10; contract lint 0 errors, 14 known warnings.
+- Changed from this plan while building: the rules file is `guideRules.ts` (case clash, T03a); T06 is covered by T04 (editor in place, not a pop-up); contract 2.7's `empty_branches` item type was added to match the docs and the API (T08a, no behaviour change); search rewritten (T09).
+- Not done: the manual end-to-end run (section 8), including the phone; the web has no coverage tool, so the 80% rule is not measured; drawing very large lists in a browser is not measured.

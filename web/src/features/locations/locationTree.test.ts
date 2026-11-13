@@ -124,6 +124,18 @@ describe('treeRows', () => {
     const names = filterRows(treeRows(levels, nodes), 'bin 2').map((r) => r.node.name)
     expect(names).toEqual(['Plant 04', 'Building A', 'Paint Shop', 'Bin 2'])
   })
+
+  it('GIVEN names that start alike THEN only the real parents are kept, not look-alikes', () => {
+    // "Plant 04 › Building 1" is the start of "Plant 04 › Building 10 › Bin 9" as text.
+    const alike = [
+      node('f', 'Plant 04', 'fac', null),
+      node('b1', 'Building 1', 'bld', 'f'),
+      node('b10', 'Building 10', 'bld', 'f'),
+      node('k', 'Bin 9', 'bin', 'b10'),
+    ]
+    const names = filterRows(treeRows(levels, alike), 'bin 9').map((r) => r.node.name)
+    expect(names).toEqual(['Plant 04', 'Building 10', 'Bin 9'])
+  })
 })
 
 describe('tree helpers', () => {
