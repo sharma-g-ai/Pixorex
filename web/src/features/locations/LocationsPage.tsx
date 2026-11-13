@@ -130,6 +130,7 @@ function UnitLocations({
   const setup = useLocationSetup(buId)
   const [editingKinds, setEditingKinds] = useState(false)
   const [publishing, setPublishing] = useState(false)
+  const [previewId, setPreviewId] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const guide = useCreateFromGuide(buId, setup.data ?? emptySetup)
 
@@ -177,7 +178,7 @@ function UnitLocations({
           onDone={() => setEditingKinds(false)}
         />
       ) : (
-        <LocationTreeView buId={buId} setup={data} />
+        <LocationTreeView buId={buId} setup={data} previewId={previewId} onPreview={setPreviewId} />
       )}
 
       {publishing && (
@@ -186,6 +187,11 @@ function UnitLocations({
           unitName={unitName}
           setup={data}
           onClose={() => setPublishing(false)}
+          onShow={(nodeId) => {
+            setPublishing(false)
+            setEditingKinds(false)
+            setPreviewId(nodeId)
+          }}
           onPublished={() => {
             setPublishing(false)
             setNotice(`${unitName} is published. Technicians get the tree on their next sync.`)

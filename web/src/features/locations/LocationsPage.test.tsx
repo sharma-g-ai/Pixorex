@@ -262,8 +262,34 @@ describe('Review & publish', () => {
     check = { placeholders_left: 2, empty_branches: [], sample_path: null, can_publish: false }
     renderPage()
     fireEvent.click(screen.getByRole('button', { name: 'Review & publish' }))
-    expect(dialog().getByText(/Name the placeholders first \(2 left\)/)).toBeInTheDocument()
+    expect(dialog().getByText(/Rename 2 temporary names first/)).toBeInTheDocument()
     expect(dialog().getByRole('button', { name: 'Publish and lock' })).toBeDisabled()
+  })
+
+  it('GIVEN the dialog THEN the warning comes first, counts use kind names (R9)', () => {
+    renderPage()
+    fireEvent.click(screen.getByRole('button', { name: 'Review & publish' }))
+    const text = screen.getByRole('dialog').textContent ?? ''
+    expect(text.indexOf("This can't be undone")).toBeLessThan(text.indexOf('You are publishing'))
+    expect(dialog().getByText('Facility')).toBeInTheDocument()
+    expect(dialog().getByText('Bin')).toBeInTheDocument()
+  })
+
+  it('GIVEN an empty place THEN it is named, publishing is still allowed, Show me previews it', () => {
+    check = {
+      placeholders_left: 0,
+      empty_branches: [{ node_id: 'f', path: 'Plant 04' }],
+      sample_path: 'Plant 04 › Bin 01',
+      can_publish: true,
+    }
+    renderPage()
+    fireEvent.click(screen.getByRole('button', { name: 'Review & publish' }))
+    expect(dialog().getByText(/Plant 04 has nothing inside yet/)).toBeInTheDocument()
+    expect(dialog().getByRole('button', { name: 'Publish and lock' })).toBeEnabled()
+    fireEvent.click(dialog().getByRole('button', { name: 'Show me Plant 04' }))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    const phone = within(screen.getByRole('region', { name: "On the technician's phone" }))
+    expect(phone.getByText(/pick a place further down/)).toBeInTheDocument()
   })
 
   it('GIVEN all checks pass WHEN published THEN contract 2.8 is called and a notice shows', async () => {

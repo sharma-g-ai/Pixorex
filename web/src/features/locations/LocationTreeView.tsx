@@ -20,10 +20,18 @@ import { NodeDialogs, type NodeAction } from './NodeDialogs'
 interface LocationTreeViewProps {
   buId: string
   setup: LocationSetup
+  /** The place shown in the phone preview; null starts on the first scannable place. */
+  previewId: string | null
+  onPreview: (nodeId: string) => void
 }
 
 /** The working page's list of places, with rename · add inside · move · delete. */
-export function LocationTreeView({ buId, setup }: LocationTreeViewProps) {
+export function LocationTreeView({
+  buId,
+  setup,
+  previewId: picked,
+  onPreview,
+}: LocationTreeViewProps) {
   const [query, setQuery] = useState('')
   const [action, setAction] = useState<NodeAction | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
@@ -31,9 +39,8 @@ export function LocationTreeView({ buId, setup }: LocationTreeViewProps) {
   const locked = setup.status === 'published'
   const rows = treeRows(setup.levels, setup.nodes)
   // The phone preview starts on the first place a technician can scan at.
-  const [previewId, setPreviewId] = useState<string | null>(
-    () => rows.find((r) => canScanAt(setup.levels, r.node.level_id))?.node.node_id ?? null,
-  )
+  const previewId =
+    picked ?? rows.find((r) => canScanAt(setup.levels, r.node.level_id))?.node.node_id ?? null
 
   const columns: Column<TreeRow>[] = [
     {
@@ -48,7 +55,7 @@ export function LocationTreeView({ buId, setup }: LocationTreeViewProps) {
             }`}
             aria-label={`Preview ${r.node.name} on the phone`}
             aria-pressed={r.node.node_id === previewId}
-            onClick={() => setPreviewId(r.node.node_id)}
+            onClick={() => onPreview(r.node.node_id)}
           >
             {r.node.name}
           </button>
