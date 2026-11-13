@@ -80,9 +80,12 @@ export function PublishDialog({
             <h3 className="mb-2 text-small font-semibold text-ink-muted">You are publishing</h3>
             <dl className="flex flex-wrap gap-2.5">
               {counts.map(({ level, count }) => (
-                <div key={level.level_id} className="rounded-lg bg-page px-3 py-2">
-                  <dd className="text-xl font-bold text-ink">{count}</dd>
+                <div
+                  key={level.level_id}
+                  className="flex flex-col-reverse rounded-lg bg-page px-3 py-2"
+                >
                   <dt className="text-meta">{level.level_name}</dt>
+                  <dd className="text-xl font-bold text-ink">{count}</dd>
                 </div>
               ))}
             </dl>

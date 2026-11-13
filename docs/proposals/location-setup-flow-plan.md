@@ -58,7 +58,7 @@ The Locations page picks one screen from the unit's saved state. No tabs.
 
 ### Guided setup
 1. **Describe one place.** A row of boxes, biggest to smallest. The first box is filled with the unit's `facility_name`. "+ Add a smaller part" adds a box; ✕ removes one; at least 2 boxes.
-2. **Name each kind.** Under each typed place, a box for the kind (Plant, Building, Shop, Bin). "Common setups" buttons fill these from today's presets. A checkbox per middle kind: "Not every … has a …" (saves the level as optional).
+2. **Name each kind.** Under each typed place, a box for the kind (Plant, Building, Shop, Bin). "Common setups" buttons fill these from today's presets. A checkbox on every kind below the top: "Not every … has a …" (saves the level as optional; the API only fixes the top as required).
 3. **Create** (D1): save levels → create skeleton → rename each place to the typed name. Then open the working page.
 
 Checks before sending, so the API never refuses: every box filled; kinds differ from each other (case-insensitive); kind ≤ 100 characters; place ≤ 200 characters.
@@ -168,4 +168,5 @@ T01 → T02 → T03 → T04 → T05 → (T06, T07, T08 in any order) → T09. T0
 - Built on branch `PX-08-T02-next-changes`, commits `2ed97f0` … T09. Not pushed.
 - Checks: web 268+ tests, type check, lint, format clean; API location tests 10/10; contract lint 0 errors, 14 known warnings.
 - Changed from this plan while building: the rules file is `guideRules.ts` (case clash, T03a); T06 is covered by T04 (editor in place, not a pop-up); contract 2.7's `empty_branches` item type was added to match the docs and the API (T08a, no behaviour change); search rewritten (T09).
+- Code review after the build (line by line) fixed: the last kind could not be optional (the 5-level preset's Sub-bin was saved as required); step 1 could start without the site name when the unit list arrived late; the working page flashed temporary names during Create; the Create error stayed after the names were fixed; step 2's messages stayed after Back; the tree was rebuilt on every render.
 - Not done: the manual end-to-end run (section 8), including the phone; the web has no coverage tool, so the 80% rule is not measured; drawing very large lists in a browser is not measured.

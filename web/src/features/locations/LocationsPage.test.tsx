@@ -27,18 +27,16 @@ let check: {
 
 const mutation = (fn: ReturnType<typeof vi.fn>) => ({ mutateAsync: fn, isPending: false })
 vi.mock('../../api/businessUnits', () => ({
-  useBusinessUnits: () => ({
-    data: [
-      {
-        bu_id: 'p04',
-        name: 'PPG Plant 04',
-        facility_name: 'Plant 04',
-        bu_admin: null,
-        locations_status: 'not_published',
-      },
-    ],
-  }),
+  useBusinessUnits: () => ({ data: unitList }),
 }))
+const plant04 = {
+  bu_id: 'p04',
+  name: 'PPG Plant 04',
+  facility_name: 'Plant 04',
+  bu_admin: null,
+  locations_status: 'not_published',
+}
+let unitList = [plant04]
 vi.mock('../../api/locations', () => ({
   useLocationSetup: () => ({ data: setup, isPending: false, isError: false }),
   useSetLevels: () => mutation(calls.setLevels),
@@ -98,6 +96,7 @@ const dialog = () => within(screen.getByRole('dialog'))
 
 beforeEach(() => {
   for (const fn of Object.values(calls)) fn.mockReset().mockResolvedValue({})
+  unitList = [plant04]
   setup = withTree
   check = {
     placeholders_left: 0,
@@ -152,6 +151,47 @@ describe('Guided setup and the working page (plan R4–R6)', () => {
     type('Kind of Bin 07', 'Bin')
     fireEvent.click(screen.getByRole('button', { name: 'Create and add more places' }))
     expect(await screen.findByText(/Some places kept a temporary name/)).toBeInTheDocument()
+  })
+
+  it('GIVEN the unit list arrives after the page THEN step 1 still starts from the site name', () => {
+    setup = { version_id: 'v', status: 'not_published', levels: [], nodes: [] }
+    unitList = []
+    const page = () => (
+      <MemoryRouter initialEntries={['/locations?unit=p04']}>
+        <LocationsPage />
+      </MemoryRouter>
+    )
+    const view = render(page())
+    expect(screen.getByLabelText('Place 1')).toHaveValue('')
+    unitList = [plant04]
+    view.rerender(page())
+    expect(screen.getByLabelText('Place 1')).toHaveValue('Plant 04')
+  })
+
+  it('GIVEN Create left temporary names WHEN they are renamed THEN its error goes away', async () => {
+    setup = { version_id: 'v', status: 'not_published', levels: [], nodes: [] }
+    calls.skeleton.mockResolvedValue(withTree)
+    calls.updateNode.mockRejectedValue(new Error('offline'))
+    const page = () => (
+      <MemoryRouter initialEntries={['/locations?unit=p04']}>
+        <LocationsPage />
+      </MemoryRouter>
+    )
+    const view = render(page())
+    type('Place 2', 'Bin 07')
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
+    type('Kind of Plant 04', 'Facility')
+    type('Kind of Bin 07', 'Bin')
+    fireEvent.click(screen.getByRole('button', { name: 'Create and add more places' }))
+    await screen.findByText(/Some places kept a temporary name/)
+
+    setup = { ...withTree, nodes: withTree.nodes.map((n) => ({ ...n, is_placeholder: true })) }
+    view.rerender(page())
+    expect(screen.getByRole('table', { name: 'Location tree' })).toBeInTheDocument()
+    expect(screen.getByText(/Some places kept a temporary name/)).toBeInTheDocument()
+    setup = withTree
+    view.rerender(page())
+    expect(screen.queryByText(/Some places kept a temporary name/)).not.toBeInTheDocument()
   })
 
   it('GIVEN levels saved but no places THEN the guided setup opens with those kinds', () => {

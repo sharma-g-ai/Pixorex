@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useLocation, useSearchParams } from 'react-router'
 import { useBusinessUnits } from '../../api/businessUnits'
 import { errorMessage } from '../../api/client'
@@ -133,6 +133,11 @@ function UnitLocations({
   const [previewId, setPreviewId] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const guide = useCreateFromGuide(buId, setup.data ?? emptySetup)
+  const left = useMemo(
+    () =>
+      setup.data ? toFix(setup.data.levels, treeRows(setup.data.levels, setup.data.nodes)) : null,
+    [setup.data],
+  )
 
   if (setup.isPending) return <Card>Loading locations…</Card>
   if (setup.isError) return <Card>We couldn't load this unit's locations. Please refresh.</Card>
@@ -140,9 +145,10 @@ function UnitLocations({
   const data = setup.data
   const live = data.status === 'published'
 
-  if (setupScreen(data) === 'guide') {
+  if (setupScreen(data) === 'guide' || guide.busy) {
     return (
       <SetupGuide
+        key={siteName}
         levels={data.levels}
         siteName={siteName}
         busy={guide.busy}
@@ -160,7 +166,7 @@ function UnitLocations({
             {notice ??
               (live
                 ? 'Published — locked to protect scan history. Levels and locations can’t be added, edited or deleted.'
-                : notPublishedText(toFix(data.levels, treeRows(data.levels, data.nodes))))}
+                : notPublishedText(left ?? { placeholders: 0, empty: 0 }))}
           </span>
           <Button variant="secondary" onClick={() => setEditingKinds((on) => !on)}>
             {editingKinds ? 'Back to places' : live ? 'View kinds' : 'Edit kinds'}
@@ -168,7 +174,7 @@ function UnitLocations({
           {!live && <Button onClick={() => setPublishing(true)}>Review &amp; publish</Button>}
         </div>
       </Alert>
-      {guide.error && <Alert tone="danger">{guide.error}</Alert>}
+      {guide.error && (left?.placeholders ?? 0) > 0 && <Alert tone="danger">{guide.error}</Alert>}
 
       {editingKinds ? (
         <LevelsEditor

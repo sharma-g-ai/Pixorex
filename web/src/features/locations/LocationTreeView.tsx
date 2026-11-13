@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import type { LocationNode, LocationSetup } from '../../api/locations'
 import { Alert } from '../../components/Alert'
 import { Badge } from '../../components/Badge'
@@ -37,7 +37,7 @@ export function LocationTreeView({
   const [notice, setNotice] = useState<string | null>(null)
 
   const locked = setup.status === 'published'
-  const rows = treeRows(setup.levels, setup.nodes)
+  const rows = useMemo(() => treeRows(setup.levels, setup.nodes), [setup.levels, setup.nodes])
   // The phone preview starts on the first place a technician can scan at.
   const previewId =
     picked ?? rows.find((r) => canScanAt(setup.levels, r.node.level_id))?.node.node_id ?? null
