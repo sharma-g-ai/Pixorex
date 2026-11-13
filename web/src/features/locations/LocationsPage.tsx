@@ -1,20 +1,29 @@
 import { useState } from 'react'
 import { useLocation, useSearchParams } from 'react-router'
 import { useBusinessUnits } from '../../api/businessUnits'
-import { useLocationSetup } from '../../api/locations'
+import { errorMessage } from '../../api/client'
+import {
+  useCreateSkeleton,
+  useLocationSetup,
+  useSetLevels,
+  useUpdateNode,
+  type LocationSetup,
+} from '../../api/locations'
 import { Alert } from '../../components/Alert'
 import { Button } from '../../components/Button'
 import { Card } from '../../components/Card'
 import { PageHeader } from '../../components/layout/PageHeader'
 import { SelectField } from '../../components/SelectField'
-import { Tabs } from '../../components/Tabs'
 import { LevelsEditor } from './LevelsEditor'
 import { LocationTreeView } from './LocationTreeView'
 import { PublishDialog } from './PublishDialog'
+import { SetupGuide } from './SetupGuide'
+import { guideLevels, guideRenames, setupScreen, type GuidePart } from './guideRules'
 
-type TabKey = 'levels' | 'locations'
-
-/** EA-02 Locations setup for one unit (canvas EA 12, 19; contracts 2.1–2.8). */
+/**
+ * EA-02 Locations setup for one unit (contracts 2.1–2.8). Guided setup until the first place
+ * exists, then the working page (decision 2026-11-13, docs/proposals/location-setup-flow-plan.md).
+ */
 export function LocationsPage() {
   const units = useBusinessUnits()
   const [params, setParams] = useSearchParams()
@@ -55,6 +64,7 @@ export function LocationsPage() {
             key={buId}
             buId={buId}
             unitName={list.find((u) => u.bu_id === buId)?.name ?? ''}
+            siteName={list.find((u) => u.bu_id === buId)?.facility_name ?? ''}
           />
         )}
       </div>
@@ -62,17 +72,72 @@ export function LocationsPage() {
   )
 }
 
-function UnitLocations({ buId, unitName }: { buId: string; unitName: string }) {
+const KEPT_PLACEHOLDERS =
+  'Some places kept a temporary name and are marked Placeholder below. Rename them to continue.'
+
+/**
+ * Create from the guided setup with the existing calls only (plan D1): the kinds (2.2), the
+ * skeleton (2.3), then one rename (2.5) per place, which also clears its placeholder flag.
+ */
+function useCreateFromGuide(buId: string, setup: LocationSetup) {
+  const setLevels = useSetLevels(buId)
+  const skeleton = useCreateSkeleton(buId)
+  const rename = useUpdateNode(buId)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const create = async (parts: GuidePart[]) => {
+    setBusy(true)
+    setError(null)
+    let treeMade = false
+    try {
+      await setLevels.mutateAsync(guideLevels(parts, setup.levels))
+      const tree = await skeleton.mutateAsync(undefined)
+      treeMade = true
+      const renames = guideRenames(parts, tree)
+      if (!renames) return setError(KEPT_PLACEHOLDERS)
+      for (const r of renames) await rename.mutateAsync({ nodeId: r.node_id, name: r.name })
+    } catch (err) {
+      setError(treeMade ? `${KEPT_PLACEHOLDERS} (${errorMessage(err)})` : errorMessage(err))
+    } finally {
+      setBusy(false)
+    }
+  }
+  return { create, busy, error }
+}
+
+function UnitLocations({
+  buId,
+  unitName,
+  siteName,
+}: {
+  buId: string
+  unitName: string
+  siteName: string
+}) {
   const setup = useLocationSetup(buId)
-  const [tab, setTab] = useState<TabKey>('levels')
+  const [editingKinds, setEditingKinds] = useState(false)
   const [publishing, setPublishing] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
+  const guide = useCreateFromGuide(buId, setup.data ?? emptySetup)
 
   if (setup.isPending) return <Card>Loading locations…</Card>
   if (setup.isError) return <Card>We couldn't load this unit's locations. Please refresh.</Card>
 
   const data = setup.data
   const live = data.status === 'published'
+
+  if (setupScreen(data) === 'guide') {
+    return (
+      <SetupGuide
+        levels={data.levels}
+        siteName={siteName}
+        busy={guide.busy}
+        error={guide.error}
+        onCreate={(parts) => void guide.create(parts)}
+      />
+    )
+  }
 
   return (
     <>
@@ -84,31 +149,23 @@ function UnitLocations({ buId, unitName }: { buId: string; unitName: string }) {
                 ? 'Published — locked to protect scan history. Levels and locations can’t be added, edited or deleted.'
                 : 'Being set up · not published. Add, rename, move or delete anything until you publish. Publishing locks the unit.')}
           </span>
-          {!live && data.nodes.length > 0 && (
-            <Button onClick={() => setPublishing(true)}>Review &amp; publish</Button>
-          )}
+          <Button variant="secondary" onClick={() => setEditingKinds((on) => !on)}>
+            {editingKinds ? 'Back to places' : live ? 'View kinds' : 'Edit kinds'}
+          </Button>
+          {!live && <Button onClick={() => setPublishing(true)}>Review &amp; publish</Button>}
         </div>
       </Alert>
+      {guide.error && <Alert tone="danger">{guide.error}</Alert>}
 
-      <Tabs<TabKey>
-        label="Location setup"
-        tabs={[
-          { key: 'levels', label: '1 · Levels', count: data.levels.length },
-          { key: 'locations', label: '2 · Locations', count: data.nodes.length },
-        ]}
-        current={tab}
-        onChange={setTab}
-      />
-
-      {tab === 'levels' ? (
+      {editingKinds ? (
         <LevelsEditor
           key={JSON.stringify(data.levels)}
           buId={buId}
           setup={data}
-          onDone={() => setTab('locations')}
+          onDone={() => setEditingKinds(false)}
         />
       ) : (
-        <LocationTreeView buId={buId} setup={data} onEditLevels={() => setTab('levels')} />
+        <LocationTreeView buId={buId} setup={data} onEditLevels={() => setEditingKinds(true)} />
       )}
 
       {publishing && (
@@ -126,3 +183,5 @@ function UnitLocations({ buId, unitName }: { buId: string; unitName: string }) {
     </>
   )
 }
+
+const emptySetup: LocationSetup = { version_id: '', status: 'not_published', levels: [], nodes: [] }

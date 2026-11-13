@@ -86,7 +86,6 @@ function renderPage() {
   )
 }
 const dialog = () => within(screen.getByRole('dialog'))
-const openTab = (name: RegExp) => fireEvent.click(screen.getByRole('tab', { name }))
 
 beforeEach(() => {
   for (const fn of Object.values(calls)) fn.mockReset().mockResolvedValue({})
@@ -99,42 +98,80 @@ beforeEach(() => {
   }
 })
 
-describe('Levels', () => {
-  it('GIVEN a new unit WHEN quick start 4 levels is saved THEN contract 2.2 gets the 4 levels', async () => {
-    setup = { version_id: 'v', status: 'not_published', levels: [], nodes: [] }
-    renderPage()
-    fireEvent.click(screen.getByRole('button', { name: '4 levels' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Save levels' }))
+describe('Guided setup and the working page (plan R4–R6)', () => {
+  const type = (label: string, value: string) =>
+    fireEvent.change(screen.getByLabelText(label), { target: { value } })
 
-    await waitFor(() => expect(calls.setLevels).toHaveBeenCalled())
-    expect(calls.setLevels.mock.calls[0]?.[0]).toEqual([
-      { level_name: 'Facility', requirement: 'required' },
-      { level_name: 'Building', requirement: 'required' },
-      { level_name: 'Shop', requirement: 'optional' },
-      { level_name: 'Bin', requirement: 'required' },
+  it('GIVEN a new unit WHEN Create THEN 2.2, 2.3, then one 2.5 per place, top included (R4)', async () => {
+    setup = { version_id: 'v', status: 'not_published', levels: [], nodes: [] }
+    calls.skeleton.mockResolvedValue({
+      ...withTree,
+      nodes: withTree.nodes.map((n) => ({
+        ...n,
+        name: n.level_id === 'fac' ? 'Plant 04' : 'Bin',
+        is_placeholder: true,
+      })),
+    })
+    renderPage()
+    expect(screen.queryByRole('tab')).not.toBeInTheDocument()
+    type('Place 2', 'Bin 07')
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
+    type('Kind of Plant 04', 'Facility')
+    type('Kind of Bin 07', 'Bin')
+    fireEvent.click(screen.getByRole('button', { name: 'Create and add more places' }))
+
+    await waitFor(() => expect(calls.updateNode).toHaveBeenCalledTimes(2))
+    expect(calls.setLevels).toHaveBeenCalledWith([
+      { level_id: null, level_name: 'Facility', requirement: 'required' },
+      { level_id: null, level_name: 'Bin', requirement: 'required' },
+    ])
+    expect(calls.skeleton).toHaveBeenCalledTimes(1)
+    expect(calls.updateNode.mock.calls).toEqual([
+      [{ nodeId: 'f', name: 'Plant 04' }],
+      [{ nodeId: 'b1', name: 'Bin 07' }],
     ])
   })
 
-  it('GIVEN a published unit THEN levels are read-only', () => {
+  it('GIVEN a rename fails during Create THEN it says the places can be renamed here (R5)', async () => {
+    setup = { version_id: 'v', status: 'not_published', levels: [], nodes: [] }
+    calls.skeleton.mockResolvedValue(withTree)
+    calls.updateNode.mockRejectedValue(new Error('offline'))
+    renderPage()
+    type('Place 2', 'Bin 07')
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
+    type('Kind of Plant 04', 'Facility')
+    type('Kind of Bin 07', 'Bin')
+    fireEvent.click(screen.getByRole('button', { name: 'Create and add more places' }))
+    expect(await screen.findByText(/Some places kept a temporary name/)).toBeInTheDocument()
+  })
+
+  it('GIVEN levels saved but no places THEN the guided setup opens with those kinds', () => {
+    setup = { ...withTree, nodes: [] }
+    renderPage()
+    type('Place 2', 'Bin 07')
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
+    expect(screen.getByLabelText('Kind of Bin 07')).toHaveValue('Bin')
+  })
+
+  it('GIVEN places THEN the working page with the tree; Edit kinds opens the level editor (R6)', () => {
+    renderPage()
+    expect(screen.getByRole('table', { name: 'Location tree' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Edit kinds' }))
+    expect(screen.getByRole('button', { name: 'Save levels' })).toBeInTheDocument()
+  })
+
+  it('GIVEN a published unit THEN the kinds can be viewed but not changed', () => {
     setup = { ...withTree, status: 'published' }
     renderPage()
+    fireEvent.click(screen.getByRole('button', { name: 'View kinds' }))
     expect(screen.getByText(/Published and locked to protect scan history/)).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Save levels' })).not.toBeInTheDocument()
   })
 })
 
 describe('Locations tree', () => {
-  it('GIVEN levels but no locations THEN the skeleton can be created (contract 2.3)', async () => {
-    setup = { ...withTree, nodes: [] }
-    renderPage()
-    openTab(/2 · Locations/)
-    fireEvent.click(screen.getByRole('button', { name: 'Create the skeleton' }))
-    await waitFor(() => expect(calls.skeleton).toHaveBeenCalled())
-  })
-
   it('GIVEN Add several WHEN Bin 02–04 THEN contract 2.4 gets three names with one key', async () => {
     renderPage()
-    openTab(/2 · Locations/)
     fireEvent.click(screen.getByRole('button', { name: 'Add inside Plant 04' }))
     fireEvent.click(dialog().getByLabelText('Add several'))
     fireEvent.change(dialog().getByLabelText('Name starts with'), { target: { value: 'Bin ' } })
@@ -154,7 +191,6 @@ describe('Locations tree', () => {
 
   it('GIVEN a name already used among siblings THEN it is refused before sending', async () => {
     renderPage()
-    openTab(/2 · Locations/)
     fireEvent.click(screen.getByRole('button', { name: 'Add inside Plant 04' }))
     fireEvent.change(dialog().getByLabelText('Name of the new bin'), {
       target: { value: 'bin 01' },
@@ -167,7 +203,6 @@ describe('Locations tree', () => {
 
   it('GIVEN Rename THEN contract 2.5 gets the new name', async () => {
     renderPage()
-    openTab(/2 · Locations/)
     fireEvent.click(screen.getByRole('button', { name: 'Rename Bin 01' }))
     fireEvent.change(dialog().getByLabelText('Name technicians see'), {
       target: { value: 'Bin 1A' },
@@ -180,7 +215,6 @@ describe('Locations tree', () => {
 
   it('GIVEN Delete THEN contract 2.6 is called after confirming', async () => {
     renderPage()
-    openTab(/2 · Locations/)
     fireEvent.click(screen.getByRole('button', { name: 'Delete Bin 01' }))
     expect(dialog().getByText('Nothing is inside it.')).toBeInTheDocument()
     fireEvent.click(dialog().getByRole('button', { name: 'Yes, delete' }))
