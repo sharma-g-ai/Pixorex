@@ -99,6 +99,23 @@ def test_skeleton_names_the_top_after_the_facility(api: Api) -> None:
     _problem(api.post(f"/business-units/{unit}/locations/skeleton", ERIN), 409, "tree-not-empty")
 
 
+def test_renaming_a_placeholder_to_its_own_name_clears_the_flag(api: Api) -> None:
+    """GIVEN the skeleton WHEN each placeholder is renamed to the name it already has (the web's
+    guided setup does this for the top place and for "Bin" called "Bin") THEN the rename is
+    accepted, the flag is cleared and the unit can be published."""
+    unit = _unit(api, facility="Kirlampudi")
+    api.put(f"/business-units/{unit}/locations/levels", ERIN, json={"levels": LEVELS})
+    setup = api.post(f"/business-units/{unit}/locations/skeleton", ERIN).json()
+    for node in setup["nodes"]:
+        renamed = api.call(
+            "PATCH", f"/location-nodes/{node['node_id']}", ERIN, json={"name": node["name"]}
+        )
+        assert renamed.status_code == 200, renamed.text
+        assert (renamed.json()["name"], renamed.json()["is_placeholder"]) == (node["name"], False)
+    check = api.get(f"/business-units/{unit}/locations/publish-check", ERIN).json()
+    assert (check["placeholders_left"], check["can_publish"]) == (0, True)
+
+
 def test_placeholders_block_publishing_until_renamed(api: Api) -> None:
     unit = _unit(api)
     api.put(f"/business-units/{unit}/locations/levels", ERIN, json={"levels": LEVELS})
