@@ -40,7 +40,7 @@ Rules applied: reuse existing logic and components before adding any; contract f
 | D3 | The "Off" rule | **Kept.** | PRD FR-2.1 defines levels as "required, optional or off", so it cannot be dropped. The guided steps offer required or optional (a checkbox); Off stays where it is today, in the level editor, which "Edit kinds" opens unchanged. |
 | D4 | Create-unit label "Facility (top location level)" | **Not changed in this work.** | It is a different screen (EA-01) and was not part of the go-ahead. Raised as a follow-up (section 11). The guided setup shows the same value as "your site", which removes most of the confusion without touching that screen. |
 | D5 | Screens differ from canvas EA 12 and EA 19 | **Record it** in `STATE.md` → *Decisions* and in `docs/design/README.md`, with the link to the proposal page, before any code. | Constitution §0: canvases are the source of truth for screens, so the approved difference must be written down. |
-| D6 | Drag to move or reorder | **Not built.** | It needs a new library. The existing Move dialog and ↑ ↓ buttons already do this. |
+| D6 | Drag to move or reorder | **Not built.** | It needs a new library. Places move with the existing Move dialog. Kinds can't be reordered once places use them (the editor always refused it), so the editor's ↑ ↓ buttons, which could no longer be used, were removed. |
 | D7 | Task IDs and spec | `PX-05-T01…`; section 5 is the requirement list. | BC-05 Locations maps to SPEC-PX-05 in the Constitution; no such file or task exists yet. |
 
 One thing still needs a person, not a rule: **confirm the go-ahead in writing** (who, date) so T01 can record it.

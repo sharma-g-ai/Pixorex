@@ -9,7 +9,6 @@ export type Level = components['schemas']['Level']
 export type LevelInput = components['schemas']['LevelInput']
 export type LocationNode = components['schemas']['LocationNode']
 export type Requirement = components['schemas']['Requirement']
-export type PublishCheck = components['schemas']['PublishCheck']
 
 const setupKey = (buId: string) => ['locations', buId] as const
 

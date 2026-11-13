@@ -33,7 +33,6 @@ export function LevelsEditor({ buId, setup, onDone }: LevelsEditorProps) {
   const setLevels = useSetLevels(buId)
 
   const locked = setup.status === 'published'
-  const hasNodes = setup.nodes.length > 0
   const inUse = new Map(
     countsByLevel(setup.levels, setup.nodes).map((c) => [c.level.level_id, c.count]),
   )
@@ -45,16 +44,6 @@ export function LevelsEditor({ buId, setup, onDone }: LevelsEditorProps) {
 
   const update = (index: number, patch: Partial<LevelInput>) =>
     setDraft((rows) => rows.map((row, i) => (i === index ? { ...row, ...patch } : row)))
-  const swap = (index: number, by: -1 | 1) =>
-    setDraft((rows) => {
-      const next = [...rows]
-      const other = next[index + by]
-      const current = next[index]
-      if (!other || !current) return rows
-      next[index] = other
-      next[index + by] = current
-      return next
-    })
 
   const save = async () => {
     setError(null)
@@ -123,24 +112,6 @@ export function LevelsEditor({ buId, setup, onDone }: LevelsEditorProps) {
                 <div className="flex gap-2.5">
                   <button
                     type="button"
-                    className={buttonClasses('link')}
-                    disabled={hasNodes || i === 0}
-                    aria-label={`Move ${level.level_name || 'level'} up`}
-                    onClick={() => swap(i, -1)}
-                  >
-                    ↑
-                  </button>
-                  <button
-                    type="button"
-                    className={buttonClasses('link')}
-                    disabled={hasNodes || i === draft.length - 1}
-                    aria-label={`Move ${level.level_name || 'level'} down`}
-                    onClick={() => swap(i, 1)}
-                  >
-                    ↓
-                  </button>
-                  <button
-                    type="button"
                     className={buttonClasses('danger-link')}
                     disabled={
                       i === 0 || (level.level_id ? (inUse.get(level.level_id) ?? 0) > 0 : false)
@@ -155,7 +126,7 @@ export function LevelsEditor({ buId, setup, onDone }: LevelsEditorProps) {
             </li>
           ))}
         </ol>
-        {hasNodes && !locked && (
+        {!locked && (
           <p className="mt-2 text-xs text-ink-subtle">
             Order can't change once locations use these levels. A new level starts as Optional so
             existing locations stay valid.
@@ -172,7 +143,7 @@ export function LevelsEditor({ buId, setup, onDone }: LevelsEditorProps) {
                   {
                     level_id: null,
                     level_name: '',
-                    requirement: hasNodes ? 'optional' : 'required',
+                    requirement: 'optional',
                   },
                 ])
               }
