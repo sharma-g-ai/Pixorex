@@ -1,63 +1,27 @@
 import { useState } from 'react'
-import { errorMessage } from '../../api/client'
-import { useCreateSkeleton, type LocationNode, type LocationSetup } from '../../api/locations'
+import type { LocationNode, LocationSetup } from '../../api/locations'
 import { Alert } from '../../components/Alert'
 import { Badge } from '../../components/Badge'
-import { Button } from '../../components/Button'
 import { buttonClasses } from '../../components/buttonClasses'
 import { Card } from '../../components/Card'
 import { DataTable, type Column } from '../../components/DataTable'
 import { TextField } from '../../components/TextField'
-import { filterRows, rowStatus, treeRows, type TreeRow } from './locationTree'
+import { filterRows, rowStatus, sortLevels, treeRows, type TreeRow } from './locationTree'
 import { NodeDialogs, type NodeAction } from './NodeDialogs'
 
 interface LocationTreeViewProps {
   buId: string
   setup: LocationSetup
-  onEditLevels: () => void
 }
 
-/** Tab 2 · Locations (canvas EA 19): the tree, with rename · add inside · move · delete. */
-export function LocationTreeView({ buId, setup, onEditLevels }: LocationTreeViewProps) {
+/** The working page's list of places, with rename · add inside · move · delete. */
+export function LocationTreeView({ buId, setup }: LocationTreeViewProps) {
   const [query, setQuery] = useState('')
   const [action, setAction] = useState<NodeAction | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
-  const skeleton = useCreateSkeleton(buId)
-  const [error, setError] = useState<string | null>(null)
 
   const locked = setup.status === 'published'
   const rows = treeRows(setup.levels, setup.nodes)
-
-  if (setup.nodes.length === 0) {
-    const enoughLevels = setup.levels.length >= 2
-    return (
-      <Card title="No locations yet">
-        <p className="mb-4 text-body text-ink-muted">
-          First choose the levels this unit uses and their order. We then build a plain skeleton —
-          one placeholder per level — that you rename and fill in here.
-        </p>
-        <div className="flex gap-2.5">
-          {enoughLevels ? (
-            <Button
-              disabled={skeleton.isPending}
-              onClick={() =>
-                skeleton.mutateAsync(undefined).catch((err: unknown) => setError(errorMessage(err)))
-              }
-            >
-              {skeleton.isPending ? 'Creating…' : 'Create the skeleton'}
-            </Button>
-          ) : (
-            <Button onClick={onEditLevels}>Choose levels →</Button>
-          )}
-        </div>
-        {error && (
-          <Alert tone="danger" className="mt-3">
-            {error}
-          </Alert>
-        )}
-      </Card>
-    )
-  }
 
   const columns: Column<TreeRow>[] = [
     {
@@ -114,9 +78,10 @@ export function LocationTreeView({ buId, setup, onEditLevels }: LocationTreeView
         title="Locations"
         action={
           <span className="text-small text-ink-muted">
-            {locked
-              ? 'This unit is published — locations are locked to protect scan history'
-              : 'Beside every location: rename · add inside · move · delete'}
+            {`Kinds: ${sortLevels(setup.levels)
+              .filter((l) => l.requirement !== 'off')
+              .map((l) => l.level_name)
+              .join(' › ')}`}
           </span>
         }
       >

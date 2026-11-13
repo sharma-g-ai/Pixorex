@@ -18,6 +18,7 @@ import { LevelsEditor } from './LevelsEditor'
 import { LocationTreeView } from './LocationTreeView'
 import { PublishDialog } from './PublishDialog'
 import { SetupGuide } from './SetupGuide'
+import { toFix, treeRows } from './locationTree'
 import { guideLevels, guideRenames, setupScreen, type GuidePart } from './guideRules'
 
 /**
@@ -70,6 +71,17 @@ export function LocationsPage() {
       </div>
     </>
   )
+}
+
+const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`
+
+/** The working page's banner: what is left before publishing (placeholders block it). */
+function notPublishedText({ placeholders, empty }: { placeholders: number; empty: number }) {
+  if (placeholders > 0)
+    return `Not published yet. Rename ${plural(placeholders, 'temporary name', 'temporary names')} before you can publish.`
+  if (empty > 0)
+    return `Not published yet. ${plural(empty, 'place has', 'places have')} nothing inside yet, so technicians can't scan there. You can still publish.`
+  return 'Not published yet. Everything is ready. After publishing, nothing here can be changed.'
 }
 
 const KEPT_PLACEHOLDERS =
@@ -147,7 +159,7 @@ function UnitLocations({
             {notice ??
               (live
                 ? 'Published — locked to protect scan history. Levels and locations can’t be added, edited or deleted.'
-                : 'Being set up · not published. Add, rename, move or delete anything until you publish. Publishing locks the unit.')}
+                : notPublishedText(toFix(data.levels, treeRows(data.levels, data.nodes))))}
           </span>
           <Button variant="secondary" onClick={() => setEditingKinds((on) => !on)}>
             {editingKinds ? 'Back to places' : live ? 'View kinds' : 'Edit kinds'}
@@ -165,7 +177,7 @@ function UnitLocations({
           onDone={() => setEditingKinds(false)}
         />
       ) : (
-        <LocationTreeView buId={buId} setup={data} onEditLevels={() => setEditingKinds(true)} />
+        <LocationTreeView buId={buId} setup={data} />
       )}
 
       {publishing && (

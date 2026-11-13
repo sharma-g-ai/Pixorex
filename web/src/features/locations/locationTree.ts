@@ -121,6 +121,18 @@ export function rowStatus(levels: Level[], row: TreeRow): BadgeStatus {
   return { label: 'Ready', tone: 'success' }
 }
 
+/**
+ * What is left before publishing, from the same statuses the tree shows: placeholders block
+ * publishing; empty places only warn (contract 2.7, plan D2).
+ */
+export function toFix(levels: Level[], rows: TreeRow[]): { placeholders: number; empty: number } {
+  const statuses = rows.map((r) => rowStatus(levels, r).label)
+  return {
+    placeholders: statuses.filter((label) => label === 'Placeholder').length,
+    empty: statuses.filter((label) => label.startsWith('Needs a ')).length,
+  }
+}
+
 /** Rows whose name or path matches the search, plus every row above a match. */
 export function filterRows(rows: TreeRow[], query: string): TreeRow[] {
   const q = query.trim().toLowerCase()

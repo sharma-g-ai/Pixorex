@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { LocationSetup } from '../../api/locations'
@@ -76,6 +76,15 @@ const withTree: LocationSetup = {
       child_count: 0,
     },
   ],
+}
+
+const topNode = {
+  node_id: 'f',
+  parent_id: null,
+  level_id: 'fac',
+  name: 'Plant 04',
+  is_placeholder: false,
+  child_count: 1,
 }
 
 function renderPage() {
@@ -158,6 +167,24 @@ describe('Guided setup and the working page (plan R4–R6)', () => {
     expect(screen.getByRole('table', { name: 'Location tree' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Edit kinds' }))
     expect(screen.getByRole('button', { name: 'Save levels' })).toBeInTheDocument()
+  })
+
+  it('GIVEN the working page THEN the kinds show above the list, top to bottom', () => {
+    renderPage()
+    expect(screen.getByText('Kinds: Facility › Bin')).toBeInTheDocument()
+  })
+
+  it('GIVEN placeholders or empty places THEN the banner says what is left to fix', () => {
+    setup = {
+      ...withTree,
+      nodes: [{ ...topNode, child_count: 0, is_placeholder: true }],
+    }
+    renderPage()
+    expect(screen.getByText(/Rename 1 temporary name before you can publish/)).toBeInTheDocument()
+    setup = { ...withTree, nodes: [{ ...topNode, child_count: 0 }] }
+    cleanup()
+    renderPage()
+    expect(screen.getByText(/1 place has nothing inside yet/)).toBeInTheDocument()
   })
 
   it('GIVEN a published unit THEN the kinds can be viewed but not changed', () => {

@@ -9,6 +9,7 @@ import {
   moveTargets,
   rangeNames,
   rowStatus,
+  toFix,
   treeRows,
 } from './locationTree'
 
@@ -91,6 +92,14 @@ describe('rowStatus', () => {
     expect(status('b')).toEqual({ label: 'Needs a Bin', tone: 'warning' })
     expect(status('a')).toEqual({ label: 'Ready', tone: 'success' })
     expect(status('f')).toEqual({ label: 'Ready', tone: 'success' })
+  })
+})
+
+describe('toFix', () => {
+  it('GIVEN rows THEN counts the placeholders and the places that still need something inside', () => {
+    const placeholder = { ...node('p', 'Building', 'bld', 'f'), is_placeholder: true }
+    const rows = treeRows(levels, [...nodes, placeholder])
+    expect(toFix(levels, rows)).toEqual({ placeholders: 1, empty: 1 })
   })
 })
 
