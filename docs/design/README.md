@@ -22,7 +22,7 @@ Built from the Screens column of each operation in `docs/api-contracts.md`. A pr
 | Sign-in (Keycloak theme) | EA 01–02 | none (Keycloak) |
 | App shell: me, unit context, notifications | EA 03, 24 | 1.1, 3.19–3.21 |
 | **EA-01** Units overview, create, edit | EA 03, 10, 11, 13–18, 25–28, 67, 70–73 | 1.8–1.17 |
-| **EA-02** Locations setup | EA 12, 19 | 2.1–2.8 |
+| **EA-02** Locations setup | EA 12, 19, changed by decision 2026-11-13 (guided flow, see `docs/proposals/location-setup-flow-plan.md`) | 2.1–2.8 |
 | **EA-03** Scans and escalations | EA 04–09, 20, 29–50, 68 | 3.4–3.5, 3.8–3.9, 3.16–3.18 |
 | **EA-04** Audit, export, alerts | EA 21–24, 51–66, 69 | 3.19–3.22, 4.1–4.2 |
 
