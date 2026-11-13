@@ -1,10 +1,10 @@
 # Location setup: guided flow — implementation plan
 
-Status: **plan, decisions made, not started.** Vishnu, 13 Nov 2026.
+Status: **in progress** (T00–T02 done). Vishnu, 13 Nov 2026.
 Go-ahead: given by the manager for the proposal page (reported by Vishnu, 13 Nov 2026). To be recorded in `STATE.md` → *Decisions* as task T01 below.
 Proposal with screen mock-ups: https://claude.ai/artifact/Aksmr3FLPxsY6DUQPzgpzv
 
-Everything in "What is true today" was checked in the code on branch `PX-08-T02-next-changes` (which contains `PX-01-T17-invite-flow-fixes` at `e9f2e56`). Nothing here is built yet except T00.
+Everything in "What is true today" was checked in the code on branch `PX-08-T02-next-changes` (which contains `PX-01-T17-invite-flow-fixes` at `e9f2e56`). Section 6 marks what is built.
 
 ## 1. Goal
 
@@ -98,9 +98,9 @@ Each task: tests first, ≤ 5 files, ≤ 200 changed lines, its own PR. Web only
 
 | ID | Task | Files | Needs |
 |---|---|---|---|
-| T00 | **Done, not committed:** Status column shows a status on every row; shared `canScanAt` and `rowStatus` rules | `locationTree.ts`, `locationTree.test.ts`, `LocationTreeView.tsx` | — |
-| T01 | Record D1–D7 in `STATE.md`; note the canvas difference in `docs/design/README.md` | 2 docs | decisions |
-| T02 | Pure helpers with tests: which screen to show; validation of steps 1–2; turning steps 1–2 into the 2.2 body and the list of renames; phone-preview data | `locationTree.ts`, `locationTree.test.ts` | T01 |
+| T00 | **Done** (`2ed97f0`): Status column shows a status on every row; shared `canScanAt` and `rowStatus` rules | `locationTree.ts`, `locationTree.test.ts`, `LocationTreeView.tsx` | — |
+| T01 | **Done** (`9db1a0c`): Record D1–D7 in `STATE.md`; note the canvas difference in `docs/design/README.md` | 2 docs | decisions |
+| T02 | **Done**, split for the size rule. T02a (`fbbf03d`): which screen to show, step 1's start values, the checks; plus an API test proving a same-name rename clears the placeholder flag. T02b: the 2.2 body, the renames, the phone-preview data | `setupGuide.ts` (new, keeps these rules apart from the tree helpers), `setupGuide.test.ts`, `api/tests/integration/test_locations.py` | T01 |
 | T03 | Guided setup, step 1 and step 2 (new component `SetupGuide.tsx`) | `SetupGuide.tsx`, its test | T02 |
 | T04 | Create sequence 2.2 → 2.3 → 2.5 with the failure path (R4, R5); Locations page chooses the screen and drops the tabs | `LocationsPage.tsx`, `SetupGuide.tsx`, `api/locations.ts`, tests | T03 |
 | T05 | Working page: banner with things to fix, "Kinds … · Edit kinds", named add buttons, remove "skeleton" wording | `LocationTreeView.tsx`, `LocationsPage.tsx`, tests | T04 |
@@ -129,6 +129,7 @@ New components (`SetupGuide`, `PhonePreview`) are needed because nothing existin
 - **Helpers:** unit tests for every rule in T02 (screen choice, validation, request building, preview).
 - **Screens:** component tests for R1–R11, with the API hooks mocked as `LocationsPage.test.tsx` does today. The 9 existing page tests are kept or rewritten one for one so no behaviour loses its test.
 - **Gates on every PR:** `npm run typecheck`, `lint`, `format:check`, `test`; 80% coverage on changed lines; diff ≤ 300 lines.
+- **Coverage gap:** the web project has no coverage tool installed (`@vitest/coverage-*` is missing), so the 80% rule can't be measured for web code yet. Adding it is a new dependency and needs approval. Until then, every exported rule has its own tests.
 - **Manual end-to-end, on a fresh unit:**
   1. Create unit "Plant 04 — Coatings", with "Plant 04" in the Facility field.
   2. Step 1: Plant 04 › Building C › Paint Shop › Bin 07. Step 2: Plant › Building › Shop (not always) › Bin. Create.
@@ -144,7 +145,7 @@ New components (`SetupGuide`, `PhonePreview`) are needed because nothing existin
 | Risk | Handling |
 |---|---|
 | Create is several calls, not one (D1); a failure can leave placeholders | R5: the working page shows them and they can be renamed there. Tested. |
-| A typed place has the same name as its placeholder (kind "Bin", place "Bin"; or the top place, which the skeleton already names after the unit) | Skipping the rename would leave the placeholder flag set and block publishing. R4 sends the rename for every place; T02 tests this case. Checked in the code: the rename query sets the name and clears the flag on that one row, and the sibling-name index compares other rows, so the same name is accepted. T02 adds a test that proves it. |
+| A typed place has the same name as its placeholder (kind "Bin", place "Bin"; or the top place, which the skeleton already names after the unit) | Skipping the rename would leave the placeholder flag set and block publishing. R4 sends the rename for every place; T02 tests this case. Proven by the API test `test_renaming_a_placeholder_to_its_own_name_clears_the_flag` (T02a). |
 | The canvas and the app differ (Constitution §0) | D5 recorded in `STATE.md` before coding. |
 | Units set up half-way under the old screens | Section 4 table; tested in section 8. |
 | A half-set-up unit has a level that is Off | The skeleton makes no place for an Off level, so the guided steps show boxes only for levels in use and send the Off level back unchanged. T02 tests this case. |

@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import type { Level, LocationNode } from '../../api/locations'
-import { guideProblems, setupScreen, startGuide, type GuidePart } from './setupGuide'
+import {
+  guideLevels,
+  guideProblems,
+  guideRenames,
+  phonePicks,
+  setupScreen,
+  startGuide,
+  type GuidePart,
+} from './setupGuide'
 
 const level = (
   id: string,
@@ -87,5 +95,106 @@ describe('guideProblems', () => {
       'Part 1: the place can have at most 200 characters.',
       'Part 2: the kind can have at most 100 characters.',
     ])
+  })
+})
+
+describe('guideLevels', () => {
+  it('GIVEN parts THEN contract 2.2 gets them in order; only middle kinds can be optional (R4)', () => {
+    const parts = [
+      part('Plant 04', ' Plant ', { optional: true }),
+      part('Paint Shop', 'Shop', { optional: true }),
+      part('Bin 07', 'Bin', { optional: true }),
+    ]
+    expect(guideLevels(parts, [])).toEqual([
+      { level_id: null, level_name: 'Plant', requirement: 'required' },
+      { level_id: null, level_name: 'Shop', requirement: 'optional' },
+      { level_id: null, level_name: 'Bin', requirement: 'required' },
+    ])
+  })
+
+  it('GIVEN an Off level saved half-way THEN it is sent back unchanged, after its neighbour', () => {
+    const saved = [
+      level('fac', 'Plant', 1, 'required'),
+      level('old', 'Zone', 2, 'off'),
+      level('bin', 'Bin', 3, 'required'),
+    ]
+    const parts = [
+      part('Plant 04', 'Plant', { level_id: 'fac' }),
+      part('Bin 07', 'Bin', { level_id: 'bin' }),
+    ]
+    expect(guideLevels(parts, saved).map((l) => [l.level_id, l.level_name, l.requirement])).toEqual(
+      [
+        ['fac', 'Plant', 'required'],
+        ['old', 'Zone', 'off'],
+        ['bin', 'Bin', 'required'],
+      ],
+    )
+  })
+})
+
+describe('guideRenames', () => {
+  it('GIVEN the skeleton THEN every place is renamed, the top one too, even when unchanged (R4)', () => {
+    const levels = [
+      level('fac', 'Plant', 1, 'required'),
+      level('old', 'Zone', 2, 'off'),
+      level('bin', 'Bin', 3, 'required'),
+    ]
+    // The skeleton names the top after the facility and the rest after their level.
+    const nodes = [node('n1', 'Plant 04', 'fac', null), node('n2', 'Bin', 'bin', 'n1')]
+    expect(
+      guideRenames([part('Plant 04', 'Plant'), part(' Bin ', 'Bin')], { levels, nodes }),
+    ).toEqual([
+      { node_id: 'n1', name: 'Plant 04' },
+      { node_id: 'n2', name: 'Bin' },
+    ])
+  })
+
+  it('GIVEN a skeleton that does not match the parts THEN null, so nothing is renamed', () => {
+    const levels = [level('fac', 'Plant', 1, 'required'), level('bin', 'Bin', 2, 'required')]
+    expect(guideRenames([part('A', 'Plant'), part('B', 'Bin')], { levels, nodes: [] })).toBeNull()
+  })
+})
+
+describe('phonePicks', () => {
+  const levels = [
+    level('fac', 'Plant', 1, 'required'),
+    level('bld', 'Building', 2, 'required'),
+    level('shp', 'Shop', 3, 'optional'),
+    level('bin', 'Bin', 4, 'required'),
+  ]
+  const nodes = [
+    node('f', 'Plant 04', 'fac', null),
+    node('c', 'Building C', 'bld', 'f'),
+    node('s', 'Paint Shop', 'shp', 'c'),
+    node('b7', 'Bin 07', 'bin', 's'),
+    node('b9', 'Bin 09', 'bin', 'c'),
+  ]
+
+  it('GIVEN a bin THEN one pick per kind below the top, the path, and scanning is possible (R7)', () => {
+    expect(phonePicks(levels, nodes, 'b7')).toEqual({
+      picks: [
+        { level_name: 'Building', name: 'Building C' },
+        { level_name: 'Shop', name: 'Paint Shop' },
+        { level_name: 'Bin', name: 'Bin 07' },
+      ],
+      path: 'Plant 04 › Building C › Paint Shop › Bin 07',
+      canScan: true,
+    })
+  })
+
+  it('GIVEN a skipped optional kind THEN its pick is empty', () => {
+    expect(phonePicks(levels, nodes, 'b9')?.picks[1]).toEqual({ level_name: 'Shop', name: null })
+  })
+
+  it('GIVEN a building THEN only the picks down to it, and no scanning there', () => {
+    expect(phonePicks(levels, nodes, 'c')).toEqual({
+      picks: [{ level_name: 'Building', name: 'Building C' }],
+      path: 'Plant 04 › Building C',
+      canScan: false,
+    })
+  })
+
+  it('GIVEN an unknown place THEN null', () => {
+    expect(phonePicks(levels, nodes, 'nope')).toBeNull()
   })
 })

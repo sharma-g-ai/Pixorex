@@ -1,5 +1,5 @@
-import type { Level, LocationSetup } from '../../api/locations'
-import { sortLevels } from './locationTree'
+import type { Level, LevelInput, LocationNode, LocationSetup } from '../../api/locations'
+import { canScanAt, sortLevels } from './locationTree'
 
 /**
  * Rules of the guided location setup (docs/proposals/location-setup-flow-plan.md). The
@@ -66,4 +66,74 @@ export function guideProblems(parts: GuidePart[], levels: Level[]): string[] {
     seen.add(kind.toLowerCase())
   }
   return problems
+}
+
+/**
+ * The body of contract 2.2. The top and bottom kinds are always required; an Off level saved
+ * earlier is sent back unchanged, right after the kind it followed.
+ */
+export function guideLevels(parts: GuidePart[], levels: Level[]): LevelInput[] {
+  const result: LevelInput[] = parts.map((p, i) => ({
+    level_id: p.level_id,
+    level_name: clean(p.kind),
+    requirement: i > 0 && i < parts.length - 1 && p.optional ? 'optional' : 'required',
+  }))
+  const saved = sortLevels(levels)
+  saved.forEach((l, i) => {
+    if (l.requirement !== 'off') return
+    const before = saved
+      .slice(0, i)
+      .reverse()
+      .map((b) => result.findIndex((r) => r.level_id === b.level_id))
+      .find((index) => index >= 0)
+    result.splice((before ?? 0) + 1, 0, {
+      level_id: l.level_id,
+      level_name: l.level_name,
+      requirement: 'off',
+    })
+  })
+  return result
+}
+
+/**
+ * After the skeleton (contract 2.3): one rename (2.5) per place, the top one included, since a
+ * rename is what clears the placeholder flag. Null when the skeleton doesn't match the parts.
+ */
+export function guideRenames(
+  parts: GuidePart[],
+  setup: Pick<LocationSetup, 'levels' | 'nodes'>,
+): { node_id: string; name: string }[] | null {
+  const inUse = sortLevels(setup.levels).filter((l) => l.requirement !== 'off')
+  const renames = parts.map((p, i) => {
+    const node = setup.nodes.find((n) => n.level_id === inUse[i]?.level_id)
+    return node ? { node_id: node.node_id, name: clean(p.place) } : null
+  })
+  return inUse.length === parts.length && renames.every((r) => r !== null)
+    ? (renames as { node_id: string; name: string }[])
+    : null
+}
+
+/** What the phone's picker shows for a place: one pick per kind below the top, down to it. */
+export function phonePicks(
+  levels: Level[],
+  nodes: LocationNode[],
+  nodeId: string,
+): { picks: { level_name: string; name: string | null }[]; path: string; canScan: boolean } | null {
+  const byId = new Map(nodes.map((n) => [n.node_id, n]))
+  const chain: LocationNode[] = []
+  for (let n = byId.get(nodeId); n; n = n.parent_id ? byId.get(n.parent_id) : undefined) {
+    chain.unshift(n)
+  }
+  const target = chain.at(-1)
+  if (!target) return null
+  const ordered = sortLevels(levels).filter((l) => l.requirement !== 'off')
+  const depth = ordered.findIndex((l) => l.level_id === target.level_id)
+  return {
+    picks: ordered.slice(1, depth + 1).map((l) => ({
+      level_name: l.level_name,
+      name: chain.find((n) => n.level_id === l.level_id)?.name ?? null,
+    })),
+    path: chain.map((n) => n.name).join(' › '),
+    canScan: canScanAt(levels, target.level_id),
+  }
 }
