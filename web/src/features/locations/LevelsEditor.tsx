@@ -6,8 +6,7 @@ import { Button } from '../../components/Button'
 import { buttonClasses } from '../../components/buttonClasses'
 import { Card } from '../../components/Card'
 import { SelectField } from '../../components/SelectField'
-import { TextField } from '../../components/TextField'
-import { countsByLevel, requirementLabels, sortLevels } from './locationTree'
+import { countsByLevel, kindOptions, requirementLabels, sortLevels } from './locationTree'
 
 interface LevelsEditorProps {
   buId: string
@@ -48,7 +47,7 @@ export function LevelsEditor({ buId, setup, onDone }: LevelsEditorProps) {
   const save = async () => {
     setError(null)
     if (draft.length < 2) return setError('Keep at least 2 levels.')
-    if (draft.some((l) => !l.level_name.trim())) return setError('Every level needs a name.')
+    if (draft.some((l) => !l.level_name.trim())) return setError('Choose a kind for every level.')
     try {
       await setLevels.mutateAsync(
         draft.map((l, i) => ({
@@ -84,9 +83,10 @@ export function LevelsEditor({ buId, setup, onDone }: LevelsEditorProps) {
               className="grid grid-cols-[2rem_minmax(0,2fr)_minmax(0,1.4fr)_minmax(0,1fr)_auto] items-center gap-3 rounded-lg border border-line px-3 py-2"
             >
               <span className="font-mono text-small text-ink-subtle">{i + 1}</span>
-              <TextField
+              <SelectField
                 label={`Level ${i + 1} name`}
                 hideLabel
+                options={kindOptions(level.level_name)}
                 value={level.level_name}
                 disabled={locked}
                 onChange={(e) => update(i, { level_name: e.target.value })}

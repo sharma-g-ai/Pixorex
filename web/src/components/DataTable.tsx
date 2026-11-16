@@ -16,10 +16,22 @@ interface DataTableProps<Row> {
   rowKey: (row: Row) => string
   /** Shown instead of rows when there are none. */
   empty: ReactNode
+  /**
+   * Tints a row that needs attention. A colour alone isn't enough (WCAG 1.4.1): the row must
+   * also say what is wrong in its cells.
+   */
+  rowTone?: (row: Row) => 'warning' | null
 }
 
 /** Bordered table with a grey header row (canvas list style). */
-export function DataTable<Row>({ label, columns, rows, rowKey, empty }: DataTableProps<Row>) {
+export function DataTable<Row>({
+  label,
+  columns,
+  rows,
+  rowKey,
+  empty,
+  rowTone,
+}: DataTableProps<Row>) {
   const template = columns.map((c) => `minmax(0,${c.width ?? 1}fr)`).join(' ')
   const align = (c: Column<Row>) => (c.align === 'right' ? 'text-right' : '')
 
@@ -43,7 +55,9 @@ export function DataTable<Row>({ label, columns, rows, rowKey, empty }: DataTabl
           <div
             key={rowKey(row)}
             role="row"
-            className="grid items-center gap-3.5 border-b border-line-soft px-4.5 py-3 text-body last:border-b-0"
+            className={`grid items-center gap-3.5 border-b border-line-soft px-4.5 py-3 text-body last:border-b-0 ${
+              rowTone?.(row) === 'warning' ? 'bg-warning-soft' : ''
+            }`}
             style={{ gridTemplateColumns: template }}
           >
             {columns.map((c, i) => (

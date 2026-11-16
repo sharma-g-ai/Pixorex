@@ -6,6 +6,7 @@ import {
   countsByLevel,
   descendantCount,
   filterRows,
+  kindOptions,
   moveTargets,
   rangeNames,
   rowStatus,
@@ -75,6 +76,22 @@ describe('canScanAt', () => {
       true,
       true,
     ])
+  })
+})
+
+describe('kindOptions', () => {
+  const values = (current: string) => kindOptions(current).map((o) => o.value)
+
+  it('GIVEN a standard kind or none THEN only the standard menu, after an empty choice', () => {
+    expect(values('')).toEqual(values('Bin'))
+    expect(values('')[0]).toBe('')
+    expect(values('')).toEqual(['', 'Facility', 'Building', 'Shop', 'Bin', 'Sub-bin'])
+  })
+
+  it('GIVEN a name saved earlier that is not on the menu as written THEN it is added', () => {
+    expect(values('Zone').at(-1)).toBe('Zone')
+    // "bin" is not "Bin": without its own option the menu would show another value.
+    expect(values('bin').at(-1)).toBe('bin')
   })
 })
 

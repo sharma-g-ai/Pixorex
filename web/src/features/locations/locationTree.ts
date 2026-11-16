@@ -27,6 +27,23 @@ export const presets: Record<2 | 3 | 4 | 5, LevelInput[]> = {
   ],
 }
 
+/**
+ * The standard kinds an admin picks from, biggest to smallest, instead of typing a name: the
+ * five levels of PRD FR-2.1 (decision 2026-11-16 in STATE.md: the same names in every unit).
+ * The API still stores the name as text, so a unit saved earlier under another name keeps it.
+ */
+export const standardKinds = ['Facility', 'Building', 'Shop', 'Bin', 'Sub-bin'] as const
+
+/**
+ * Menu options for one kind: the standard list, plus the current name if it isn't on it
+ * exactly as saved ("bin" is not "Bin"), so the menu always shows the value it holds.
+ */
+export function kindOptions(current: string): { value: string; label: string }[] {
+  const names: string[] = [...standardKinds]
+  if (current && !names.includes(current)) names.push(current)
+  return [{ value: '', label: 'Choose a kind' }, ...names.map((n) => ({ value: n, label: n }))]
+}
+
 export const requirementLabels: Record<Requirement, string> = {
   required: 'Required',
   optional: 'Optional',
@@ -109,8 +126,9 @@ export function treeRows(levels: Level[], nodes: LocationNode[]): TreeRow[] {
 }
 
 /**
- * The Status column of the tree: every row says where it stands. A named location with nothing
- * inside that stops above a required level is what the publish check calls an empty branch.
+ * Where a row of the tree stands; the tree tints the warning ones and says why. A named location
+ * with nothing inside that stops above a required level is what the publish check calls an empty
+ * branch.
  */
 export function rowStatus(levels: Level[], row: TreeRow): BadgeStatus {
   if (row.node.is_placeholder) return { label: 'Placeholder', tone: 'warning' }

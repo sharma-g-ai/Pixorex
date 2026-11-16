@@ -75,13 +75,7 @@ describe('guideProblems', () => {
     ])
     expect(guideProblems([part('Plant 04', 'Plant'), part(' ', '')], [])).toEqual([
       'Part 2: type the place.',
-      'Part 2: name its kind.',
-    ])
-  })
-
-  it('GIVEN scope places THEN only the places are checked (step 1)', () => {
-    expect(guideProblems([part('Plant 04', ''), part('', '')], [], 'places')).toEqual([
-      'Part 2: type the place.',
+      'Part 2: choose its kind.',
     ])
   })
 

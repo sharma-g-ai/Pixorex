@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react'
 import type { LocationNode, LocationSetup } from '../../api/locations'
 import { Alert } from '../../components/Alert'
-import { Badge } from '../../components/Badge'
 import { buttonClasses } from '../../components/buttonClasses'
 import { Card } from '../../components/Card'
 import { DataTable, type Column } from '../../components/DataTable'
@@ -45,22 +44,29 @@ export function LocationTreeView({
   const columns: Column<TreeRow>[] = [
     {
       header: 'Location',
-      width: 2.2,
-      cell: (r) => (
-        <div className="truncate" style={{ paddingLeft: `calc(var(--spacing) * ${r.depth * 5})` }}>
-          <button
-            type="button"
-            className={`truncate text-left font-semibold hover:underline ${
-              r.node.node_id === previewId ? 'text-brand-navy' : ''
-            }`}
-            aria-label={`Preview ${r.node.name} on the phone`}
-            aria-pressed={r.node.node_id === previewId}
-            onClick={() => onPreview(r.node.node_id)}
-          >
-            {r.node.name}
-          </button>
-        </div>
-      ),
+      width: 3,
+      cell: (r) => {
+        // No Status column: a row that needs fixing is tinted and says why under its name.
+        const status = rowStatus(setup.levels, r)
+        return (
+          <div style={{ paddingLeft: `calc(var(--spacing) * ${r.depth * 5})` }}>
+            <button
+              type="button"
+              className={`block max-w-full truncate text-left font-semibold hover:underline ${
+                r.node.node_id === previewId ? 'text-brand-navy' : ''
+              }`}
+              aria-label={`Preview ${r.node.name} on the phone`}
+              aria-pressed={r.node.node_id === previewId}
+              onClick={() => onPreview(r.node.node_id)}
+            >
+              {r.node.name}
+            </button>
+            {status.tone === 'warning' && (
+              <div className="text-xs font-semibold text-warning">⚠ {status.label}</div>
+            )}
+          </div>
+        )
+      },
     },
     { header: 'Level', width: 1, cell: (r) => r.levelName },
     {
@@ -70,16 +76,9 @@ export function LocationTreeView({
         r.children > 0 ? (
           `${r.children} inside`
         ) : (
-          <span className="text-ink-subtle">Nothing inside yet</span>
+          // ink-muted, not ink-subtle: it must stay readable on a tinted row.
+          <span className="text-ink-muted">Nothing inside yet</span>
         ),
-    },
-    {
-      header: 'Status',
-      width: 1.5,
-      cell: (r) => {
-        const status = rowStatus(setup.levels, r)
-        return <Badge tone={status.tone}>{status.label}</Badge>
-      },
     },
     ...(locked
       ? []
@@ -126,6 +125,7 @@ export function LocationTreeView({
             columns={columns}
             rows={filterRows(rows, query)}
             rowKey={(r) => r.node.node_id}
+            rowTone={(r) => (rowStatus(setup.levels, r).tone === 'warning' ? 'warning' : null)}
             empty="No location matches your search."
           />
         </Card>

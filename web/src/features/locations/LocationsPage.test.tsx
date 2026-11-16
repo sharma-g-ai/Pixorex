@@ -123,9 +123,8 @@ describe('Guided setup and the working page (plan R4–R6)', () => {
     renderPage()
     expect(screen.queryByRole('tab')).not.toBeInTheDocument()
     type('Place 2', 'Bin 07')
-    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
-    type('Kind of Plant 04', 'Facility')
-    type('Kind of Bin 07', 'Bin')
+    type('Kind 1', 'Facility')
+    type('Kind 2', 'Bin')
     fireEvent.click(screen.getByRole('button', { name: 'Create and add more places' }))
 
     await waitFor(() => expect(calls.updateNode).toHaveBeenCalledTimes(2))
@@ -146,14 +145,13 @@ describe('Guided setup and the working page (plan R4–R6)', () => {
     calls.updateNode.mockRejectedValue(new Error('offline'))
     renderPage()
     type('Place 2', 'Bin 07')
-    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
-    type('Kind of Plant 04', 'Facility')
-    type('Kind of Bin 07', 'Bin')
+    type('Kind 1', 'Facility')
+    type('Kind 2', 'Bin')
     fireEvent.click(screen.getByRole('button', { name: 'Create and add more places' }))
     expect(await screen.findByText(/Some places kept a temporary name/)).toBeInTheDocument()
   })
 
-  it('GIVEN the unit list arrives after the page THEN step 1 still starts from the site name', () => {
+  it('GIVEN the unit list arrives after the page THEN the guide still starts from the site name', () => {
     setup = { version_id: 'v', status: 'not_published', levels: [], nodes: [] }
     unitList = []
     const page = () => (
@@ -179,9 +177,8 @@ describe('Guided setup and the working page (plan R4–R6)', () => {
     )
     const view = render(page())
     type('Place 2', 'Bin 07')
-    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
-    type('Kind of Plant 04', 'Facility')
-    type('Kind of Bin 07', 'Bin')
+    type('Kind 1', 'Facility')
+    type('Kind 2', 'Bin')
     fireEvent.click(screen.getByRole('button', { name: 'Create and add more places' }))
     await screen.findByText(/Some places kept a temporary name/)
 
@@ -198,8 +195,7 @@ describe('Guided setup and the working page (plan R4–R6)', () => {
     setup = { ...withTree, nodes: [] }
     renderPage()
     type('Place 2', 'Bin 07')
-    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
-    expect(screen.getByLabelText('Kind of Bin 07')).toHaveValue('Bin')
+    expect(screen.getByLabelText('Kind 2')).toHaveValue('Bin')
   })
 
   it('GIVEN places THEN the working page with the tree; Edit kinds opens the level editor (R6)', () => {
@@ -207,6 +203,16 @@ describe('Guided setup and the working page (plan R4–R6)', () => {
     expect(screen.getByRole('table', { name: 'Location tree' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Edit kinds' }))
     expect(screen.getByRole('button', { name: 'Save levels' })).toBeInTheDocument()
+  })
+
+  it('GIVEN Edit kinds THEN each level is picked from the standard menu', () => {
+    renderPage()
+    fireEvent.click(screen.getByRole('button', { name: 'Edit kinds' }))
+    const name = screen.getByLabelText('Level 2 name')
+    expect(name.tagName).toBe('SELECT')
+    expect(name).toHaveValue('Bin')
+    fireEvent.click(screen.getByRole('button', { name: '+ Add level' }))
+    expect(screen.getByLabelText('Level 3 name')).toHaveValue('')
   })
 
   it('GIVEN the working page THEN the kinds show above the list, top to bottom', () => {
@@ -233,6 +239,19 @@ describe('Guided setup and the working page (plan R4–R6)', () => {
     cleanup()
     renderPage()
     expect(screen.getByText(/1 place has nothing inside yet/)).toBeInTheDocument()
+  })
+
+  it('GIVEN a place to fix THEN its row is tinted and says why; there is no Status column', () => {
+    setup = { ...withTree, nodes: [{ ...topNode, child_count: 0, is_placeholder: true }] }
+    renderPage()
+    const table = within(screen.getByRole('table', { name: 'Location tree' }))
+    expect(table.queryByRole('columnheader', { name: 'Status' })).not.toBeInTheDocument()
+    expect(table.getByText('⚠ Placeholder').closest('[role="row"]')).toHaveClass('bg-warning-soft')
+    setup = withTree
+    cleanup()
+    renderPage()
+    const rows = screen.getAllByRole('row').slice(1)
+    expect(rows.every((r) => !r.classList.contains('bg-warning-soft'))).toBe(true)
   })
 
   it('GIVEN a published unit THEN the kinds can be viewed but not changed', () => {
