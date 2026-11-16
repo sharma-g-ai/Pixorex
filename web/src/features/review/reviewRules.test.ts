@@ -2,8 +2,9 @@ import { describe, expect, it } from 'vitest'
 import type { Batch, ReviewField } from '../../api/review'
 import {
   batchStatus,
+  decidedByText,
   decisionOutcome,
-  editsSummary,
+  decisionOutcomeStatus,
   flagText,
   technicianDecisionStatus,
   oldestWaitingFirst,
@@ -89,13 +90,6 @@ describe('review rules', () => {
     expect(waitingStatus('2026-09-26T10:00:00Z', now)).toEqual({ label: '9 days', tone: 'danger' })
   })
 
-  it('summarises technician edits', () => {
-    expect(editsSummary({ corrected_count: 2, unreadable_count: 1 })).toBe(
-      '2 corrected · 1 unreadable',
-    )
-    expect(editsSummary({ corrected_count: 0, unreadable_count: 0 })).toBe('—')
-  })
-
   it('explains flags in words', () => {
     expect(flagText(field({ flag_reasons: ['low_confidence'] }))).toBe('Low confidence · 42%')
     expect(flagText(field({ flag_reasons: ['critical_not_found'] }))).toBe(
@@ -140,7 +134,28 @@ describe('review rules', () => {
         reject_category: null,
         overridden: true,
       }).label,
-    ).toBe('Overridden by you · now rejected')
+    ).toBe('Changed → Rejected')
+  })
+
+  it('GIVEN a decision THEN the badge says where it ended and the line says who, why and "changed by you"', () => {
+    const base = {
+      decision_id: 'd',
+      scan_id: 's',
+      record_no: 'R',
+      decided_by_name: 'Amrutha',
+      decided_at: '',
+    }
+    const rejected = { ...base, decision: 'rejected', reject_category: 'data_correction_needed' }
+    expect(decisionOutcomeStatus({ ...rejected, overridden: false })).toEqual({
+      label: 'Rejected', // the reason is in the line under it, not repeated here
+      tone: 'danger',
+    })
+    expect(decidedByText({ ...rejected, overridden: false })).toBe(
+      'Rejected by Amrutha · Data correction needed',
+    )
+    const approved = { ...base, decision: 'approved', reject_category: null, overridden: true }
+    expect(decisionOutcomeStatus(approved)).toEqual({ label: 'Changed → Rejected', tone: 'danger' })
+    expect(decidedByText(approved)).toBe('Approved by Amrutha · changed by you')
   })
 
   it('GIVEN an overridden decision THEN its outcome is the other way', () => {

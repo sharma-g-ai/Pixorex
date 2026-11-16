@@ -280,10 +280,10 @@ class _MyScansScreenState extends State<MyScansScreen> {
     final now = widget.clock();
     // "All": what needs the technician first, as on design 47.
     final grouped = _tabs[_tab].$2 == null;
-    // Design 73: a retake and the scan it closed sit together at the top for a while.
-    final justNow = grouped ? _items.where((s) => isRetakePair(s) && now.difference(s.updatedAt.toLocal()).inMinutes < 15).toList() : const <MyScan>[];
-    final needs = grouped ? _items.where((s) => needsAction(s) && !justNow.contains(s)).toList() : const <MyScan>[];
-    final rest = grouped ? _items.where((s) => !needsAction(s) && !justNow.contains(s)).toList() : _items;
+    // Everything that doesn't need the technician is "In progress & done", Closed scans (the
+    // original of a retake) and a retake still being read included: no separate group.
+    final needs = grouped ? _items.where(needsAction).toList() : const <MyScan>[];
+    final rest = grouped ? _items.where((s) => !needsAction(s)).toList() : _items;
     return RefreshIndicator(
       onRefresh: _load,
       child: NotificationListener<ScrollNotification>(
@@ -292,9 +292,8 @@ class _MyScansScreenState extends State<MyScansScreen> {
           return false;
         },
         child: ListView(padding: const EdgeInsets.fromLTRB(16, 4, 16, 32), children: [
-          if (justNow.isNotEmpty) ...[const _Section('Just now'), for (final s in justNow) _tile(s, now)],
           if (needs.isNotEmpty) ...[const _Section('Needs your action'), for (final s in needs) _tile(s, now)],
-          if (grouped && (needs.isNotEmpty || justNow.isNotEmpty) && rest.isNotEmpty) const _Section('In progress & done'),
+          if (grouped && rest.isNotEmpty) const _Section('In progress & done'),
           if (!grouped) const SizedBox(height: 8),
           for (final s in rest) _tile(s, now),
           if (_more) const Padding(padding: EdgeInsets.all(16), child: Center(child: CircularProgressIndicator())),

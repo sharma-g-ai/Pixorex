@@ -207,7 +207,10 @@ describe('Scan review', () => {
     expect(fields.getByText('Corrected')).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Approve' }))
-    expect(await screen.findByText('Approved. The technician is told.')).toBeInTheDocument()
+    await waitFor(() => expect(calls.decide).toHaveBeenCalled())
+    // No confirmation banner: the History below shows the decision.
+    expect(screen.queryByRole('status')).toBeNull()
+    expect(screen.queryByText(/is told/)).toBeNull()
     expect(calls.decide).toHaveBeenCalledWith({
       body: { decision: 'approved' },
       idempotencyKey: expect.any(String),
@@ -360,9 +363,7 @@ describe('Override a technician rejection (contract 3.7)', () => {
     fireEvent.click(dialog().getByRole('button', { name: 'Override and approve' }))
     await waitFor(() => expect(calls.override).toHaveBeenCalled())
     expect(calls.override.mock.calls[0]?.[0].body).toEqual({ decision: 'approved' })
-    expect(
-      await screen.findByText('Decision changed to approved. Amrutha is told.'),
-    ).toBeInTheDocument()
+    expect(screen.queryByText(/Decision changed to approved/)).toBeNull() // no banner either
   })
 
   it('GIVEN the API refuses (required fields empty) THEN its message shows', async () => {
@@ -496,8 +497,9 @@ describe('Resubmitted scan', () => {
       ],
     }
     inShell(<ScanReviewView scanId="s1" back={{ to: '/', label: 'Back' }} />)
-    expect(screen.getByText(/Resubmitted · revision 2./)).toBeInTheDocument()
-    expect(screen.getByText(/rejected by Bo Plant04/)).toBeInTheDocument()
+    // No banner: the History timeline already tells the rejection and the fix.
+    expect(screen.queryByText(/Resubmitted · revision/)).toBeNull()
+    expect(screen.queryByText(/fixed it and sent it back/)).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Approve' }))
     await waitFor(() => expect(calls.decide).toHaveBeenCalled())
   })
@@ -514,7 +516,11 @@ describe('Review queue', () => {
     inShell(<ReviewQueuePage />)
     expect(screen.getByRole('tab', { name: /Over 1 day/ })).toHaveTextContent('1')
     const table = within(screen.getByRole('table', { name: 'Scans waiting for review' }))
-    expect(table.getByText('2 corrected · 1 unreadable')).toBeInTheDocument()
+    // Flags and edits are on the scan page, not in the list.
+    expect(table.queryByRole('columnheader', { name: 'Flags' })).toBeNull()
+    expect(table.queryByRole('columnheader', { name: 'Technician edits' })).toBeNull()
+    expect(table.queryByText('2 corrected · 1 unreadable')).toBeNull()
+    expect(table.getByRole('columnheader', { name: 'Location' })).toBeInTheDocument()
     expect(table.getByText('2 days')).toBeInTheDocument()
     expect(table.getByText('A. Patel · B-15')).toBeInTheDocument()
     expect(table.queryByRole('checkbox', { name: 'Select REC-90152' })).not.toBeInTheDocument()
@@ -578,7 +584,7 @@ describe('Review queue', () => {
     inShell(<ReviewQueuePage />)
     fireEvent.click(screen.getByRole('tab', { name: /^Delegated/ }))
     const table = within(screen.getByRole('table', { name: 'Delegated scans' }))
-    expect(table.getByText('Overridden by you · now rejected')).toBeInTheDocument()
+    expect(table.getByText('Changed → Rejected')).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('tab', { name: 'Approved' }))
     expect(table.queryByText('100 000 013 1')).toBeNull()

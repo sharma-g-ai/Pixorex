@@ -45,7 +45,7 @@ export function LocationTreeView({
   const columns: Column<TreeRow>[] = [
     {
       header: 'Location',
-      width: 2.4,
+      width: 2.2,
       cell: (r) => (
         <div className="truncate" style={{ paddingLeft: `calc(var(--spacing) * ${r.depth * 5})` }}>
           <button
@@ -75,10 +75,14 @@ export function LocationTreeView({
     },
     {
       header: 'Status',
-      width: 1,
+      width: 1.5,
       cell: (r) => {
         const status = rowStatus(setup.levels, r)
-        return <Badge tone={status.tone}>{status.label}</Badge>
+        return (
+          <Badge tone={status.tone} wrap>
+            {status.label}
+          </Badge>
+        )
       },
     },
     ...(locked
@@ -152,7 +156,7 @@ function RowActions({ row, onAction }: { row: TreeRow; onAction: (a: NodeAction)
   const node: LocationNode = row.node
   const next = row.childLevels[0]
   return (
-    <div className="flex justify-end gap-3">
+    <div className="flex flex-wrap justify-end gap-x-3 gap-y-1">
       {next && (
         <button
           type="button"

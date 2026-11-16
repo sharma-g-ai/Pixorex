@@ -18,10 +18,9 @@ import { Card } from '../../components/Card'
 import { DataTable, type Column } from '../../components/DataTable'
 import { Dialog } from '../../components/Dialog'
 import { PageHeader } from '../../components/layout/PageHeader'
-import { dateTime } from '../../lib/time'
 import { DecisionReasonDialog } from './DecisionReasonDialog'
 import { photoList } from './photos'
-import { extractedText, flagText, rejectCategoryLabels, verificationStatus } from './reviewRules'
+import { extractedText, flagText, verificationStatus } from './reviewRules'
 import { formatScanId } from '../../lib/scanId'
 
 interface ScanReviewViewProps {
@@ -36,7 +35,6 @@ interface ScanReviewViewProps {
  */
 export function ScanReviewView({ scanId, back }: ScanReviewViewProps) {
   const review = useScanReview(scanId)
-  const [notice, setNotice] = useState<string | null>(null)
 
   if (review.isPending) return <Card className="m-8">Loading the scan…</Card>
   if (review.isError)
@@ -50,10 +48,6 @@ export function ScanReviewView({ scanId, back }: ScanReviewViewProps) {
   const current = scan.decisions.find(
     (d) => d.is_current && d.revision_id === scan.current_revision.revision_id,
   )
-  const earlier = scan.decisions.find(
-    (d) => d.is_current && d.revision_id !== scan.current_revision.revision_id,
-  )
-  const resubmitted = scan.current_revision.origin === 'rejection_fix'
   const waiting = scan.current_revision.review_status === 'waiting_for_approval' && !current
 
   return (
@@ -75,29 +69,15 @@ export function ScanReviewView({ scanId, back }: ScanReviewViewProps) {
               <Meta term="Captured by" value={scan.captured_by_name} />
               <Meta term="Type" value={scan.equipment_type_name} />
               <Meta term="Location" value={scan.location_path} />
-              <Meta
-                term="Revision"
-                value={`${scan.current_revision.revision_no}${scan.current_revision.origin === 'rejection_fix' ? ' · fixed after a rejection' : ''}`}
-              />
+              {/* Just the number: the earlier rejection and the fix are in the History below. */}
+              <Meta term="Revision" value={`${scan.current_revision.revision_no}`} />
             </dl>
           </Card>
         </aside>
 
         <section className="flex min-w-0 grow flex-col gap-3.5" aria-label="Review">
-          {notice && (
-            <Alert tone="info" role="status">
-              {notice}
-            </Alert>
-          )}
-          {resubmitted && waiting && earlier && (
-            <Alert tone="warning">
-              <b>Resubmitted · revision {scan.current_revision.revision_no}.</b> Revision{' '}
-              {scan.current_revision.revision_no - 1} was rejected by {earlier.decided_by_name} ·{' '}
-              {dateTime(earlier.decided_at)}
-              {earlier.note ? ` — “${earlier.note}”` : ''}. {scan.captured_by_name} fixed it and
-              sent it back.
-            </Alert>
-          )}
+          {/* No "Resubmitted · revision N" banner: History below already says who rejected the
+              earlier revision, when and why, and that it was fixed and sent back. */}
           {scan.current_revision.empty_required_fields.length > 0 && (
             <Alert tone="danger">
               Sent with required fields empty:{' '}
@@ -105,18 +85,13 @@ export function ScanReviewView({ scanId, back }: ScanReviewViewProps) {
             </Alert>
           )}
           <FieldsTable fields={scan.fields} />
-          {/* Who decided, when and why is in the History timeline below (with "Now:" for the
-              status), so it isn't repeated here: only what can still be done is shown. */}
+          {/* Who decided, when and why is in the History timeline below, which updates as soon
+              as a decision is saved: no confirmation banner, and only what can still be done
+              is shown here. */}
           {waiting ? (
-            <DecideActions scanId={scanId} capturedBy={scan.captured_by_name} onDone={setNotice} />
+            <DecideActions scanId={scanId} capturedBy={scan.captured_by_name} />
           ) : (
-            current && (
-              <CurrentDecision
-                decision={current}
-                capturedBy={scan.captured_by_name}
-                onDone={setNotice}
-              />
-            )
+            current && <CurrentDecision decision={current} capturedBy={scan.captured_by_name} />
           )}
           <ScanHistoryCard scanId={scanId} />
         </section>
@@ -278,15 +253,7 @@ function FieldsTable({ fields }: { fields: ReviewField[] }) {
   )
 }
 
-function DecideActions({
-  scanId,
-  capturedBy,
-  onDone,
-}: {
-  scanId: string
-  capturedBy: string
-  onDone: (t: string) => void
-}) {
+function DecideActions({ scanId, capturedBy }: { scanId: string; capturedBy: string }) {
   const decide = useDecide(scanId)
   const [idempotencyKey] = useState(() => crypto.randomUUID())
   const [rejecting, setRejecting] = useState(false)
@@ -295,7 +262,6 @@ function DecideActions({
   const approve = () =>
     decide
       .mutateAsync({ body: { decision: 'approved' }, idempotencyKey })
-      .then(() => onDone('Approved. The technician is told.'))
       .catch((err: unknown) => setError(conflictMessage(err)))
 
   return (
@@ -322,7 +288,6 @@ function DecideActions({
               idempotencyKey,
             })
             setRejecting(false)
-            onDone(`Rejected · ${rejectCategoryLabels[category]}. ${capturedBy} is told.`)
           }}
         />
       )}
@@ -330,15 +295,7 @@ function DecideActions({
   )
 }
 
-function CurrentDecision({
-  decision,
-  capturedBy,
-  onDone,
-}: {
-  decision: Decision
-  capturedBy: string
-  onDone: (t: string) => void
-}) {
+function CurrentDecision({ decision, capturedBy }: { decision: Decision; capturedBy: string }) {
   const [overriding, setOverriding] = useState(false)
   const [approving, setApproving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -354,7 +311,6 @@ function CurrentDecision({
     setError(null)
     try {
       await override.mutateAsync({ body: { decision: 'approved' }, idempotencyKey: approveKey })
-      onDone(`Decision changed to approved. ${decision.decided_by_name} is told.`)
     } catch (err: unknown) {
       setError(conflictMessage(err)) // e.g. required fields sent empty: the API says so
     } finally {
@@ -414,7 +370,6 @@ function CurrentDecision({
               idempotencyKey,
             })
             setOverriding(false)
-            onDone(`Decision changed to rejected. ${decision.decided_by_name} is told.`)
           }}
         />
       )}

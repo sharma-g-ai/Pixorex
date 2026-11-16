@@ -76,14 +76,6 @@ export function extractedText(
   return field.technician_value ?? field.ai_value
 }
 
-/** "2 corrected · 1 unreadable", or "—" when the technician changed nothing. */
-export function editsSummary(item: { corrected_count: number; unreadable_count: number }): string {
-  const parts = []
-  if (item.corrected_count) parts.push(`${item.corrected_count} corrected`)
-  if (item.unreadable_count) parts.push(`${item.unreadable_count} unreadable`)
-  return parts.join(' · ') || '—'
-}
-
 /** Why the AI value was flagged, in words (data model: ai_field_value.flag_reasons). */
 export function flagText(field: Pick<ReviewField, 'flag_reasons' | 'confidence'>): string {
   const texts = field.flag_reasons.map((reason) => {
@@ -125,15 +117,23 @@ export function verificationStatus(field: ReviewField): BadgeStatus {
   }
 }
 
-/** Badge for a decision made by a technician (canvas BU 19). */
-export function technicianDecisionStatus(d: TechnicianDecision): BadgeStatus {
-  // An override always flips the technician's decision, so the scan ended the other way.
-  if (d.overridden) {
-    return {
-      label: `Overridden by you · now ${decisionOutcome(d)}`,
-      tone: decisionOutcome(d) === 'approved' ? 'success' : 'danger',
-    }
+/**
+ * Only where the scan ended: "Approved", "Rejected", or "Changed → Rejected" when the BU Admin
+ * changed the technician's decision (same wording as the phone). Who, why and when go in the
+ * line under it (decidedByText), so nothing is said twice.
+ */
+export function decisionOutcomeStatus(d: TechnicianDecision): BadgeStatus {
+  const approved = decisionOutcome(d) === 'approved'
+  const outcome = approved ? 'Approved' : 'Rejected'
+  return {
+    label: d.overridden ? `Changed → ${outcome}` : outcome,
+    tone: approved ? 'success' : 'danger',
   }
+}
+
+/** Badge for a decision made by a technician in a table that has no line under it (canvas BU 19). */
+export function technicianDecisionStatus(d: TechnicianDecision): BadgeStatus {
+  if (d.overridden) return decisionOutcomeStatus(d)
   if (d.decision === 'approved') return { label: 'Approved', tone: 'success' }
   const category = d.reject_category
     ? rejectCategoryLabels[d.reject_category as RejectCategory]
@@ -154,13 +154,16 @@ export function batchStatus(batch: Batch, now = new Date()): BadgeStatus {
   return { label: 'In progress', tone: 'neutral' }
 }
 
-/** "Approved by T. Nguyen" or "Rejected by A. Patel · Image unclear". */
+/** What the technician decided: "Approved by T. Nguyen", "Rejected by A. Patel · Image unclear", plus "· changed by you". */
 export function decidedByText(d: TechnicianDecision): string {
-  if (d.decision === 'approved') return `Approved by ${d.decided_by_name}`
   const category = d.reject_category
     ? rejectCategoryLabels[d.reject_category as RejectCategory]
     : null
-  return category
-    ? `Rejected by ${d.decided_by_name} · ${category}`
-    : `Rejected by ${d.decided_by_name}`
+  const said =
+    d.decision === 'approved'
+      ? `Approved by ${d.decided_by_name}`
+      : category
+        ? `Rejected by ${d.decided_by_name} · ${category}`
+        : `Rejected by ${d.decided_by_name}`
+  return d.overridden ? `${said} · changed by you` : said
 }

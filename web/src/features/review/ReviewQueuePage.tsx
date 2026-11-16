@@ -16,7 +16,7 @@ import { DOWNLOADED_NOTICE } from '../exports/exportText'
 import { DelegateBatchDialog } from './DelegateBatchDialog'
 import { MAX_BATCH, SelectionBar } from './SelectionBar'
 import { dateTime } from '../../lib/time'
-import { editsSummary, oldestWaitingFirst, timeOf, waitingStatus } from './reviewRules'
+import { oldestWaitingFirst, timeOf, waitingStatus } from './reviewRules'
 import { DelegatedTable } from './DelegatedTable'
 import { formatScanId } from '../../lib/scanId'
 
@@ -78,16 +78,15 @@ function QueueOfUnit({ buId, unitName }: { buId: string; unitName: string }) {
     },
     { header: 'Captured by', width: 1, cell: (item) => item.captured_by_name },
     {
+      // Flags and technician edits are not columns here: the scan page shows them in full.
       header: 'Location',
-      width: 1.4,
-      cell: (item) => <span className="truncate">{item.location_path}</span>,
+      width: 2,
+      cell: (item) => (
+        <span className="block truncate" title={item.location_path}>
+          {item.location_path}
+        </span>
+      ),
     },
-    {
-      header: 'Flags',
-      width: 0.8,
-      cell: (item) => (item.flag_count ? `${item.flag_count} flagged` : '—'),
-    },
-    { header: 'Technician edits', width: 1.4, cell: (item) => editsSummary(item) },
     {
       header: 'Waiting since',
       width: 1.2,

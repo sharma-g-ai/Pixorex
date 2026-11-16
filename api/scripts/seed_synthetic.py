@@ -54,6 +54,15 @@ USERS: list[dict[str, Any]] = [
         "roles": [("enterprise_admin", None, False)],
     },
     {
+        # A second Enterprise Admin, already active, for trying the EA flows on their own.
+        "id": _kc(20),
+        "tenant": TENANT_A,
+        "name": "Eli Admin",
+        "email": "ea2@demo.local",
+        "status": "active",
+        "roles": [("enterprise_admin", None, False)],
+    },
+    {
         "id": _kc(2),
         "tenant": TENANT_A,
         "name": "Bo Plant04",

@@ -135,7 +135,8 @@ void main() {
     expect(find.text('Rejected'), findsOneWidget);
     expect(find.text('REC-1 · Bin 07'), findsOneWidget);
     await openNotice(t);
-    expect(find.text('Record rejected'), findsOneWidget);
+    expect(find.text('REC-71'), findsOneWidget); // the app bar says which scan; the heading says it was rejected
+    expect(find.text('Record rejected'), findsNothing);
     expect(find.text('Control Valve V-071 was rejected'), findsOneWidget);
     expect(find.textContaining(RegExp(r'^Bin 05 · reviewed by Bo Plant04 · \d{1,2} \w{3} \d{2}:\d{2}:\d{2}$')), findsOneWidget);
     expect(find.text('Category: Data correction needed'), findsOneWidget);
@@ -143,7 +144,17 @@ void main() {
     expect(find.text('"Serial number doesn\'t match tag pattern"'), findsOneWidget);
     expect(find.text('Correct the fields'), findsOneWidget);
     expect(find.text('Retake required'), findsOneWidget);
-    expect(find.textContaining('Only you can revise this scan'), findsOneWidget);
+    expect(find.textContaining('Only you can revise this scan'), findsNothing); // no footer paragraph
+    expect(find.textContaining('existing stored image'), findsNothing);
+    expect(find.text('Fix the values from the same photo'), findsOneWidget);
+    expect(find.text('Take a new photo; this scan is closed'), findsOneWidget);
+  });
+
+  testWidgets('GIVEN a rejected scan with a photo WHEN opened THEN the photo shows, with Tap to zoom', (t) async {
+    final api = RejectApi()..scan = (rejected()..['photos'] = [{'photo_no': 1, 'view_url': 'http://127.0.0.1:1/p1.jpg'}]);
+    await pumpMyScans(t, api: api);
+    await openNotice(t);
+    expect(find.text('Tap to zoom'), findsOneWidget);
   });
 
   testWidgets('GIVEN no note WHEN the notice opens THEN only the category shows', (t) async {
@@ -217,7 +228,12 @@ void main() {
           ..['reviewer_name'] = 'S. Alvi',
       ];
     await pumpMyScans(t, api: api);
-    expect(find.text('JUST NOW'), findsOneWidget);
+    // No separate "Just now" group: the closed original and the retake sit in "In progress & done".
+    expect(find.text('JUST NOW'), findsNothing);
+    expect(find.text('IN PROGRESS & DONE'), findsOneWidget);
+    final done = t.getTopLeft(find.text('IN PROGRESS & DONE')).dy;
+    expect(t.getTopLeft(find.text('Equipment Label · original')).dy, greaterThan(done));
+    expect(t.getTopLeft(find.text('Extracting')).dy, greaterThan(done));
     expect(find.text('Equipment Label · original'), findsOneWidget);
     expect(find.text('Retaken as a new scan'), findsNothing); // the Closed pill says it
     expect(find.text('Closed'), findsOneWidget);

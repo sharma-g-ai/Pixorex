@@ -5,6 +5,7 @@ import type { Invite } from '../../api/invites'
 import type { Me } from '../../api/me'
 import type { Batch, QueueCounts } from '../../api/review'
 import { DashboardContext } from '../../app/DashboardContext'
+import { dateTime } from '../../lib/time'
 import { BuHomePage } from './BuHomePage'
 import { buNeedsYou, calmSummary, greeting } from './homeRules'
 
@@ -152,13 +153,47 @@ describe('BU Home (canvas BU 03)', () => {
       'href',
       '/delegations?tab=decided',
     )
-    expect(screen.getAllByRole('link', { name: 'Check' })).toHaveLength(3)
-    expect(screen.getByText('Rejected by A. Patel · Image unclear')).toBeInTheDocument()
-    expect(screen.getAllByRole('link', { name: 'Check' })[0]).toHaveAttribute(
+    expect(screen.getAllByRole('link', { name: /^Check / })).toHaveLength(3)
+    expect(screen.getByText(/Rejected by A. Patel · Image unclear/)).toBeInTheDocument()
+    expect(screen.getAllByRole('link', { name: /^Check / })[0]).toHaveAttribute(
       'href',
       '/review-queue/s0',
     )
     expect(screen.queryByText('Recent activity in Plant 04')).not.toBeInTheDocument()
+  })
+
+  it('GIVEN a decision the admin changed THEN the badge says where it ended and the line says who and when, once', () => {
+    decisions = [
+      {
+        decision_id: 'd1',
+        scan_id: 's1',
+        record_no: '1000000131',
+        decided_by_name: 'Amrutha',
+        decision: 'approved',
+        reject_category: null,
+        decided_at: '2026-11-13T14:18:24Z',
+        overridden: true,
+      },
+      {
+        decision_id: 'd2',
+        scan_id: 's2',
+        record_no: '1000000040',
+        decided_by_name: 'Amrutha',
+        decision: 'rejected',
+        reject_category: 'data_correction_needed',
+        decided_at: '2026-11-04T09:45:11Z',
+        overridden: false,
+      },
+    ]
+    page()
+    // Row 1: no "Approved" next to a "rejected" badge, no repeated reason on row 2.
+    expect(screen.getByText('Changed → Rejected')).toBeInTheDocument()
+    expect(screen.getByText(/Approved by Amrutha · changed by you/)).toBeInTheDocument()
+    expect(screen.getByText('Rejected')).toBeInTheDocument()
+    expect(screen.queryByText('Rejected · Data correction needed')).toBeNull()
+    expect(screen.getByText(/Rejected by Amrutha · Data correction needed/)).toBeInTheDocument()
+    // The time is on the line, with seconds.
+    expect(screen.getByText(new RegExp(dateTime('2026-11-13T14:18:24Z')))).toBeInTheDocument()
   })
 
   it('GIVEN nothing urgent THEN says so', () => {

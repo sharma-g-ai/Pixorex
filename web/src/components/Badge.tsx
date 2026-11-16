@@ -15,11 +15,25 @@ const tones: Record<BadgeTone, string> = {
   neutral: 'bg-page text-ink-muted',
 }
 
-/** Small coloured status pill ("Active", "Pending · 22 h left", "Expired"). */
-export function Badge({ tone, children }: { tone: BadgeTone; children: ReactNode }) {
+/**
+ * Small coloured status pill ("Active", "Pending · 22 h left", "Expired"). One line by
+ * default; `wrap` lets a long label break inside a narrow table cell instead of running
+ * into the next column.
+ */
+export function Badge({
+  tone,
+  wrap = false,
+  children,
+}: {
+  tone: BadgeTone
+  wrap?: boolean
+  children: ReactNode
+}) {
   return (
     <span
-      className={`inline-block rounded-full px-2.5 py-0.5 text-meta font-bold whitespace-nowrap ${tones[tone]}`}
+      className={`inline-block max-w-full rounded-full px-2.5 py-0.5 text-meta font-bold ${
+        wrap ? 'rounded-xl' : 'whitespace-nowrap'
+      } ${tones[tone]}`}
     >
       {children}
     </span>

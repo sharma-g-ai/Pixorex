@@ -16,6 +16,7 @@ import 'review_screen.dart' show PhotoZoom;
 import 'scan_details_screen.dart' show ScanHistoryScreen, eventTime;
 import 'scan_models.dart';
 import 'scan_repository.dart';
+import 'scan_thumb.dart' show NetworkPhoto;
 import 'scan_uploader.dart';
 
 const _green = Color(0xFF3C9F40);
@@ -85,7 +86,9 @@ class _RejectionNoticeScreenState extends State<RejectionNoticeScreen> {
         backgroundColor: Brand.navy,
         foregroundColor: Colors.white,
         titleSpacing: 0,
-        title: const Text('Record rejected', style: TextStyle(fontSize: 15.5, fontWeight: FontWeight.w600)),
+        // The scan's ID says which scan this is; the heading below already says it was rejected.
+        title: Text(s == null ? 'Rejected scan' : formatScanId(s.recordNo),
+            style: const TextStyle(fontSize: 15.5, fontWeight: FontWeight.w600)),
         actions: [
           if (s != null)
             TextButton(
@@ -110,16 +113,8 @@ class _RejectionNoticeScreenState extends State<RejectionNoticeScreen> {
                   : Column(children: [
                       Expanded(
                         child: ListView(padding: const EdgeInsets.fromLTRB(22, 22, 22, 0), children: [
-                          Align(
-                            alignment: Alignment.centerLeft,
-                            child: Container(
-                              width: 54,
-                              height: 54,
-                              decoration: BoxDecoration(color: Brand.errorBg, borderRadius: BorderRadius.circular(14)),
-                              child: const Icon(Icons.cancel_outlined, color: Brand.error, size: 28),
-                            ),
-                          ),
-                          const SizedBox(height: 16),
+                          // The photo that was rejected, so you can see what the reviewer saw.
+                          if (s.photoUrls.isNotEmpty) ...[_Photo(urls: s.photoUrls), const SizedBox(height: 16)],
                           Text('${s.equipmentTypeName} was rejected', style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w700)),
                           const SizedBox(height: 4),
                           Text('${shortPlace(s.locationPath)} · reviewed by ${r.reviewerName} · ${eventTime(r.decidedAt)}',
@@ -155,7 +150,7 @@ class _RejectionNoticeScreenState extends State<RejectionNoticeScreen> {
                           _Choice(
                             icon: Icons.edit_outlined,
                             title: 'Correct the fields',
-                            text: 'Fix the field using the existing stored image — no recapture needed',
+                            text: 'Fix the values from the same photo',
                             primary: true,
                             onTap: () => _correct(s),
                           ),
@@ -163,22 +158,10 @@ class _RejectionNoticeScreenState extends State<RejectionNoticeScreen> {
                           _Choice(
                             icon: Icons.photo_camera_outlined,
                             title: 'Retake required',
-                            text: 'Reviewer flagged the source image itself — retake it as a new scan; this one is closed and kept',
+                            text: 'Take a new photo; this scan is closed',
                             onTap: widget.onRetake == null ? null : _retake,
                           ),
                         ]),
-                      ),
-                      const SafeArea(
-                        top: false,
-                        child: Padding(
-                          padding: EdgeInsets.fromLTRB(22, 16, 22, 26),
-                          child: Text(
-                            'Rejected scans stay in My Scans. Only you can revise this scan because you captured it. '
-                            'Correcting keeps this scan; retaking starts a new one.',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(fontSize: 11, color: Brand.hint),
-                          ),
-                        ),
                       ),
                     ]),
     );
@@ -584,7 +567,7 @@ class _Photo extends StatelessWidget {
           child: SizedBox(
             height: 110,
             child: Stack(fit: StackFit.expand, children: [
-              Image.network(urls.first, fit: BoxFit.cover, errorBuilder: (_, _, _) => const _Placeholder()),
+              NetworkPhoto(url: urls.first), // spinner while it loads, "tap to retry" if it can't
               Positioned(
                 right: 10,
                 bottom: 10,
