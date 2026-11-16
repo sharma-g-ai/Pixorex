@@ -16,24 +16,15 @@ const tones: Record<BadgeTone, string> = {
 }
 
 /**
- * Small coloured status pill ("Active", "Pending · 22 h left", "Expired"). One line by
- * default; `wrap` lets a long label break inside a narrow table cell instead of running
- * into the next column.
+ * Small coloured status pill ("Active", "Pending · 22 h left", "Expired"). It stays on one
+ * line when it fits and wraps inside a narrow cell instead of running into the next column;
+ * rounded-xl is more than half its one-line height, so it still looks like a pill.
+ * shrink-0: beside other text in a row it keeps its full width (the text gives way, as before).
  */
-export function Badge({
-  tone,
-  wrap = false,
-  children,
-}: {
-  tone: BadgeTone
-  wrap?: boolean
-  children: ReactNode
-}) {
+export function Badge({ tone, children }: { tone: BadgeTone; children: ReactNode }) {
   return (
     <span
-      className={`inline-block max-w-full rounded-full px-2.5 py-0.5 text-meta font-bold ${
-        wrap ? 'rounded-xl' : 'whitespace-nowrap'
-      } ${tones[tone]}`}
+      className={`inline-block max-w-full shrink-0 rounded-xl px-2.5 py-0.5 text-meta font-bold ${tones[tone]}`}
     >
       {children}
     </span>

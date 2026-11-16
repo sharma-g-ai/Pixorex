@@ -41,7 +41,15 @@ const columns: Column<ScanRow>[] = [
   {
     header: 'Unit · location',
     width: 2,
-    cell: (s) => <span className="truncate">{`${s.bu_name} · ${s.location_path}`}</span>,
+    cell: (s) => {
+      // block: truncate only cuts a block box; on an inline span the text ran into the next column.
+      const where = `${s.bu_name} · ${s.location_path}`
+      return (
+        <span className="block truncate" title={where}>
+          {where}
+        </span>
+      )
+    },
   },
   { header: 'Captured by', width: 1, cell: (s) => s.captured_by_name },
   {
@@ -55,7 +63,11 @@ const columns: Column<ScanRow>[] = [
   {
     header: 'Reviewed by',
     width: 1.3,
-    cell: (s) => <span className="truncate">{reviewedByText(s)}</span>,
+    cell: (s) => (
+      <span className="block truncate" title={reviewedByText(s)}>
+        {reviewedByText(s)}
+      </span>
+    ),
   },
   { header: 'Captured', width: 1, cell: (s) => dateTime(s.captured_at) },
 ]

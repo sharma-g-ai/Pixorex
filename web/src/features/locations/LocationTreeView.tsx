@@ -78,11 +78,7 @@ export function LocationTreeView({
       width: 1.5,
       cell: (r) => {
         const status = rowStatus(setup.levels, r)
-        return (
-          <Badge tone={status.tone} wrap>
-            {status.label}
-          </Badge>
-        )
+        return <Badge tone={status.tone}>{status.label}</Badge>
       },
     },
     ...(locked

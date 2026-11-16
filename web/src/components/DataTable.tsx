@@ -47,7 +47,8 @@ export function DataTable<Row>({ label, columns, rows, rowKey, empty }: DataTabl
             style={{ gridTemplateColumns: template }}
           >
             {columns.map((c, i) => (
-              <div key={i} role="cell" className={`min-w-0 ${align(c)}`}>
+              // wrap-break-word: a long word (an email, a path) breaks instead of spilling over.
+              <div key={i} role="cell" className={`min-w-0 wrap-break-word ${align(c)}`}>
                 {c.cell(row)}
               </div>
             ))}
