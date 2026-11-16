@@ -62,18 +62,26 @@ function QueueOfUnit({ buId, unitName }: { buId: string; unitName: string }) {
         ),
     },
     {
-      header: 'Scan',
-      width: 2,
+      header: 'Scan ID',
+      width: 1.4,
       cell: (item) => (
         <Link to={`/review-queue/${item.scan_id}`} className="block min-w-0 hover:underline">
-          <span className="block truncate font-semibold">{item.equipment_type_name}</span>
-          <span className="flex flex-wrap items-center gap-1.5">
-            <span className="font-mono text-meta text-ink-subtle">
-              {formatScanId(item.record_no)}
+          <span className="font-mono font-semibold">{formatScanId(item.record_no)}</span>
+          {item.resubmitted && (
+            <span className="mt-1 block">
+              <Badge tone="warning">Resubmitted · rev {item.revision_no}</Badge>
             </span>
-            {item.resubmitted && <Badge tone="warning">Resubmitted · rev {item.revision_no}</Badge>}
-          </span>
+          )}
         </Link>
+      ),
+    },
+    {
+      header: 'Schema',
+      width: 1.3,
+      cell: (item) => (
+        <span className="block truncate" title={item.equipment_type_name}>
+          {item.equipment_type_name}
+        </span>
       ),
     },
     { header: 'Captured by', width: 1, cell: (item) => item.captured_by_name },
@@ -114,11 +122,16 @@ function QueueOfUnit({ buId, unitName }: { buId: string; unitName: string }) {
           'Unassigned'
         ),
     },
+    {
+      header: 'Approved by',
+      width: 1.2,
+      cell: (item) => item.approved_by_name ?? '—',
+    },
   ]
   // Approved scans are done: nothing to pick or delegate, and no wait or assignment to show.
   const columns = approved
     ? allColumns.filter((c) => !['Select', 'Waiting since', 'Assigned'].includes(c.header))
-    : allColumns
+    : allColumns.filter((c) => c.header !== 'Approved by')
   const allScope = { key: 'all', label: `All scans in ${unitName}`, filters: { bu_id: buId } }
   const approvedScope = {
     key: 'approved',
@@ -159,7 +172,7 @@ function QueueOfUnit({ buId, unitName }: { buId: string; unitName: string }) {
             },
             {
               key: 'approved_this_week',
-              label: 'Approved this week',
+              label: 'Approved',
               count: counts?.approved_this_week,
             },
           ]}
@@ -184,6 +197,13 @@ function QueueOfUnit({ buId, unitName }: { buId: string; unitName: string }) {
           )
         ) : (
           <>
+            {!approved && selected.length === 0 && (
+              <div className="flex justify-end">
+                <Button variant="secondary" onClick={() => setDelegating(true)}>
+                  Delegate by bin
+                </Button>
+              </div>
+            )}
             {!approved && (
               <SelectionBar
                 count={selected.length}
@@ -213,6 +233,7 @@ function QueueOfUnit({ buId, unitName }: { buId: string; unitName: string }) {
         <DelegateBatchDialog
           buId={buId}
           scanIds={selected}
+          allowBins
           onClose={() => setDelegating(false)}
           onDone={(message) => {
             setDelegating(false)

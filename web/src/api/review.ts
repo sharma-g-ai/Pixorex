@@ -112,6 +112,7 @@ export function useOverride(decisionId: string) {
 export function useDelegates(buId: string, scanIds: string[]) {
   return useQuery({
     queryKey: ['delegates', buId, scanIds],
+    enabled: scanIds.length > 0, // the API wants 1–50 scans
     queryFn: async () =>
       unwrap(
         await api.GET('/business-units/{buId}/delegates', {
@@ -196,5 +197,28 @@ export function useBatch(batchId: string) {
     queryKey: ['review-batches', 'detail', batchId],
     queryFn: async () =>
       unwrap(await api.GET('/review-batches/{batchId}', { params: { path: { batchId } } })),
+  })
+}
+
+/** Every scan waiting with nobody yet: pages through contract 3.3 so bins list all of them. */
+export function useWaitingScans(buId: string, enabled: boolean) {
+  return useQuery({
+    queryKey: ['review-queue', buId, 'all-waiting'],
+    enabled,
+    queryFn: async () => {
+      const items: QueueItem[] = []
+      let cursor: string | undefined
+      for (let page = 0; page < 20; page++) {
+        const res = unwrap(
+          await api.GET('/business-units/{buId}/review-queue', {
+            params: { path: { buId }, query: { filter: 'waiting', limit: 100, cursor } },
+          }),
+        )
+        items.push(...res.items)
+        if (!res.page.next_cursor) break
+        cursor = res.page.next_cursor
+      }
+      return items
+    },
   })
 }

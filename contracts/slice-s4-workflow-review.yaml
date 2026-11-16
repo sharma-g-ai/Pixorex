@@ -1633,6 +1633,11 @@ components:
         resubmitted:
           type: boolean
           description: The technician fixed it after a rejection and sent it back.
+        approved_by_name:
+          type:
+          - string
+          - 'null'
+          description: Who approved the scan (the BU Admin, or the technician it was delegated to). Null until it is approved.
       required:
       - scan_id
       - record_no
@@ -1647,6 +1652,7 @@ components:
       - assigned_to_name
       - revision_no
       - resubmitted
+      - approved_by_name
     ReviewQueue:
       type: object
       properties:
@@ -1839,6 +1845,8 @@ components:
           $ref: ./common.yaml#/components/schemas/Uuid
         record_no:
           type: string
+        equipment_type_name:
+          type: string
         decided_by_name:
           type: string
         decision:
@@ -1855,6 +1863,7 @@ components:
       - decision_id
       - scan_id
       - record_no
+      - equipment_type_name
       - decided_by_name
       - decision
       - reject_category

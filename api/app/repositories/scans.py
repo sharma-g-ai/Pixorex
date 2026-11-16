@@ -105,11 +105,9 @@ async def next_record_no(conn: Conn, tenant_id: UUID) -> str:
     await conn.execute(
         "SELECT pg_advisory_xact_lock(hashtextextended(%s, 0))", (f"record:{tenant_id}",)
     )
-    cur = await conn.execute(
-        "SELECT max(left(record_no, 9)::bigint) AS n FROM scan"
-        " WHERE tenant_id = %s AND record_no ~ '^[0-9]{10}$'",
-        (tenant_id,),
-    )
+    # Through a function: a plain max() would only see the active unit's scans under RLS,
+    # while the counter is shared by every unit of the tenant (migration 0006).
+    cur = await conn.execute("SELECT last_record_counter(%s) AS n", (tenant_id,))
     row = await cur.fetchone()
     last = row["n"] if row and row["n"] is not None else FIRST_RECORD - 1
     return record_no_for(last + 1)

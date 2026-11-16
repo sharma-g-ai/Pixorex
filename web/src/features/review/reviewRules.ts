@@ -1,4 +1,10 @@
-import type { Batch, RejectCategory, ReviewField, TechnicianDecision } from '../../api/review'
+import type {
+  Batch,
+  QueueItem,
+  RejectCategory,
+  ReviewField,
+  TechnicianDecision,
+} from '../../api/review'
 import type { BadgeStatus } from '../../components/Badge'
 import { daysSince, waitedFor } from '../../lib/time'
 
@@ -166,4 +172,25 @@ export function decidedByText(d: TechnicianDecision): string {
         ? `Rejected by ${d.decided_by_name} · ${category}`
         : `Rejected by ${d.decided_by_name}`
   return d.overridden ? `${said} · changed by you` : said
+}
+
+/** A bin (the place a scan was captured at) and the waiting scans nobody has been given. */
+export interface Bin {
+  path: string
+  scanIds: string[]
+}
+
+/** Group the unassigned waiting scans by where they were captured, longest-waiting scans first. */
+export function binsOf(items: readonly QueueItem[]): Bin[] {
+  const byPath = new Map<string, QueueItem[]>()
+  for (const item of items) {
+    if (item.batch_no) continue // already with a technician
+    byPath.set(item.location_path, [...(byPath.get(item.location_path) ?? []), item])
+  }
+  return [...byPath.entries()]
+    .map(([path, scans]) => ({
+      path,
+      scanIds: oldestWaitingFirst(scans).map((s) => s.scan_id),
+    }))
+    .sort((a, b) => a.path.localeCompare(b.path))
 }

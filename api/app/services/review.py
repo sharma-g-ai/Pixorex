@@ -45,6 +45,7 @@ class QueueItem(BaseModel):
     assigned_to_name: str | None
     revision_no: int
     resubmitted: bool  # fixed by the technician after a rejection
+    approved_by_name: str | None  # who approved it; set only once approved
 
 
 class ReviewQueue(BaseModel):
@@ -119,6 +120,7 @@ class TechnicianDecision(BaseModel):
     decision_id: UUID
     scan_id: UUID
     record_no: str
+    equipment_type_name: str
     decided_by_name: str
     decision: str
     reject_category: str | None

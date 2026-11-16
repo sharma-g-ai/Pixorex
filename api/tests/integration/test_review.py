@@ -83,6 +83,14 @@ def test_the_approved_tab_lists_what_the_home_count_counts(api: Api, owner_sql: 
     assert queue.status_code == 200, queue.text
     ids = {i["scan_id"] for i in queue.json()["items"]}
     assert approved["scan_id"] in ids and waiting["scan_id"] not in ids
+    by_id = {i["scan_id"]: i for i in queue.json()["items"]}
+    assert by_id[approved["scan_id"]]["approved_by_name"] == "Bo Plant04"  # who approved it
+    still_waiting = api.get(f"/business-units/{P04}/review-queue?filter=waiting&limit=100", BO)
+    assert {
+        i["approved_by_name"]
+        for i in still_waiting.json()["items"]
+        if i["scan_id"] == waiting["scan_id"]
+    } == {None}
     week = owner_sql(
         "SELECT count(*) FROM scan s JOIN LATERAL (SELECT r.id FROM revision r"
         " WHERE r.scan_id = s.id ORDER BY r.revision_no DESC LIMIT 1) cr ON true"
@@ -210,6 +218,12 @@ def test_delegation_from_batch_to_override(api: Api, owner_sql: Any) -> None:
     ]
     mine = next(d for d in tech_decisions if d["decision_id"] == decided.json()["decision_id"])
     assert (mine["decided_by_name"], mine["overridden"]) == ("Theo Invited", False)
+    assert mine["equipment_type_name"]  # the schema column of the delegated table
+    as_approved = api.get(
+        f"/business-units/{P04}/review-queue?filter=approved_this_week&limit=100", BO
+    ).json()["items"]
+    approved_by = {i["scan_id"]: i["approved_by_name"] for i in as_approved}
+    assert approved_by.get(by_tara["scan_id"]) == "Theo Invited"  # a technician can approve too
 
     overridden = api.post(
         f"/decisions/{decided.json()['decision_id']}/override",

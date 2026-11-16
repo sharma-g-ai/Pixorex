@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Me } from '../../api/me'
 import { DashboardContext } from '../../app/DashboardContext'
 import type { DashboardRole } from '../../app/access'
-import { actorName } from './auditLabels'
+import { actorName, auditCategoryColors } from './auditLabels'
 import { AuditLogPage } from './AuditLogPage'
 
 const useAuditLog = vi.fn()
@@ -75,6 +75,19 @@ describe('Audit log (contract 3.22)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Clear filters' }))
     expect(useAuditLog).toHaveBeenLastCalledWith({ from: '2026-09-29', to: '2026-10-05' })
   })
+
+  it.each(['enterprise_admin', 'bu_admin'] as const)(
+    'GIVEN %s THEN the Type of each row is a coloured pill and kinds look different',
+    (role) => {
+      page(role)
+      const pill = screen.getByText('Override', { selector: 'span' })
+      expect(pill).toHaveClass('bg-danger-soft', 'text-danger')
+      expect(auditCategoryColors.review.pill).not.toBe(auditCategoryColors.override.pill)
+      // every kind has a colour, and the kinds that matter most are not the same colour
+      const pills = Object.values(auditCategoryColors).map((c) => c.pill)
+      expect(new Set(pills).size).toBeGreaterThanOrEqual(7)
+    },
+  )
 
   it('GIVEN a BU Admin THEN only their current unit, no unit picker (D-06)', () => {
     page('bu_admin')

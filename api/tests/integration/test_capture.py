@@ -24,6 +24,7 @@ from tests.integration.capture_setup import (
 )
 from tests.integration.conftest import Api
 from tests.integration.helpers import BO, DANA, ERIN, TARA, TENANT_A
+from tests.integration.scans import waiting_scan
 
 
 def test_create_scan_is_repeat_safe_and_counts_once(
@@ -295,3 +296,33 @@ def test_discard_only_before_submit(api: Api, owner_sql: Any, unit: dict[str, st
     owner_sql("UPDATE scan SET review_status = 'waiting_for_approval' WHERE id = %s", (submitted,))
     _problem(api.post(f"/scans/{submitted}/discard", TARA), 409, "invalid-state")
     _problem(api.post(f"/scans/{_id()}/discard", TARA), 404, "not-found")
+
+
+def test_scan_id_counter_is_shared_by_all_units_of_the_tenant(
+    api: Api, owner_sql: Any, unit: dict[str, str]
+) -> None:
+    """GIVEN another unit already holds the tenant's highest scan ID
+    WHEN a technician creates the first scan of this unit
+    THEN the ID continues the tenant's counter (it was a 500: the number already existed)."""
+    waiting_scan(owner_sql, TARA)  # a scan of Plant 04, a different unit
+    solo = _id()  # a technician of this unit only: under RLS they cannot see Plant 04
+    owner_sql(
+        "INSERT INTO app_user (id, tenant_id, email, full_name, status)"
+        " VALUES (%s, %s, %s, %s, 'active')",
+        (solo, TENANT_A, f"{solo[:8]}@example.com", "Solo Tech"),
+    )
+    owner_sql(
+        "INSERT INTO user_unit_role (tenant_id, user_id, bu_id, role)"
+        " VALUES (%s, %s, %s, 'field_technician')",
+        (TENANT_A, solo, unit["bu"]),
+    )
+    top = owner_sql(
+        "SELECT max(left(record_no, 9)::bigint) FROM scan"
+        " WHERE tenant_id = %s AND record_no ~ '^[0-9]{10}$'",
+        (TENANT_A,),
+    )[0][0]
+
+    created = _create(api, unit, _body(unit), user=solo)
+
+    assert created.status_code == 201, created.text
+    assert int(created.json()["record_no"][:9]) == top + 1

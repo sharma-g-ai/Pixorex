@@ -20,7 +20,7 @@ interface Row {
   key: string
   scanId: string
   recordNo: string
-  typeName: string | null
+  typeName: string
   technician: string
   status: BadgeStatus
   /** "Waiting since" for a scan still with a technician, "Decided" once they decided. */
@@ -78,7 +78,7 @@ export function DelegatedTable({
             key: `d-${d.decision_id}`,
             scanId: d.scan_id,
             recordNo: d.record_no,
-            typeName: null,
+            typeName: d.equipment_type_name,
             technician: d.decided_by_name,
             status: technicianDecisionStatus(d),
             whenLabel: 'Decided',
@@ -88,12 +88,16 @@ export function DelegatedTable({
 
   const columns: Column<Row>[] = [
     {
-      header: 'Scan',
-      width: 1.6,
+      header: 'Scan ID',
+      width: 1.2,
+      cell: (r) => <span className="font-mono">{formatScanId(r.recordNo)}</span>,
+    },
+    {
+      header: 'Schema',
+      width: 1.3,
       cell: (r) => (
-        <span className="block min-w-0">
-          {r.typeName && <span className="block truncate font-semibold">{r.typeName}</span>}
-          <span className="font-mono text-meta text-ink-subtle">{formatScanId(r.recordNo)}</span>
+        <span className="block truncate" title={r.typeName}>
+          {r.typeName}
         </span>
       ),
     },

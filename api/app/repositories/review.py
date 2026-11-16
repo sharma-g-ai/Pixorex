@@ -68,6 +68,7 @@ async def queue_items(
         " tech.full_name AS captured_by_name, s.location_path_snapshot AS location_path,"
         " cr.submitted_at AS waiting_since, rb.batch_no, assignee.full_name AS assigned_to_name,"
         " cr.revision_no, cr.origin = 'rejection_fix' AS resubmitted,"
+        " approver.full_name AS approved_by_name,"
         " (SELECT count(*) FROM revision_field rf JOIN ai_field_value av"
         "    ON av.id = rf.ai_field_value_id"
         "   WHERE rf.revision_id = cr.id AND cardinality(av.flag_reasons) > 0) AS flag_count,"
@@ -78,6 +79,7 @@ async def queue_items(
         f" FROM scan s {_CURRENT}"
         " JOIN equipment_type et ON et.id = s.equipment_type_id"
         " JOIN app_user tech ON tech.id = s.technician_id"
+        " LEFT JOIN app_user approver ON approver.id = cd.decided_by AND cd.decision = 'approved'"
         f" WHERE s.bu_id = %s AND cr.id IS NOT NULL AND {_QUEUE_FILTERS[filter_]}{keyset}"
         " ORDER BY cr.submitted_at, s.id LIMIT %s",
         [bu_id, *(after or []), limit + 1],
@@ -253,11 +255,12 @@ async def technician_decisions(
         params += after
     cur = await conn.execute(
         "SELECT d.id AS decision_id, s.id AS scan_id, s.record_no, u.full_name AS decided_by_name,"
-        " d.decision, d.reject_category, d.decided_at,"
+        " et.name AS equipment_type_name, d.decision, d.reject_category, d.decided_at,"
         " EXISTS (SELECT 1 FROM review_decision o WHERE o.overrides_decision_id = d.id)"
         "   AS overridden"
         " FROM review_decision d JOIN revision r ON r.id = d.revision_id"
         " JOIN scan s ON s.id = r.scan_id JOIN app_user u ON u.id = d.decided_by"
+        " JOIN equipment_type et ON et.id = s.equipment_type_id"
         f" WHERE {' AND '.join(where)} ORDER BY d.decided_at DESC, d.id DESC LIMIT %s",
         [*params, limit + 1],
     )

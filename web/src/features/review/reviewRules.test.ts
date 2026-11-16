@@ -116,6 +116,7 @@ describe('review rules', () => {
       decision_id: 'd',
       scan_id: 's',
       record_no: 'R',
+      equipment_type_name: 'Motor Nameplate',
       decided_by_name: 'T',
       decided_at: '',
     }
@@ -142,6 +143,7 @@ describe('review rules', () => {
       decision_id: 'd',
       scan_id: 's',
       record_no: 'R',
+      equipment_type_name: 'Motor Nameplate',
       decided_by_name: 'Amrutha',
       decided_at: '',
     }

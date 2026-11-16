@@ -5,6 +5,7 @@ import { ApiError } from '../../api/client'
 import type { Me } from '../../api/me'
 import type { Batch, QueueItem, ScanReview, TechnicianDecision } from '../../api/review'
 import { DashboardContext } from '../../app/DashboardContext'
+import { pickTechnician } from '../../test/pickTechnician'
 import { dateTime } from '../../lib/time'
 import { DelegationsPage } from './DelegationsPage'
 import { ReviewQueuePage } from './ReviewQueuePage'
@@ -59,6 +60,7 @@ vi.mock('../../api/review', () => ({
     isPending: false,
   }),
   useCreateBatch: () => mutation(calls.createBatch),
+  useWaitingScans: () => ({ data: items }),
   useBatches: () => ({ data: batches, isPending: false, isError: false }),
   useBatch: () => ({
     data: {
@@ -163,6 +165,7 @@ beforeEach(() => {
       assigned_to_name: null,
       revision_no: 2,
       resubmitted: true,
+      approved_by_name: null,
     },
     {
       scan_id: 's2',
@@ -178,6 +181,7 @@ beforeEach(() => {
       assigned_to_name: 'A. Patel',
       revision_no: 1,
       resubmitted: false,
+      approved_by_name: null,
     },
   ]
   batches = [
@@ -532,6 +536,7 @@ describe('Review queue', () => {
         decision_id: 'd1',
         scan_id: 's7',
         record_no: '1000000077',
+        equipment_type_name: 'Motor Nameplate',
         decided_by_name: 'T. Nguyen',
         decision: 'approved',
         reject_category: null,
@@ -542,6 +547,7 @@ describe('Review queue', () => {
         decision_id: 'd2',
         scan_id: 's8',
         record_no: '1000000085',
+        equipment_type_name: 'Motor Nameplate',
         decided_by_name: 'T. Nguyen',
         decision: 'rejected',
         reject_category: 'image_unclear',
@@ -574,6 +580,7 @@ describe('Review queue', () => {
         decision_id: 'd9',
         scan_id: 's13',
         record_no: '1000000131',
+        equipment_type_name: 'Motor Nameplate',
         decided_by_name: 'Amrutha',
         decision: 'approved', // what the technician decided
         reject_category: null,
@@ -619,11 +626,77 @@ describe('Review queue', () => {
     expect(table.queryByText(/NaN/)).toBeNull()
   })
 
+  it('GIVEN the delegate popup THEN no technician list is shown until a name is typed, and only one can be picked', () => {
+    inShell(<ReviewQueuePage />)
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Select REC-90141' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Delegate to technicians' }))
+    expect(dialog().queryAllByRole('option')).toHaveLength(0)
+    expect(dialog().queryByRole('radio')).not.toBeInTheDocument()
+    expect(dialog().queryByRole('checkbox')).not.toBeInTheDocument()
+    expect(dialog().getByRole('button', { name: 'Pick a technician' })).toBeDisabled()
+    pickTechnician(dialog(), 'Nguyen')
+    expect(dialog().queryByRole('combobox', { name: 'Technician' })).not.toBeInTheDocument() // one picked: the field becomes the choice
+    expect(dialog().getByRole('button', { name: 'Delegate 1 scan to T. Nguyen' })).toBeEnabled()
+  })
+
+  it('GIVEN Delegate by bin WHEN two bins are added THEN their waiting scans form one batch for one technician', async () => {
+    const base = items[0]
+    if (!base) throw new Error('fixture')
+    items = [
+      {
+        ...base,
+        scan_id: 's1',
+        location_path: 'Bldg C › Bin 05',
+        waiting_since: '2026-10-03T10:00:00Z',
+      },
+      {
+        ...base,
+        scan_id: 's5',
+        location_path: 'Bldg C › Bin 05',
+        waiting_since: '2026-10-01T10:00:00Z',
+      },
+      {
+        ...base,
+        scan_id: 's6',
+        location_path: 'Bldg C › Bin 09',
+        waiting_since: '2026-10-02T10:00:00Z',
+      },
+      {
+        ...base,
+        scan_id: 's7',
+        location_path: 'Bldg C › Bin 11',
+        waiting_since: '2026-10-02T10:00:00Z',
+      },
+    ]
+    inShell(<ReviewQueuePage />)
+    fireEvent.click(screen.getByRole('button', { name: 'Delegate by bin' }))
+    expect(dialog().getByText(/Add a bin above/)).toBeInTheDocument()
+
+    for (const bin of ['Bin 05', 'Bin 09']) {
+      fireEvent.change(dialog().getByRole('combobox', { name: 'Add scans by bin' }), {
+        target: { value: bin },
+      })
+      fireEvent.click(dialog().getByRole('option', { name: new RegExp(bin) }))
+    }
+    expect(dialog().getByText('Delegate 3 scans')).toBeInTheDocument() // s5, s6, s1; not Bin 11
+    expect(dialog().getByRole('list', { name: 'Bins added' })).toBeInTheDocument()
+
+    pickTechnician(dialog(), 'Nguyen')
+    fireEvent.click(dialog().getByRole('button', { name: 'Delegate 3 scans to T. Nguyen' }))
+    await waitFor(() =>
+      expect(calls.createBatch).toHaveBeenCalledWith({
+        assignedTo: 'tn',
+        scanIds: ['s5', 's1', 's6'], // per bin, longest-waiting first
+        idempotencyKey: expect.any(String),
+      }),
+    )
+  })
+
   it('GIVEN a selected scan WHEN delegated THEN contract 3.9 gets the technician and scans', async () => {
     inShell(<ReviewQueuePage />)
     fireEvent.click(screen.getByRole('checkbox', { name: 'Select REC-90141' }))
     fireEvent.click(screen.getByRole('button', { name: 'Delegate to technicians' }))
-    fireEvent.click(dialog().getByLabelText(/T\. Nguyen/))
+    pickTechnician(dialog(), 'Nguyen')
     fireEvent.click(dialog().getByRole('button', { name: 'Delegate 1 scan to T. Nguyen' }))
 
     expect(await screen.findByText('Batch B-16 delegated to T. Nguyen.')).toBeInTheDocument()
@@ -637,7 +710,7 @@ describe('Review queue', () => {
   it('GIVEN BU Home "approved this week" (?tab=approved) THEN opens on Approved, nothing to pick', () => {
     queueFilters.length = 0
     inShell(<ReviewQueuePage />, '/review-queue?tab=approved')
-    const tab = screen.getByRole('tab', { name: /Approved this week/ })
+    const tab = screen.getByRole('tab', { name: /^Approved/ })
     expect(tab).toHaveAttribute('aria-selected', 'true')
     expect(tab).toHaveTextContent('5')
     expect(queueFilters).toContain('approved_this_week')
@@ -650,10 +723,34 @@ describe('Review queue', () => {
     ).not.toBeInTheDocument()
   })
 
-  it('GIVEN the Waiting tab WHEN Approved this week is picked THEN contract 3.3 is asked for it', () => {
+  it('GIVEN waiting scans THEN Scan ID and Schema are two columns, not one cell', () => {
+    inShell(<ReviewQueuePage />)
+    const table = within(screen.getByRole('table', { name: 'Scans waiting for review' }))
+    expect(table.getByRole('columnheader', { name: 'Scan ID' })).toBeInTheDocument()
+    expect(table.getByRole('columnheader', { name: 'Schema' })).toBeInTheDocument()
+    expect(table.queryByRole('columnheader', { name: 'Approved by' })).not.toBeInTheDocument()
+    const row = within(table.getByText('REC-90141').closest('[role="row"]') as HTMLElement)
+    const idCell = row.getByText('REC-90141').closest('[role="cell"]') as HTMLElement
+    const schemaCell = row.getByText('Control Valve').closest('[role="cell"]') as HTMLElement
+    expect(idCell).not.toBe(schemaCell)
+    expect(idCell).not.toHaveTextContent('Control Valve')
+  })
+
+  it('GIVEN the Approved tab THEN each row names who approved it', () => {
+    items = items.map((i, n) => ({ ...i, approved_by_name: n === 0 ? 'Bo Plant04' : 'T. Nguyen' }))
+    inShell(<ReviewQueuePage />, '/review-queue?tab=approved')
+    const table = within(screen.getByRole('table', { name: 'Scans approved this week' }))
+    expect(table.getByRole('columnheader', { name: 'Approved by' })).toBeInTheDocument()
+    expect(table.getByRole('columnheader', { name: 'Schema' })).toBeInTheDocument()
+    const first = table.getByText('REC-90141').closest('[role="row"]') as HTMLElement
+    expect(within(first).getByText('Bo Plant04')).toBeInTheDocument()
+    expect(table.getAllByText('T. Nguyen').length).toBeGreaterThan(0)
+  })
+
+  it('GIVEN the Waiting tab WHEN Approved is picked THEN contract 3.3 is asked for it', () => {
     queueFilters.length = 0
     inShell(<ReviewQueuePage />)
-    fireEvent.click(screen.getByRole('tab', { name: /Approved this week/ }))
+    fireEvent.click(screen.getByRole('tab', { name: /^Approved/ }))
     expect(queueFilters.at(-1)).toBe('approved_this_week')
   })
 
@@ -661,7 +758,7 @@ describe('Review queue', () => {
     inShell(<ReviewQueuePage />)
     fireEvent.click(screen.getByRole('checkbox', { name: 'Select REC-90141' }))
     fireEvent.click(screen.getByRole('button', { name: 'Delegate to technicians' }))
-    fireEvent.click(dialog().getByLabelText(/J\. Martinez/))
+    pickTechnician(dialog(), 'Martinez')
     expect(dialog().getByText(/excluded because J\. Martinez submitted it/)).toBeInTheDocument()
     expect(dialog().getByRole('button', { name: 'Delegate 0 scans to J. Martinez' })).toBeDisabled()
   })
@@ -690,7 +787,7 @@ describe('Delegations', () => {
   it('GIVEN Reassign THEN the open scans go to the picked technician (contract 3.12)', async () => {
     inShell(<DelegationsPage />)
     fireEvent.click(screen.getByRole('button', { name: 'Reassign' }))
-    fireEvent.click(dialog().getByLabelText(/T\. Nguyen/))
+    pickTechnician(dialog(), 'Nguyen')
     fireEvent.click(dialog().getByRole('button', { name: 'Reassign 1 scan to T. Nguyen' }))
     await waitFor(() => expect(calls.reassign).toHaveBeenCalledWith('tn'))
   })

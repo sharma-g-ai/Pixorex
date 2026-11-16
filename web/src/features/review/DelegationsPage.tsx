@@ -216,7 +216,7 @@ function ReassignDialog({
       buId={buId}
       scanIds={open}
       title={`Reassign batch ${batch.batch_no}`}
-      intro={`${open.length} scans not reviewed by ${batch.assigned_to_name}. Pick who gets them instead. ${batch.assigned_to_name} is told the batch moved and the scans leave their app.`}
+      intro={`${open.length} ${open.length === 1 ? 'scan is' : 'scans are'} not reviewed yet. Pick who takes over from ${batch.assigned_to_name}.`}
       confirmText={(name, count) =>
         `Reassign ${count} ${count === 1 ? 'scan' : 'scans'} to ${name}`
       }

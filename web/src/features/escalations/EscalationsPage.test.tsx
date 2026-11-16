@@ -3,6 +3,7 @@ import { MemoryRouter } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ApiError } from '../../api/client'
 import type { Escalation } from '../../api/escalations'
+import { pickTechnician } from '../../test/pickTechnician'
 import { groupByUnit, whyText } from './escalationRules'
 import { EscalationsPage } from './EscalationsPage'
 
@@ -35,6 +36,7 @@ vi.mock('../../api/invites', async (importOriginal) => ({
 }))
 vi.mock('../../api/review', () => ({
   useCreateBatch: () => ({ mutateAsync: createBatch }),
+  useWaitingScans: () => ({ data: [] }),
   useDelegates: () => ({
     data: [
       { user_id: 'tn', full_name: 'T. Nguyen', open_review_count: 0, own_scans_in_selection: 0 },
@@ -152,7 +154,7 @@ describe('Escalated scans (contracts 3.16, 3.17)', () => {
       }),
     )
     const dialog = within(screen.getByRole('dialog'))
-    fireEvent.click(dialog.getByLabelText(/T\. Nguyen/))
+    pickTechnician(dialog, 'Nguyen')
     fireEvent.click(dialog.getByRole('button', { name: 'Delegate 1 scan to T. Nguyen' }))
     expect(await screen.findByText('Batch B-20 delegated to T. Nguyen.')).toBeInTheDocument()
     expect(screen.queryByText('1 selected')).not.toBeInTheDocument()

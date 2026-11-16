@@ -628,6 +628,8 @@ export interface components {
             revision_no: number;
             /** @description The technician fixed it after a rejection and sent it back. */
             resubmitted: boolean;
+            /** @description Who approved the scan (the BU Admin, or the technician it was delegated to). Null until it is approved. */
+            approved_by_name: string | null;
         };
         ReviewQueue: {
             counts: components["schemas"]["QueueCounts"];
@@ -690,6 +692,7 @@ export interface components {
             decision_id: components["schemas"]["Uuid"];
             scan_id: components["schemas"]["Uuid"];
             record_no: string;
+            equipment_type_name: string;
             decided_by_name: string;
             decision: string;
             reject_category: string | null;
