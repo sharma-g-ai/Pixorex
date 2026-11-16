@@ -79,12 +79,13 @@ void main() {
     await pumpMyScans(t);
     expect(find.text('NEEDS YOUR ACTION'), findsOneWidget);
     expect(find.text('IN PROGRESS & DONE'), findsOneWidget);
-    expect(find.text("Couldn't read this image · try 1 of 3"), findsOneWidget);
+    // No red or orange instruction line under a row (13 Nov review): pill, border and buttons say it.
+    expect(find.textContaining("Couldn't read this image"), findsNothing);
     expect(find.text('Retry (2 left)'), findsOneWidget);
-    expect(find.text('Failed 3 times — retake the photo'), findsOneWidget);
+    expect(find.textContaining('retake the photo'), findsNothing);
     expect(find.text('No retries left'), findsOneWidget);
     expect(find.text('Retake photo'), findsNWidgets(2)); // with Retry while tries are left (design 47)
-    expect(find.text('Check what was read'), findsOneWidget);
+    expect(find.text('Check what was read'), findsNothing);
     // Where a scan is and what happened to it is on Scan details; a row only says when it was scanned.
     expect(find.text('Attempt 2 of 3 · 5 min ago'), findsNothing);
     expect(find.textContaining('min ago'), findsNothing);
@@ -98,12 +99,12 @@ void main() {
     final api = ScansApi()
       ..items = [
         scanRow('Paint Label', 'ready_to_review', 'approved')..['captured_at'] = DateTime(2026, 10, 1, 10, 30).toUtc().toIso8601String(),
-        scanRow('Chemical Label', 'ready_to_review', 'approved')..['captured_at'] = DateTime(2026, 10, 1, 10, 32).toUtc().toIso8601String(),
+        scanRow('Chemical Label', 'ready_to_review', 'approved')..['captured_at'] = DateTime(2026, 10, 1, 10, 32, 7).toUtc().toIso8601String(),
         scanRow('Control Valve', 'ready_to_review', 'approved')..['captured_at'] = null, // an older server
       ];
     await pumpMyScans(t, api: api);
-    expect(find.text('Scanned 1 Oct 10:30'), findsOneWidget);
-    expect(find.text('Scanned 1 Oct 10:32'), findsOneWidget);
+    expect(find.text('Scanned 1 Oct 10:30:00'), findsOneWidget);
+    expect(find.text('Scanned 1 Oct 10:32:07'), findsOneWidget);
     expect(find.textContaining('Scanned'), findsNWidgets(2)); // no time known, none invented
   });
 

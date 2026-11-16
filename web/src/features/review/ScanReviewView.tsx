@@ -16,11 +16,12 @@ import { Button } from '../../components/Button'
 import { buttonClasses } from '../../components/buttonClasses'
 import { Card } from '../../components/Card'
 import { DataTable, type Column } from '../../components/DataTable'
+import { Dialog } from '../../components/Dialog'
 import { PageHeader } from '../../components/layout/PageHeader'
-import { timeAgo } from '../../lib/time'
+import { dateTime } from '../../lib/time'
 import { DecisionReasonDialog } from './DecisionReasonDialog'
 import { photoList } from './photos'
-import { flagText, rejectCategoryLabels, verificationStatus } from './reviewRules'
+import { extractedText, flagText, rejectCategoryLabels, verificationStatus } from './reviewRules'
 import { formatScanId } from '../../lib/scanId'
 
 interface ScanReviewViewProps {
@@ -92,7 +93,7 @@ export function ScanReviewView({ scanId, back }: ScanReviewViewProps) {
             <Alert tone="warning">
               <b>Resubmitted · revision {scan.current_revision.revision_no}.</b> Revision{' '}
               {scan.current_revision.revision_no - 1} was rejected by {earlier.decided_by_name} ·{' '}
-              {timeAgo(earlier.decided_at)}
+              {dateTime(earlier.decided_at)}
               {earlier.note ? ` — “${earlier.note}”` : ''}. {scan.captured_by_name} fixed it and
               sent it back.
             </Alert>
@@ -104,19 +105,20 @@ export function ScanReviewView({ scanId, back }: ScanReviewViewProps) {
             </Alert>
           )}
           <FieldsTable fields={scan.fields} />
+          {/* Who decided, when and why is in the History timeline below (with "Now:" for the
+              status), so it isn't repeated here: only what can still be done is shown. */}
           {waiting ? (
             <DecideActions scanId={scanId} capturedBy={scan.captured_by_name} onDone={setNotice} />
-          ) : current ? (
-            <CurrentDecision
-              decision={current}
-              capturedBy={scan.captured_by_name}
-              onDone={setNotice}
-            />
           ) : (
-            <Alert tone="info">This scan is not waiting for a decision.</Alert>
+            current && (
+              <CurrentDecision
+                decision={current}
+                capturedBy={scan.captured_by_name}
+                onDone={setNotice}
+              />
+            )
           )}
           <ScanHistoryCard scanId={scanId} />
-          {scan.decisions.length > 0 && <DecisionHistory decisions={scan.decisions} />}
         </section>
       </div>
     </>
@@ -223,31 +225,33 @@ function FieldsTable({ fields }: { fields: ReviewField[] }) {
   const columns: Column<ReviewField>[] = [
     { header: 'Field', width: 1, cell: (f) => <span className="font-semibold">{f.label}</span> },
     {
-      header: 'AI read',
-      width: 1.5,
-      cell: (f) => (
-        <div className="flex flex-col gap-0.5">
-          <span
-            className={`font-mono ${f.verification_state === 'corrected' ? 'text-ink-subtle line-through' : 'text-ink-muted'}`}
-          >
-            {f.ai_value ?? '—'}
-          </span>
-          {/* The value always shows; the score sits beside it, and a low one says so. */}
-          {f.ai_value !== null && f.confidence !== null && (
-            <span
-              className={`text-meta ${f.flag_reasons.includes('low_confidence') ? 'font-semibold text-warning' : 'text-ink-subtle'}`}
-            >
-              {Math.round(f.confidence * 100)}% confidence
-              {f.flag_reasons.includes('low_confidence') ? ' · needs review' : ''}
-            </span>
-          )}
-        </div>
-      ),
-    },
-    {
-      header: 'Technician',
-      width: 1.4,
-      cell: (f) => <span className="font-mono font-semibold">{f.technician_value ?? '—'}</span>,
+      // One column for the value that was submitted (was "AI read" + "Technician"). A
+      // technician's fix shows what the AI read under it, struck through; the State column
+      // says "Corrected".
+      header: 'Extracted text',
+      width: 2,
+      cell: (f) => {
+        const corrected = f.verification_state === 'corrected'
+        return (
+          <div className="flex flex-col gap-0.5">
+            <span className="font-mono font-semibold">{extractedText(f) ?? '—'}</span>
+            {corrected && f.ai_value !== null && (
+              <span className="text-meta text-ink-subtle">
+                AI read <span className="font-mono line-through">{f.ai_value}</span>
+              </span>
+            )}
+            {/* The AI's score belongs to the AI's value, so it is shown only when kept. */}
+            {!corrected && f.ai_value !== null && f.confidence !== null && (
+              <span
+                className={`text-meta ${f.flag_reasons.includes('low_confidence') ? 'font-semibold text-warning' : 'text-ink-subtle'}`}
+              >
+                {Math.round(f.confidence * 100)}% confidence
+                {f.flag_reasons.includes('low_confidence') ? ' · needs review' : ''}
+              </span>
+            )}
+          </div>
+        )
+      },
     },
     {
       header: 'Why it was flagged',
@@ -336,28 +340,65 @@ function CurrentDecision({
   onDone: (t: string) => void
 }) {
   const [overriding, setOverriding] = useState(false)
+  const [approving, setApproving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [idempotencyKey] = useState(() => crypto.randomUUID())
+  const [approveKey] = useState(() => crypto.randomUUID())
   const override = useOverride(decision.decision_id)
-  const byTechnician = decision.decider_role === 'delegated_technician'
-  const verdict = decision.decision === 'approved' ? 'Approved' : 'Rejected'
+  // A delegated technician's decision, either way, can still be changed by the BU Admin
+  // (contract 3.7); anything else is final and already in the History timeline.
+  if (decision.decider_role !== 'delegated_technician') return null
+  const approved = decision.decision === 'approved'
+
+  const approve = async () => {
+    setError(null)
+    try {
+      await override.mutateAsync({ body: { decision: 'approved' }, idempotencyKey: approveKey })
+      onDone(`Decision changed to approved. ${decision.decided_by_name} is told.`)
+    } catch (err: unknown) {
+      setError(conflictMessage(err)) // e.g. required fields sent empty: the API says so
+    } finally {
+      setApproving(false)
+    }
+  }
 
   return (
     <>
-      <Alert tone="info">
-        <b>
-          {verdict} by {decision.decided_by_name}
-        </b>{' '}
-        · {timeAgo(decision.decided_at)}.
-        {byTechnician &&
-          decision.decision === 'approved' &&
-          ' You can keep this decision or override it — the technician is told if you change it.'}
-      </Alert>
-      {byTechnician && decision.decision === 'approved' && (
-        <div className="flex justify-end">
+      <div className="flex items-center justify-end gap-3">
+        <span className="text-body-sm text-ink-muted">
+          {approved ? 'Approved' : 'Rejected'} by a delegated technician. The technician is told if
+          you change it.
+        </span>
+        {approved ? (
           <Button variant="danger" onClick={() => setOverriding(true)}>
             Override: reject
           </Button>
-        </div>
+        ) : (
+          <Button onClick={() => setApproving(true)}>Override: approve</Button>
+        )}
+      </div>
+      {error && <Alert tone="danger">{error}</Alert>}
+      {approving && (
+        <Dialog
+          title={`Override ${decision.decided_by_name}'s rejection`}
+          onClose={() => setApproving(false)}
+          footer={
+            <>
+              <Button variant="secondary" onClick={() => setApproving(false)}>
+                Cancel
+              </Button>
+              <Button disabled={override.isPending} onClick={() => void approve()}>
+                {override.isPending ? 'Saving…' : 'Override and approve'}
+              </Button>
+            </>
+          }
+        >
+          <p className="text-body-sm">
+            The scan changes from Rejected to Approved. {decision.decided_by_name} is told you
+            changed their decision, and {capturedBy}, who captured the scan, no longer has to fix
+            it. Both are recorded in the audit log.
+          </p>
+        </Dialog>
       )}
       {overriding && (
         <DecisionReasonDialog
@@ -378,25 +419,6 @@ function CurrentDecision({
         />
       )}
     </>
-  )
-}
-
-function DecisionHistory({ decisions }: { decisions: Decision[] }) {
-  return (
-    <Card title="Decisions">
-      <ul className="flex flex-col gap-2 text-body-sm">
-        {decisions.map((d) => (
-          <li key={d.decision_id} className={d.is_current ? '' : 'text-ink-subtle line-through'}>
-            {d.decision === 'approved' ? 'Approved' : 'Rejected'}
-            {d.reject_category
-              ? ` · ${rejectCategoryLabels[d.reject_category as keyof typeof rejectCategoryLabels] ?? d.reject_category}`
-              : ''}{' '}
-            by {d.decided_by_name} · {timeAgo(d.decided_at)}
-            {d.note ? ` — “${d.note}”` : ''}
-          </li>
-        ))}
-      </ul>
-    </Card>
   )
 }
 

@@ -32,9 +32,14 @@ const reviewKeys = [
 ]
 
 /** Contract 3.3: the unit's review queue with the tab counts. */
+/** How often an open review queue asks again: new scans join, decided ones leave. */
+export const QUEUE_REFRESH_MS = 30_000
+
 export function useReviewQueue(buId: string, filter: QueueFilter) {
   return useQuery({
     queryKey: ['review-queue', buId, filter],
+    refetchInterval: QUEUE_REFRESH_MS,
+    refetchOnWindowFocus: true, // back on the tab: show what changed meanwhile
     queryFn: async () =>
       unwrap(
         await api.GET('/business-units/{buId}/review-queue', {

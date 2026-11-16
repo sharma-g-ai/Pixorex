@@ -1,7 +1,21 @@
 import { describe, expect, it } from 'vitest'
-import { timeAgo, timeLeft, waitedFor } from './time'
+import { dateTime, timeAgo, timeLeft, waitedFor } from './time'
 
 const now = new Date('2026-10-05T12:00:00Z')
+
+describe('dateTime', () => {
+  it('shows date, hours, minutes and seconds in the viewer’s time zone', () => {
+    // Built from a local time, so the expected text holds in any time zone.
+    expect(dateTime(new Date(2026, 9, 5, 9, 7, 3).toISOString())).toBe('5 Oct 09:07:03')
+    expect(dateTime(new Date(2026, 10, 12, 18, 6, 42).toISOString())).toBe('12 Nov 18:06:42')
+  })
+
+  it('keeps consecutive scans apart by the second', () => {
+    const first = dateTime(new Date(2026, 10, 12, 10, 30, 0).toISOString())
+    const second = dateTime(new Date(2026, 10, 12, 10, 30, 5).toISOString())
+    expect([first, second]).toEqual(['12 Nov 10:30:00', '12 Nov 10:30:05'])
+  })
+})
 
 describe('timeAgo', () => {
   it.each([

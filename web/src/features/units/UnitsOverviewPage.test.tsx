@@ -101,7 +101,7 @@ describe('UnitsOverviewPage', () => {
   it('GIVEN a BU Admin of one unit THEN the card says when they were last active', () => {
     renderPage(units)
     const plant07 = within(screen.getByRole('article', { name: 'PPG Plant 07 — Industrial' }))
-    expect(plant07.getByText('Active just now')).toBeInTheDocument()
+    expect(plant07.getByText(/^Active \d{1,2} \w{3} \d{2}:\d{2}:\d{2}$/)).toBeInTheDocument()
     expect(plant07.getByText('1 technician')).toBeInTheDocument()
   })
 

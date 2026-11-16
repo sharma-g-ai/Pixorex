@@ -9,7 +9,7 @@ import {
 import type { DashboardRole } from '../../app/access'
 import { Button } from '../../components/Button'
 import { Icon } from '../../components/icons'
-import { timeAgo } from '../../lib/time'
+import { dateTime } from '../../lib/time'
 import { notificationPath } from './notificationLinks'
 
 /** The bell in the page header and its alerts panel (canvas EA 24, BU 04; contracts 3.19–3.21). */
@@ -112,7 +112,7 @@ function NotificationsPanel({ items, loading, role, onClose }: PanelProps) {
                     <span className="block text-body-sm font-semibold">{n.title}</span>
                     {n.body && <span className="block text-small text-ink-muted">{n.body}</span>}
                     <span className="block text-meta text-ink-subtle">
-                      {timeAgo(n.created_at)}
+                      {dateTime(n.created_at)}
                       {n.emailed_at && ' · also emailed'}
                     </span>
                   </span>

@@ -2,10 +2,8 @@
 
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-
 import httpx
 from fastapi import FastAPI
-
 from app.auth.keycloak_admin import KeycloakAdmin
 from app.auth.tokens import Jwks
 from app.core import storage

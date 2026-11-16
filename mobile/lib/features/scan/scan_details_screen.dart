@@ -10,11 +10,12 @@ import 'scan_status.dart';
 
 const _months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-/// "4 Nov 15:15", in the phone's time. Today and yesterday read the same as other days: the
-/// history is a record, so it always shows the exact time.
+/// "4 Nov 15:15:42", in the phone's time. Today and yesterday read the same as other days: the
+/// history is a record, so it always shows the exact time. Used for every timestamp shown.
 String eventTime(DateTime t) {
   final l = t.toLocal();
-  return '${l.day} ${_months[l.month - 1]} ${l.hour.toString().padLeft(2, '0')}:${l.minute.toString().padLeft(2, '0')}';
+  String two(int n) => n.toString().padLeft(2, '0');
+  return '${l.day} ${_months[l.month - 1]} ${two(l.hour)}:${two(l.minute)}:${two(l.second)}';
 }
 
 /// Where a scan is and what happened to it (contract 3.28). Opened by tapping a row that has

@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router'
 import { describe, expect, it, vi } from 'vitest'
+import { dateTime } from '../../lib/time'
 import { UnitDetailPage } from './UnitDetailPage'
 
 vi.mock('../../api/businessUnits', async (importOriginal) => ({
@@ -164,7 +165,9 @@ describe('EA unit page: BU Admin card (canvas EA 25)', () => {
   it('GIVEN no BU Admin THEN Invite a BU Admin opens the invite with this unit ticked', () => {
     page('/overview/units/p12')
     expect(screen.queryByRole('link', { name: 'Manage' })).not.toBeInTheDocument()
-    expect(screen.getByText('Since 4 Oct · M. Ortiz removed')).toBeInTheDocument()
+    expect(
+      screen.getByText(`Since ${dateTime('2026-10-04T09:30:00Z')} · M. Ortiz removed`),
+    ).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Invite a BU Admin' }))
     const dialog = within(screen.getByRole('dialog'))
     expect(dialog.getByRole('checkbox', { name: /Plant 12/ })).toBeChecked()

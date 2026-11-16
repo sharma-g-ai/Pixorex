@@ -4,6 +4,7 @@ import 'package:crypto/crypto.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../core/api_client.dart';
+import '../review/delegated_models.dart';
 import 'capture_models.dart';
 import 'scan_models.dart';
 
@@ -125,6 +126,42 @@ class ScanRepository {
           'limit': '$limit',
         }),
         MyScan.fromJson,
+      );
+
+  // ---- delegated review: scans a BU Admin gave me to approve or reject ------------------
+
+  /// Contract 3.15: my active batches (one page is plenty: a technician has a few at most).
+  Future<List<ReviewBatch>> myReviewBatches() async =>
+      Page.fromJson(await _api.get('/me/review-batches', query: {'limit': '50'}), ReviewBatch.fromJson).items;
+
+  /// Contract 3.11: one batch with its scans.
+  Future<(ReviewBatch, List<Assignment>)> reviewBatch(String batchId) async {
+    final j = await _api.get('/review-batches/$batchId');
+    return (
+      ReviewBatch.fromJson(j['batch'] as Map<String, dynamic>),
+      (j['assignments'] as List).map((e) => Assignment.fromJson(e as Map<String, dynamic>)).toList(),
+    );
+  }
+
+  /// Contract 3.4: the scan as submitted, read only.
+  Future<DelegatedScan> scanReview(String scanId) async =>
+      DelegatedScan.fromJson(await _api.get('/scans/$scanId/review'));
+
+  /// Contract 3.5. Keep [idempotencyKey] for one decision so a retry isn't a second one.
+  /// [rejectCategory] is required when rejecting; [note] is sent as typed (O-21 is open).
+  Future<void> decide(
+    String scanId, {
+    required bool approve,
+    required String idempotencyKey,
+    String? rejectCategory,
+    String? note,
+  }) =>
+      _api.post(
+        '/scans/$scanId/decisions',
+        idempotencyKey: idempotencyKey,
+        body: approve
+            ? {'decision': 'approved'}
+            : {'decision': 'rejected', 'reject_category': rejectCategory, 'note': note},
       );
 }
 

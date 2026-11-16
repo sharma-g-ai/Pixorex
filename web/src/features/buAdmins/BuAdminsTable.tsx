@@ -4,7 +4,7 @@ import { buttonClasses } from '../../components/buttonClasses'
 import { DataTable, type Column } from '../../components/DataTable'
 import { Person } from '../../components/Person'
 import { UnitBadges } from '../../components/UnitBadges'
-import { timeAgo } from '../../lib/time'
+import { dateTime } from '../../lib/time'
 import { accountStatus } from '../invites/inviteStatus'
 
 interface BuAdminsTableProps {
@@ -31,7 +31,7 @@ export function BuAdminsTable({ admins, onEdit, onRemove }: BuAdminsTableProps) 
       width: 0.9,
       cell: (a) => (
         <span className="text-ink-muted">
-          {a.last_active_at ? timeAgo(a.last_active_at) : 'Never'}
+          {a.last_active_at ? dateTime(a.last_active_at) : 'Never'}
         </span>
       ),
     },

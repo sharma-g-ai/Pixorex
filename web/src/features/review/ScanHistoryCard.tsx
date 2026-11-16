@@ -23,15 +23,10 @@ export function ScanHistoryCard({ scanId }: { scanId: string }) {
         <p className="text-body-sm text-ink-muted">We couldn't load the history.</p>
       </Card>
     )
-  const { events, now } = history.data
+  // No "Now: …" line: it repeated the last event below, with the same time (13 Nov review).
+  const { events } = history.data
   return (
     <Card title="History">
-      <p
-        className={`mb-3 rounded-lg px-3 py-2 text-body-sm font-semibold ${now.needs_technician ? 'bg-warning-soft text-warning' : 'bg-page text-ink'}`}
-      >
-        Now: {now.text}
-        {now.since && <span className="font-normal"> · since {dateTime(now.since)}</span>}
-      </p>
       <ol aria-label="History" className="flex flex-col">
         {events.map((e, i) => (
           <li key={`${e.kind}-${e.at}-${i}`} className="relative flex gap-3 pb-3.5 last:pb-0">

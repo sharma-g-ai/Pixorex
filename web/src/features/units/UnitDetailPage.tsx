@@ -20,7 +20,7 @@ import { RemoveBuAdminDialog } from '../buAdmins/RemoveBuAdminDialog'
 import { editOptions, inviteOptions, removeOptions } from '../buAdmins/unitOptions'
 import { useInviteActions, type Notice } from '../invites/useInviteActions'
 import { waitingStatus } from '../review/reviewRules'
-import { shortDate, timeAgo, waitedFor } from '../../lib/time'
+import { dateTime, waitedFor } from '../../lib/time'
 import { technicianCount } from './unitSummary'
 import { latestAdminInvite } from './vacantUnits'
 import { formatScanId } from '../../lib/scanId'
@@ -155,7 +155,7 @@ function AdminCard({ unit, units, onDone }: AdminCardProps) {
   const detail = others.length
     ? `also runs ${others.join(', ')}`
     : admin?.last_active_at
-      ? `active ${timeAgo(admin.last_active_at)}`
+      ? `active ${dateTime(admin.last_active_at)}`
       : null
 
   return (
@@ -197,7 +197,7 @@ function AdminCard({ unit, units, onDone }: AdminCardProps) {
             <p className="text-body font-bold text-danger">No BU Admin</p>
             {unit.vacant_since && (
               <p className="text-small text-ink-subtle">
-                {`Since ${shortDate(unit.vacant_since)}`}
+                {`Since ${dateTime(unit.vacant_since)}`}
                 {unit.previous_bu_admin?.full_name &&
                   ` · ${unit.previous_bu_admin.full_name} removed`}
               </p>

@@ -5,7 +5,7 @@ import { Badge } from '../../components/Badge'
 import { buttonClasses } from '../../components/buttonClasses'
 import { DataTable, type Column } from '../../components/DataTable'
 import { Tabs } from '../../components/Tabs'
-import { timeAgo } from '../../lib/time'
+import { dateTime } from '../../lib/time'
 import { technicianDecisionStatus } from './reviewRules'
 import { formatScanId } from '../../lib/scanId'
 
@@ -40,7 +40,7 @@ export function TechnicianDecisionsTable({
       },
     },
     { header: 'Reviewed by', width: 1.2, cell: (d) => d.decided_by_name },
-    { header: 'When', width: 1, cell: (d) => timeAgo(d.decided_at) },
+    { header: 'When', width: 1, cell: (d) => dateTime(d.decided_at) },
     {
       header: 'Actions',
       width: 0.8,

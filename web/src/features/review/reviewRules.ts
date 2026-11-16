@@ -16,11 +16,64 @@ const unreadableLabels: Record<string, string> = {
   other: 'other',
 }
 
+/** Milliseconds since 1970, or null when the time is missing or can't be read. */
+export function timeOf(iso: string | null | undefined): number | null {
+  if (!iso) return null
+  const ms = new Date(iso).getTime()
+  return Number.isNaN(ms) ? null : ms
+}
+
 /** Waiting badge: grey under a day, orange from 1 day, red from 1 week (canvas BU 05). */
 export function waitingStatus(since: string, now = new Date()): BadgeStatus {
+  if (timeOf(since) === null) return { label: 'Unknown', tone: 'neutral' }
   const days = daysSince(since, now)
   const tone = days >= 7 ? 'danger' : days >= 1 ? 'warning' : 'neutral'
   return { label: waitedFor(since, now), tone }
+}
+
+/**
+ * Longest waiting first: by when the scan entered the queue (its current revision's
+ * submission, so a resubmitted scan counts from the resubmission), then by scan id so equal
+ * times keep a fixed order. Items without a readable time go last instead of breaking the sort.
+ * The API already returns this order; sorting here keeps it right whatever the data.
+ */
+export function oldestWaitingFirst<T extends { waiting_since: string; scan_id: string }>(
+  items: readonly T[],
+): T[] {
+  return [...items].sort((a, b) => {
+    const ta = timeOf(a.waiting_since)
+    const tb = timeOf(b.waiting_since)
+    if (ta === null || tb === null) {
+      if (ta !== tb) return ta === null ? 1 : -1
+    } else if (ta !== tb) {
+      return ta - tb
+    }
+    return a.scan_id < b.scan_id ? -1 : a.scan_id > b.scan_id ? 1 : 0
+  })
+}
+
+/**
+ * Where a technician's decision left the scan: their own decision, or the opposite when a BU
+ * Admin overrode it (contract 3.7 only ever replaces approved with rejected or the other way).
+ */
+export function decisionOutcome(
+  d: Pick<TechnicianDecision, 'decision' | 'overridden'>,
+): 'approved' | 'rejected' {
+  const approved = d.decision === 'approved'
+  return approved !== d.overridden ? 'approved' : 'rejected'
+}
+
+/**
+ * The value that was submitted for a field: the technician's fix, else what the AI read and
+ * the technician kept. Null when nothing was sent (marked unreadable or left empty).
+ */
+export function extractedText(
+  field: Pick<ReviewField, 'ai_value' | 'technician_value' | 'verification_state'>,
+): string | null {
+  if (field.verification_state === 'unreadable' || field.verification_state === 'left_empty') {
+    return null
+  }
+  return field.technician_value ?? field.ai_value
 }
 
 /** "2 corrected · 1 unreadable", or "—" when the technician changed nothing. */
@@ -74,7 +127,13 @@ export function verificationStatus(field: ReviewField): BadgeStatus {
 
 /** Badge for a decision made by a technician (canvas BU 19). */
 export function technicianDecisionStatus(d: TechnicianDecision): BadgeStatus {
-  if (d.overridden) return { label: 'Overridden by you', tone: 'neutral' }
+  // An override always flips the technician's decision, so the scan ended the other way.
+  if (d.overridden) {
+    return {
+      label: `Overridden by you · now ${decisionOutcome(d)}`,
+      tone: decisionOutcome(d) === 'approved' ? 'success' : 'danger',
+    }
+  }
   if (d.decision === 'approved') return { label: 'Approved', tone: 'success' }
   const category = d.reject_category
     ? rejectCategoryLabels[d.reject_category as RejectCategory]

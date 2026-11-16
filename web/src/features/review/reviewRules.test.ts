@@ -2,12 +2,56 @@ import { describe, expect, it } from 'vitest'
 import type { Batch, ReviewField } from '../../api/review'
 import {
   batchStatus,
+  decisionOutcome,
   editsSummary,
   flagText,
   technicianDecisionStatus,
+  oldestWaitingFirst,
   verificationStatus,
   waitingStatus,
 } from './reviewRules'
+
+describe('waiting queue order', () => {
+  const at = (scan_id: string, waiting_since: string) => ({ scan_id, waiting_since })
+  const ids = (list: { scan_id: string }[]) => list.map((i) => i.scan_id)
+
+  it('GIVEN different waiting times THEN the longest waiting comes first', () => {
+    const list = [
+      at('new', '2026-10-05T11:00:00Z'),
+      at('old', '2026-09-30T08:00:00Z'),
+      at('mid', '2026-10-03T10:00:00Z'),
+    ]
+    expect(ids(oldestWaitingFirst(list))).toEqual(['old', 'mid', 'new'])
+  })
+
+  it('GIVEN a newly submitted scan THEN it joins at the bottom', () => {
+    const list = [at('a', '2026-10-01T08:00:00Z'), at('b', '2026-10-02T08:00:00Z')]
+    const after = oldestWaitingFirst([at('just-in', '2026-10-05T11:59:59Z'), ...list])
+    expect(ids(after)).toEqual(['a', 'b', 'just-in'])
+  })
+
+  it('GIVEN the same second THEN the order is fixed by scan id, not random', () => {
+    const t = '2026-10-05T10:00:00Z'
+    expect(ids(oldestWaitingFirst([at('z', t), at('a', t)]))).toEqual(['a', 'z'])
+  })
+
+  it('GIVEN missing or unreadable times THEN those go last and the rest stay sorted', () => {
+    const list = [
+      at('bad', 'not a date'),
+      at('b', '2026-10-02T08:00:00Z'),
+      at('none', ''),
+      at('a', '2026-10-01T08:00:00Z'),
+    ]
+    expect(ids(oldestWaitingFirst(list))).toEqual(['a', 'b', 'bad', 'none'])
+    expect(waitingStatus('not a date', now)).toEqual({ label: 'Unknown', tone: 'neutral' })
+  })
+
+  it('does not change the list it was given', () => {
+    const list = [at('b', '2026-10-02T08:00:00Z'), at('a', '2026-10-01T08:00:00Z')]
+    oldestWaitingFirst(list)
+    expect(ids(list)).toEqual(['b', 'a'])
+  })
+})
 
 const now = new Date('2026-10-05T12:00:00Z')
 const field = (over: Partial<ReviewField>): ReviewField => ({
@@ -93,7 +137,14 @@ describe('review rules', () => {
         reject_category: null,
         overridden: true,
       }).label,
-    ).toBe('Overridden by you')
+    ).toBe('Overridden by you · now rejected')
+  })
+
+  it('GIVEN an overridden decision THEN its outcome is the other way', () => {
+    expect(decisionOutcome({ decision: 'approved', overridden: false })).toBe('approved')
+    expect(decisionOutcome({ decision: 'approved', overridden: true })).toBe('rejected')
+    expect(decisionOutcome({ decision: 'rejected', overridden: false })).toBe('rejected')
+    expect(decisionOutcome({ decision: 'rejected', overridden: true })).toBe('approved')
   })
 
   it('flags batches with no progress after a day', () => {

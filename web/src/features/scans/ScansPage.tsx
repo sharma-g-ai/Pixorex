@@ -14,7 +14,7 @@ import { SelectField } from '../../components/SelectField'
 import { Tabs } from '../../components/Tabs'
 import { TextField } from '../../components/TextField'
 import { dateRange, datePresetLabels, type DatePreset } from '../../lib/dateRange'
-import { timeAgo } from '../../lib/time'
+import { dateTime } from '../../lib/time'
 import { ExportDialog } from '../exports/ExportDialog'
 import { ExportJobNotice } from '../exports/ExportJobNotice'
 import { DOWNLOADED_NOTICE } from '../exports/exportText'
@@ -57,7 +57,7 @@ const columns: Column<ScanRow>[] = [
     width: 1.3,
     cell: (s) => <span className="truncate">{reviewedByText(s)}</span>,
   },
-  { header: 'Age', width: 0.8, cell: (s) => timeAgo(s.captured_at) },
+  { header: 'Captured', width: 1, cell: (s) => dateTime(s.captured_at) },
 ]
 
 /** Every scan in every unit, filtered by unit, status and date (canvas EA 20, 38–50; contract 3.18). */

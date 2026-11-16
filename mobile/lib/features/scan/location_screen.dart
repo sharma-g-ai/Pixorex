@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/api_exception.dart';
 import '../../core/theme.dart';
 import '../../widgets/auth_widgets.dart';
-import '../home/home_screen.dart' show ago;
+import 'scan_details_screen.dart' show eventTime;
 import 'capture_models.dart';
 import 'location_pick.dart';
 import 'scan_repository.dart';
@@ -209,7 +209,7 @@ class _LocationScreenState extends State<LocationScreen> {
               ? 'You changed this just now'
               : (_lastAt == null
                   ? 'Where the scan you are retaking was'
-                  : 'Used for your last scan, ${ago(_lastAt!, widget.clock())}'),
+                  : 'Used for your last scan, ${eventTime(_lastAt!)}'),
           selected: true,
           badge: changed ? 'New' : null,
         ),

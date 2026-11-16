@@ -3,7 +3,7 @@ import { Badge } from '../../components/Badge'
 import { buttonClasses } from '../../components/buttonClasses'
 import { DataTable, type Column } from '../../components/DataTable'
 import { Person } from '../../components/Person'
-import { timeAgo } from '../../lib/time'
+import { dateTime } from '../../lib/time'
 import { isLocked, technicianStatus } from './staffStatus'
 
 interface TechniciansTableProps {
@@ -29,7 +29,7 @@ export function TechniciansTable({ technicians, onRemove }: TechniciansTableProp
     {
       header: 'Last active',
       width: 0.9,
-      cell: (t) => (t.last_active_at ? timeAgo(t.last_active_at) : 'Never'),
+      cell: (t) => (t.last_active_at ? dateTime(t.last_active_at) : 'Never'),
     },
     {
       header: 'Actions',

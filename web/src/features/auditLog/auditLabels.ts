@@ -18,10 +18,15 @@ export function actorName(entry: Pick<AuditEntry, 'actor_type' | 'actor_name'>):
   return entry.actor_type === 'system' ? 'System' : (entry.actor_name ?? 'Unknown user')
 }
 
-/** "05 Oct 12:30" in the viewer's time zone. */
+/** "05 Oct 12:30:07" in the viewer's time zone. */
 export function auditTime(iso: string): string {
   const d = new Date(iso)
   const day = d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })
-  const time = d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+  const time = d.toLocaleTimeString('en-GB', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  })
   return `${day} ${time}`
 }

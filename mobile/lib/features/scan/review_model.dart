@@ -12,7 +12,14 @@ enum UnreadableReason {
   final String label;
 }
 
-/// How bad a flag looks (design 57 legend): red "Likely wrong", amber "Check this".
+/// Fields that have a value first, empty ones last; each group keeps the order it was given in.
+/// Nothing is removed. Used wherever extracted fields are listed.
+List<AiField> filledFirst(List<AiField> fields, String? Function(AiField) valueOf) {
+  bool filled(AiField f) => valueOf(f)?.trim().isNotEmpty ?? false;
+  return [...fields.where(filled), ...fields.where((f) => !filled(f))];
+}
+
+/// How bad a flag looks (design 57 legend): red "Low Confidence", amber "Requires Review".
 enum FlagLevel { likelyWrong, checkThis }
 
 enum Verdict { pending, accepted, corrected, unreadable }
@@ -56,6 +63,12 @@ class ReviewDraft {
       _ => (f.aiValue?.trim().isEmpty ?? true) ? null : f.aiValue,
     };
   }
+
+  /// The order fields are shown in: those with a value (as read, or as corrected) first, empty
+  /// ones last. Within each group, flagged fields come first, then the type's own order.
+  /// Recomputed from the answers, so a saved fix moves its field up. Display order only.
+  List<AiField> get ordered =>
+      filledFirst([...flagged, ...scan.fields.where((f) => !f.isFlagged)], valueOf);
 
   /// Required fields that would be sent empty (marked unreadable doesn't count as empty).
   List<AiField> get emptyRequired => scan.fields
@@ -102,10 +115,12 @@ class ReviewDraft {
 FlagLevel flagLevel(AiField f) => f.flagReasons.every((r) => r == 'no_confidence') ? FlagLevel.checkThis : FlagLevel.likelyWrong;
 
 /// "Low confidence · 42%" etc. (design 57): the first reason, as the technician reads it.
-String flagText(AiField f) {
-  final r = f.flagReasons.firstOrNull;
+String flagText(AiField f) => flagReasonText(f.flagReasons.firstOrNull, f.confidence);
+
+/// One flag reason in words; also used where a reviewer reads someone else's scan.
+String flagReasonText(String? r, double? confidence) {
   return switch (r) {
-    'low_confidence' => f.confidence == null ? 'Low confidence' : 'Low confidence · ${(f.confidence! * 100).round()}%',
+    'low_confidence' => confidence == null ? 'Low confidence' : 'Low confidence · ${(confidence * 100).round()}%',
     'format_failed' => 'Format check failed',
     'no_confidence' => 'No confidence score from the reader',
     'missing_required' => 'Missing · required for this type',

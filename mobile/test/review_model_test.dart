@@ -37,7 +37,62 @@ Scan valveScan() => Scan(
       ],
     );
 
+Scan scanOf(List<AiField> fields) => Scan(
+      scanId: 's1',
+      recordNo: 'REC-71',
+      buId: 'b1',
+      equipmentTypeId: 't1',
+      equipmentTypeName: 'Control Valve',
+      locationPath: 'Plant 04 › Bin 05',
+      processingStatus: 'ready_to_review',
+      reviewStatus: 'draft',
+      attemptsUsed: 1,
+      fields: fields,
+    );
+
+List<String> keys(List<AiField> fields) => [for (final f in fields) f.fieldKey];
+
 void main() {
+  group('display order: filled fields first, empty ones last', () {
+    test('GIVEN some fields empty THEN filled ones come first, nothing is dropped', () {
+      final d = ReviewDraft(valveScan());
+      expect(keys(d.ordered), ['model', 'voltage', 'serial', 'manufacturer', 'flow', 'barcode', 'primary_id']);
+      expect(d.ordered, hasLength(valveScan().fields.length));
+    });
+
+    test('GIVEN all fields filled THEN the order is the usual one (flagged first)', () {
+      final d = ReviewDraft(scanOf([
+        field('a', 'x'),
+        field('b', 'y', flags: ['low_confidence'], confidence: 0.3),
+        field('c', 'z'),
+      ]));
+      expect(keys(d.ordered), ['b', 'a', 'c']);
+    });
+
+    test('GIVEN all fields empty THEN every field is still listed, in the usual order', () {
+      final d = ReviewDraft(scanOf([
+        field('a', null),
+        field('b', null, flags: ['missing_required'], required: true),
+        field('c', '  '), // blank counts as empty
+      ]));
+      expect(keys(d.ordered), ['b', 'a', 'c']);
+    });
+
+    test('GIVEN an empty field WHEN corrected THEN it moves up among the filled ones', () {
+      final d = ReviewDraft(valveScan());
+      final barcode = d.scan.fields.firstWhere((f) => f.fieldKey == 'barcode');
+      d.answer(barcode, const FieldAnswer.corrected('4006381333931'));
+      expect(keys(d.ordered), ['model', 'voltage', 'serial', 'barcode', 'manufacturer', 'flow', 'primary_id']);
+    });
+
+    test('GIVEN a filled field WHEN marked unreadable THEN it joins the empty ones (it will be sent empty)', () {
+      final d = ReviewDraft(valveScan());
+      final model = d.scan.fields.first;
+      d.answer(model, const FieldAnswer.unreadable(UnreadableReason.labelWorn));
+      expect(keys(d.ordered), ['voltage', 'serial', 'manufacturer', 'flow', 'model', 'barcode', 'primary_id']);
+    });
+  });
+
   test('GIVEN flags WHEN described THEN level and text follow the design', () {
     final f = valveScan().fields;
     expect(flagText(f[0]), 'Low confidence · 42%');

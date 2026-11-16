@@ -4,6 +4,7 @@ import type { Invite } from '../../api/invites'
 import type { Me } from '../../api/me'
 import type { Technician } from '../../api/technicians'
 import { DashboardContext } from '../../app/DashboardContext'
+import { dateTime } from '../../lib/time'
 import { TechniciansPage } from './TechniciansPage'
 
 const remove = vi.fn()
@@ -93,7 +94,7 @@ describe('TechniciansPage lists', () => {
     const techs = table('Technicians')
     expect(techs.getByText('J. Martinez')).toBeInTheDocument()
     expect(techs.getByText('Active')).toBeInTheDocument()
-    expect(techs.getAllByText('14 min ago')).toHaveLength(2)
+    expect(techs.getAllByText(dateTime('2026-10-05T11:46:00Z'))).toHaveLength(2)
     expect(techs.getByText('Sign-in locked · 18 min left')).toBeInTheDocument()
     expect(techs.getByText('Unlocks on its own')).toBeInTheDocument()
     expect(techs.queryByRole('button', { name: 'Remove L. Brooks' })).not.toBeInTheDocument()

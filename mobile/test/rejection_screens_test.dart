@@ -131,12 +131,13 @@ void main() {
 
   testWidgets('GIVEN a rejected scan WHEN opened THEN the notice shows who, why and the two ways (design 68)', (t) async {
     await pumpMyScans(t);
-    expect(find.text('Sent back · tap to fix'), findsOneWidget);
+    expect(find.text('Sent back · tap to fix'), findsNothing); // the Rejected pill says it
+    expect(find.text('Rejected'), findsOneWidget);
     expect(find.text('REC-1 · Bin 07'), findsOneWidget);
     await openNotice(t);
     expect(find.text('Record rejected'), findsOneWidget);
     expect(find.text('Control Valve V-071 was rejected'), findsOneWidget);
-    expect(find.text('Bin 05 · reviewed by Bo Plant04 · yesterday'), findsOneWidget);
+    expect(find.textContaining(RegExp(r'^Bin 05 · reviewed by Bo Plant04 · \d{1,2} \w{3} \d{2}:\d{2}:\d{2}$')), findsOneWidget);
     expect(find.text('Category: Data correction needed'), findsOneWidget);
     expect(find.text('Reviewer note'), findsOneWidget);
     expect(find.text('"Serial number doesn\'t match tag pattern"'), findsOneWidget);
@@ -218,7 +219,7 @@ void main() {
     await pumpMyScans(t, api: api);
     expect(find.text('JUST NOW'), findsOneWidget);
     expect(find.text('Equipment Label · original'), findsOneWidget);
-    expect(find.text('Retaken as a new scan'), findsOneWidget);
+    expect(find.text('Retaken as a new scan'), findsNothing); // the Closed pill says it
     expect(find.text('Closed'), findsOneWidget);
     expect(find.text('Extracting'), findsOneWidget);
     expect(find.text('Resubmitted'), findsOneWidget);

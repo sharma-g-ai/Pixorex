@@ -15,8 +15,9 @@ import { ExportJobNotice } from '../exports/ExportJobNotice'
 import { DOWNLOADED_NOTICE } from '../exports/exportText'
 import { DelegateBatchDialog } from './DelegateBatchDialog'
 import { MAX_BATCH, SelectionBar } from './SelectionBar'
-import { editsSummary, waitingStatus } from './reviewRules'
-import { TechnicianDecisionsTable } from './TechnicianDecisionsTable'
+import { dateTime } from '../../lib/time'
+import { editsSummary, oldestWaitingFirst, timeOf, waitingStatus } from './reviewRules'
+import { DelegatedTable } from './DelegatedTable'
 import { formatScanId } from '../../lib/scanId'
 
 /** BU-03 Review queue of the current unit: review or delegate (canvas BU 05, 08, 10; contract 3.3). */
@@ -33,7 +34,7 @@ function QueueOfUnit({ buId, unitName }: { buId: string; unitName: string }) {
     params.get('tab') === 'approved' ? 'approved_this_week' : 'waiting',
   )
   const approved = filter === 'approved_this_week'
-  const queue = useReviewQueue(buId, filter === 'decided_by_technicians' ? 'waiting' : filter)
+  const queue = useReviewQueue(buId, filter)
   const [selected, setSelected] = useState<string[]>([])
   const [delegating, setDelegating] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
@@ -88,11 +89,18 @@ function QueueOfUnit({ buId, unitName }: { buId: string; unitName: string }) {
     },
     { header: 'Technician edits', width: 1.4, cell: (item) => editsSummary(item) },
     {
-      header: 'Waiting',
-      width: 0.8,
+      header: 'Waiting since',
+      width: 1.2,
       cell: (item) => {
         const status = waitingStatus(item.waiting_since)
-        return <Badge tone={status.tone}>{status.label}</Badge>
+        return (
+          <span className="flex flex-col items-start gap-1">
+            <Badge tone={status.tone}>{status.label}</Badge>
+            <span className="font-mono text-meta text-ink-subtle">
+              {timeOf(item.waiting_since) === null ? '—' : dateTime(item.waiting_since)}
+            </span>
+          </span>
+        )
       },
     },
     {
@@ -110,7 +118,7 @@ function QueueOfUnit({ buId, unitName }: { buId: string; unitName: string }) {
   ]
   // Approved scans are done: nothing to pick or delegate, and no wait or assignment to show.
   const columns = approved
-    ? allColumns.filter((c) => !['Select', 'Waiting', 'Assigned'].includes(c.header))
+    ? allColumns.filter((c) => !['Select', 'Waiting since', 'Assigned'].includes(c.header))
     : allColumns
   const allScope = { key: 'all', label: `All scans in ${unitName}`, filters: { bu_id: buId } }
   const approvedScope = {
@@ -143,11 +151,12 @@ function QueueOfUnit({ buId, unitName }: { buId: string; unitName: string }) {
             { key: 'waiting', label: 'Waiting', count: counts?.waiting },
             { key: 'over_1d', label: 'Over 1 day', count: counts?.over_1d },
             { key: 'over_1w', label: 'Over 1 week', count: counts?.over_1w },
-            { key: 'delegated', label: 'Delegated', count: counts?.delegated },
             {
-              key: 'decided_by_technicians',
-              label: 'Decided by technicians',
-              count: counts?.decided_by_technicians,
+              // One tab for both: scans with a technician and what technicians decided.
+              key: 'delegated',
+              label: 'Delegated',
+              count:
+                counts === undefined ? undefined : counts.delegated + counts.decided_by_technicians,
             },
             {
               key: 'approved_this_week',
@@ -162,8 +171,18 @@ function QueueOfUnit({ buId, unitName }: { buId: string; unitName: string }) {
           }}
         />
 
-        {filter === 'decided_by_technicians' ? (
-          <TechnicianDecisionsTable buId={buId} scanPath={(id) => `/review-queue/${id}`} />
+        {filter === 'delegated' ? (
+          queue.isPending ? (
+            <Card>Loading the review queue…</Card>
+          ) : queue.isError ? (
+            <Card>We couldn't load the review queue. Please refresh.</Card>
+          ) : (
+            <DelegatedTable
+              waiting={queue.data.items}
+              buId={buId}
+              scanPath={(id) => `/review-queue/${id}`}
+            />
+          )
         ) : (
           <>
             {!approved && (
@@ -182,7 +201,7 @@ function QueueOfUnit({ buId, unitName }: { buId: string; unitName: string }) {
               <DataTable
                 label={approved ? 'Scans approved this week' : 'Scans waiting for review'}
                 columns={columns}
-                rows={queue.data.items}
+                rows={approved ? queue.data.items : oldestWaitingFirst(queue.data.items)}
                 rowKey={(item) => item.scan_id}
                 empty={approved ? 'Nothing approved this week yet.' : 'Nothing waiting here.'}
               />

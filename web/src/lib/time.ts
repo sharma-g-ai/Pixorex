@@ -39,10 +39,15 @@ export function daysSince(iso: string, now: Date = new Date()): number {
   return Math.floor((now.getTime() - new Date(iso).getTime()) / DAY)
 }
 
-/** An exact time for a timeline: "4 Nov 15:15". */
+/** An exact time, in the viewer's time zone: "4 Nov 15:15:42". Used for every timestamp shown. */
 export function dateTime(iso: string): string {
   const d = new Date(iso)
   const date = d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
-  const time = d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+  const time = d.toLocaleTimeString('en-GB', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  })
   return `${date} ${time}`
 }

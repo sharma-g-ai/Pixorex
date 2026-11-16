@@ -3,8 +3,9 @@ import { MemoryRouter } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ApiError } from '../../api/client'
 import type { Me } from '../../api/me'
-import type { Batch, QueueItem, ScanReview } from '../../api/review'
+import type { Batch, QueueItem, ScanReview, TechnicianDecision } from '../../api/review'
 import { DashboardContext } from '../../app/DashboardContext'
+import { dateTime } from '../../lib/time'
 import { DelegationsPage } from './DelegationsPage'
 import { ReviewQueuePage } from './ReviewQueuePage'
 import { ScanReviewView } from './ScanReviewView'
@@ -19,6 +20,7 @@ const calls = {
 let review: ScanReview
 let items: QueueItem[] = []
 let batches: Batch[] = []
+let techDecisions: TechnicianDecision[] = []
 const queueFilters: string[] = []
 
 const mutation = (fn: ReturnType<typeof vi.fn>) => ({ mutateAsync: fn, isPending: false })
@@ -45,7 +47,10 @@ vi.mock('../../api/review', () => ({
       isError: false,
     }
   },
-  useTechnicianDecisions: () => ({ data: [], isPending: false }),
+  useTechnicianDecisions: (_buId: string, decision?: string) => ({
+    data: techDecisions.filter((d) => !decision || d.decision === decision),
+    isPending: false,
+  }),
   useDelegates: () => ({
     data: [
       { user_id: 'tn', full_name: 'T. Nguyen', open_review_count: 12, own_scans_in_selection: 0 },
@@ -81,6 +86,7 @@ function inShell(node: React.ReactNode, path = '/') {
 let history: unknown
 
 beforeEach(() => {
+  techDecisions = []
   history = {
     scan_id: 's1',
     record_no: '1000000040',
@@ -236,6 +242,33 @@ describe('Scan review', () => {
     expect(await screen.findByText(/Someone else decided this scan first/)).toBeInTheDocument()
   })
 
+  it('GIVEN a decided scan THEN the decision is told once, in History, not in extra lines', () => {
+    review = {
+      ...review,
+      current_revision: { ...review.current_revision, review_status: 'approved' },
+      decisions: [
+        {
+          decision_id: 'd1',
+          revision_id: 'r1',
+          decision: 'approved',
+          reject_category: null,
+          note: null,
+          decided_by_name: 'Bo Plant04',
+          decider_role: 'bu_admin',
+          is_current: true,
+          overrides_decision_id: null,
+          decided_at: '2026-10-04T17:20:00Z',
+        },
+      ],
+    }
+    inShell(<ScanReviewView scanId="s1" back={{ to: '/', label: 'Back' }} />)
+    expect(screen.queryByText(/Approved by Bo Plant04/)).toBeNull() // no banner
+    expect(screen.queryByRole('heading', { name: 'Decisions' })).toBeNull() // no second list
+    expect(screen.queryByText('This scan is not waiting for a decision.')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Override: reject' })).toBeNull() // final
+    expect(screen.getByRole('list', { name: 'History' })).toBeInTheDocument()
+  })
+
   it('GIVEN a technician approval THEN the admin can override it (contract 3.7)', async () => {
     review = {
       ...review,
@@ -268,7 +301,7 @@ describe('Scan review', () => {
 })
 
 describe('Scan history', () => {
-  it('GIVEN a rejected and resubmitted scan THEN the timeline and the Now line show it', () => {
+  it('GIVEN a rejected and resubmitted scan THEN the timeline shows it, with no repeated Now line', () => {
     inShell(<ScanReviewView scanId="s1" back={{ to: '/', label: 'Back' }} />)
     const timeline = within(screen.getByRole('list', { name: 'History' }))
     const items = timeline.getAllByRole('listitem')
@@ -276,16 +309,113 @@ describe('Scan history', () => {
     expect(items[1]).toHaveTextContent('Rejected by Bo Plant04')
     expect(items[1]).toHaveTextContent('Other · “Wrong plate”')
     expect(items[2]).toHaveTextContent('Serial: SN-1 → SN-2')
-    expect(screen.getByText(/Now: With Bo Plant04 for review./)).toBeInTheDocument()
+    expect(screen.queryByText(/^Now:/)).toBeNull()
+  })
+})
+
+describe('Override a technician rejection (contract 3.7)', () => {
+  const rejectedByTechnician = () => ({
+    ...review,
+    current_revision: { ...review.current_revision, review_status: 'rejected' },
+    decisions: [
+      {
+        decision_id: 'd1',
+        revision_id: 'r1',
+        decision: 'rejected' as const,
+        reject_category: 'data_correction_needed',
+        note: null,
+        decided_by_name: 'Amrutha',
+        decider_role: 'delegated_technician' as const,
+        is_current: true,
+        overrides_decision_id: null,
+        decided_at: '2026-11-13T14:18:15Z',
+      },
+    ],
+  })
+
+  it('GIVEN a technician rejected THEN the admin can override it to approved', async () => {
+    review = rejectedByTechnician()
+    inShell(<ScanReviewView scanId="s1" back={{ to: '/', label: 'Back' }} />)
+    expect(screen.queryByRole('button', { name: 'Override: reject' })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Override: approve' }))
+    fireEvent.click(dialog().getByRole('button', { name: 'Override and approve' }))
+    await waitFor(() => expect(calls.override).toHaveBeenCalled())
+    expect(calls.override.mock.calls[0]?.[0].body).toEqual({ decision: 'approved' })
+    expect(
+      await screen.findByText('Decision changed to approved. Amrutha is told.'),
+    ).toBeInTheDocument()
+  })
+
+  it('GIVEN the API refuses (required fields empty) THEN its message shows', async () => {
+    review = rejectedByTechnician()
+    calls.override.mockRejectedValueOnce(
+      new ApiError({
+        type: '/problems/invalid-state',
+        title: 'Conflict',
+        status: 409,
+        detail: 'Required fields are empty: reject it for rework.',
+      }),
+    )
+    inShell(<ScanReviewView scanId="s1" back={{ to: '/', label: 'Back' }} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Override: approve' }))
+    fireEvent.click(dialog().getByRole('button', { name: 'Override and approve' }))
+    expect(
+      await screen.findByText(/Required fields are empty: reject it for rework./),
+    ).toBeInTheDocument()
   })
 })
 
 describe('Low confidence and photos', () => {
-  it('GIVEN a low-confidence value THEN it is shown with its score and marked for review', () => {
+  const kept = {
+    field_key: 'voltage',
+    label: 'Rated voltage',
+    ai_value: '230',
+    confidence: 0.7,
+    flag_reasons: ['low_confidence'],
+    technician_value: '230',
+    verification_state: 'accepted',
+    unreadable_reason: null,
+    note: null,
+  }
+
+  it('GIVEN a low-confidence value kept as read THEN it is shown with its score, marked for review', () => {
+    review = { ...review, fields: [kept] }
     inShell(<ScanReviewView scanId="s1" back={{ to: '/', label: 'Back' }} />)
     const fields = within(screen.getByRole('table', { name: 'Extracted fields' }))
-    expect(fields.getByText('CR 32-4-1 G')).toBeInTheDocument()
-    expect(fields.getByText('42% confidence · needs review')).toBeInTheDocument()
+    expect(fields.getByText('230')).toBeInTheDocument() // once: one column, not two
+    expect(fields.getByText('70% confidence · needs review')).toBeInTheDocument()
+  })
+
+  it('GIVEN a corrected value THEN one Extracted text column shows the fix, the AI read struck through', () => {
+    inShell(<ScanReviewView scanId="s1" back={{ to: '/', label: 'Back' }} />)
+    const table = screen.getByRole('table', { name: 'Extracted fields' })
+    const fields = within(table)
+    expect(fields.getByRole('columnheader', { name: 'Extracted text' })).toBeInTheDocument()
+    expect(fields.queryByRole('columnheader', { name: 'AI read' })).toBeNull()
+    expect(fields.queryByRole('columnheader', { name: 'Technician' })).toBeNull()
+    expect(fields.getByText('CR 32-4-1 F')).toBeInTheDocument() // the fix
+    expect(fields.getByText('CR 32-4-1 G')).toHaveClass('line-through') // what the AI read
+    expect(fields.getByText('Corrected')).toBeInTheDocument()
+    expect(fields.queryByText(/% confidence/)).toBeNull() // the score was for the AI's value
+  })
+
+  it('GIVEN a field marked unreadable THEN its extracted text is empty', () => {
+    review = {
+      ...review,
+      fields: [
+        {
+          ...kept,
+          ai_value: null,
+          confidence: null,
+          technician_value: null,
+          verification_state: 'unreadable',
+          unreadable_reason: 'label_worn',
+        },
+      ],
+    }
+    inShell(<ScanReviewView scanId="s1" back={{ to: '/', label: 'Back' }} />)
+    const fields = within(screen.getByRole('table', { name: 'Extracted fields' }))
+    expect(fields.getByText('—')).toBeInTheDocument()
   })
 
   it('GIVEN a photo that fails to load THEN a message replaces the broken image', () => {
@@ -369,6 +499,99 @@ describe('Review queue', () => {
     expect(table.getByText('2 days')).toBeInTheDocument()
     expect(table.getByText('A. Patel · B-15')).toBeInTheDocument()
     expect(table.queryByRole('checkbox', { name: 'Select REC-90152' })).not.toBeInTheDocument()
+  })
+
+  it('GIVEN delegated scans and technician decisions THEN one Delegated tab lists both', () => {
+    techDecisions = [
+      {
+        decision_id: 'd1',
+        scan_id: 's7',
+        record_no: '1000000077',
+        decided_by_name: 'T. Nguyen',
+        decision: 'approved',
+        reject_category: null,
+        decided_at: '2026-10-04T17:20:00Z',
+        overridden: false,
+      },
+      {
+        decision_id: 'd2',
+        scan_id: 's8',
+        record_no: '1000000085',
+        decided_by_name: 'T. Nguyen',
+        decision: 'rejected',
+        reject_category: 'image_unclear',
+        decided_at: '2026-10-05T08:00:00Z',
+        overridden: false,
+      },
+    ]
+    inShell(<ReviewQueuePage />)
+    expect(screen.queryByRole('tab', { name: /Decided by technicians/ })).toBeNull()
+    // Tab count = delegated + decided by technicians, from the API's counts.
+    fireEvent.click(screen.getByRole('tab', { name: /^Delegated/ }))
+    const table = within(screen.getByRole('table', { name: 'Delegated scans' }))
+    expect(table.getByText('Waiting · B-15')).toBeInTheDocument() // still with the technician
+    expect(table.getByText('Approved')).toBeInTheDocument()
+    expect(table.getByText('Rejected · Image unclear')).toBeInTheDocument()
+    expect(table.getByRole('link', { name: 'Check 1000000077' })).toHaveAttribute(
+      'href',
+      '/review-queue/s7',
+    )
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Approved' }))
+    expect(table.queryByText('Waiting · B-15')).toBeNull()
+    expect(table.queryByText('Rejected · Image unclear')).toBeNull()
+    expect(table.getByText('Approved')).toBeInTheDocument()
+  })
+
+  it('GIVEN a technician approval you overrode to rejected THEN it is under Rejected, not Approved', () => {
+    techDecisions = [
+      {
+        decision_id: 'd9',
+        scan_id: 's13',
+        record_no: '1000000131',
+        decided_by_name: 'Amrutha',
+        decision: 'approved', // what the technician decided
+        reject_category: null,
+        decided_at: '2026-11-13T14:18:24Z',
+        overridden: true, // then you changed it to rejected
+      },
+    ]
+    inShell(<ReviewQueuePage />)
+    fireEvent.click(screen.getByRole('tab', { name: /^Delegated/ }))
+    const table = within(screen.getByRole('table', { name: 'Delegated scans' }))
+    expect(table.getByText('Overridden by you · now rejected')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Approved' }))
+    expect(table.queryByText('100 000 013 1')).toBeNull()
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Rejected' }))
+    expect(table.getByText('100 000 013 1')).toBeInTheDocument()
+  })
+
+  it('GIVEN scans out of order THEN the longest waiting is on top, each with its exact time', () => {
+    items = [...items].reverse() // even if the data arrives newest first
+    inShell(<ReviewQueuePage />)
+    const table = within(screen.getByRole('table', { name: 'Scans waiting for review' }))
+    const order = table.getAllByText(/^REC-/).map((e) => e.textContent)
+    expect(order).toEqual(['REC-90141', 'REC-90152'])
+    expect(table.getByText(dateTime('2026-10-03T10:00:00Z'))).toBeInTheDocument()
+    expect(table.getByText(dateTime('2026-10-05T09:00:00Z'))).toBeInTheDocument()
+  })
+
+  it('GIVEN a scan with no readable time THEN it goes last and shows a dash, not NaN', () => {
+    const first = items[0]
+    if (!first) throw new Error('fixture has no queue items')
+    items = [{ ...first, scan_id: 's9', record_no: 'REC-9', waiting_since: '' }, ...items]
+    inShell(<ReviewQueuePage />)
+    const table = within(screen.getByRole('table', { name: 'Scans waiting for review' }))
+    expect(
+      table
+        .getAllByText(/^REC-/)
+        .map((e) => e.textContent)
+        .at(-1),
+    ).toBe('REC-9')
+    expect(table.getByText('Unknown')).toBeInTheDocument()
+    expect(table.queryByText(/NaN/)).toBeNull()
   })
 
   it('GIVEN a selected scan WHEN delegated THEN contract 3.9 gets the technician and scans', async () => {

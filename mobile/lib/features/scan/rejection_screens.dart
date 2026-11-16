@@ -7,14 +7,13 @@ import 'package:uuid/uuid.dart';
 import '../../core/api_exception.dart';
 import '../../core/theme.dart';
 import '../../widgets/auth_widgets.dart';
-import '../home/home_screen.dart' show ago;
 import 'capture_models.dart';
 import 'photo_prep.dart';
 import 'photo_set_screen.dart' show PreparePhoto;
 import 'photo_source.dart';
 import 'review_model.dart';
 import 'review_screen.dart' show PhotoZoom;
-import 'scan_details_screen.dart' show ScanHistoryScreen;
+import 'scan_details_screen.dart' show ScanHistoryScreen, eventTime;
 import 'scan_models.dart';
 import 'scan_repository.dart';
 import 'scan_uploader.dart';
@@ -22,9 +21,6 @@ import 'scan_uploader.dart';
 const _green = Color(0xFF3C9F40);
 const _greenInk = Color(0xFF2C7A30);
 const _mono = TextStyle(fontFamily: 'IBM Plex Mono', fontFamilyFallback: [kFontFamily]);
-
-/// "yesterday" as on design 68, otherwise as on the lists.
-String _when(DateTime t, DateTime now) => now.difference(t).inDays == 1 ? 'yesterday' : ago(t, now);
 
 /// How the technician resolved a rejection.
 enum RejectionOutcome { resubmitted, retaken }
@@ -126,7 +122,7 @@ class _RejectionNoticeScreenState extends State<RejectionNoticeScreen> {
                           const SizedBox(height: 16),
                           Text('${s.equipmentTypeName} was rejected', style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w700)),
                           const SizedBox(height: 4),
-                          Text('${shortPlace(s.locationPath)} · reviewed by ${r.reviewerName} · ${_when(r.decidedAt.toLocal(), widget.clock())}',
+                          Text('${shortPlace(s.locationPath)} · reviewed by ${r.reviewerName} · ${eventTime(r.decidedAt)}',
                               style: _mono.copyWith(fontSize: 11.5, color: Brand.hint)),
                           const SizedBox(height: 18),
                           Align(
@@ -257,6 +253,11 @@ class RejectedReviewScreen extends StatefulWidget {
 
 class _RejectedReviewScreenState extends State<RejectedReviewScreen> {
   late final _fix = RejectionFix(widget.scan);
+
+  /// Fields with a value as last sent (kept or corrected) first, empty or unreadable ones last.
+  /// Set once when the screen opens: fixes are applied as you type, and re-sorting then would
+  /// move the card away from under your finger.
+  late final List<AiField> _order = filledFirst(_fix.fields, _fix.sentValue);
   String? _editing;
   bool _sending = false;
   String? _error;
@@ -355,8 +356,8 @@ class _RejectedReviewScreenState extends State<RejectedReviewScreen> {
         Expanded(
           child: ListView(padding: const EdgeInsets.fromLTRB(16, 14, 16, 14), children: [
             if (s.photoUrls.isNotEmpty) _Photo(urls: s.photoUrls),
-            for (final f in _fix.fields)
-              Padding(padding: const EdgeInsets.only(top: 10), child: _fieldCard(f)),
+            for (final f in _order)
+              Padding(key: ValueKey('row-${f.fieldKey}'), padding: const EdgeInsets.only(top: 10), child: _fieldCard(f)),
           ]),
         ),
       ]),

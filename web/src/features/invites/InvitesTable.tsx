@@ -4,7 +4,7 @@ import { buttonClasses } from '../../components/buttonClasses'
 import { DataTable, type Column } from '../../components/DataTable'
 import { Person } from '../../components/Person'
 import { UnitBadges } from '../../components/UnitBadges'
-import { timeAgo } from '../../lib/time'
+import { dateTime } from '../../lib/time'
 import { inviteExpired, inviteStatus } from './inviteStatus'
 
 /** Someone removed from the unit, listed with the invites so they can be invited again. */
@@ -49,7 +49,7 @@ export function InvitesTable({ removed = [], showUnits = false, ...props }: Invi
         row.kind === 'invite' ? (
           <Person
             name={row.invite.email}
-            detail={`Invited by ${row.invite.invited_by_name} · ${timeAgo(row.invite.created_at)}`}
+            detail={`Invited by ${row.invite.invited_by_name} · ${dateTime(row.invite.created_at)}`}
           />
         ) : (
           <Person name={row.account.email} detail={row.account.detail} />

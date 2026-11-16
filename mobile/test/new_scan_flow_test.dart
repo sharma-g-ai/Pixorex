@@ -130,7 +130,7 @@ void main() {
     await t.pumpAndSettle();
     expect(find.text('Confirm location'), findsOneWidget);
     expect(find.text('Bin 05 · A'), findsOneWidget);
-    expect(find.text('Used for your last scan, just now'), findsOneWidget);
+    expect(find.textContaining(RegExp(r'^Used for your last scan, \d{1,2} \w{3} \d{2}:\d{2}:\d{2}$')), findsOneWidget);
   });
 
   testWidgets('GIVEN the camera is closed without a photo WHEN back on New scan THEN nothing happens', (t) async {

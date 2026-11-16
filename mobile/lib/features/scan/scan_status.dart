@@ -21,8 +21,10 @@ class ScanStatusLook {
         'closed' => ScanStatusLook('Closed', _grey.$1, _grey.$2),
         'discarded' => ScanStatusLook('Discarded', _grey.$1, _grey.$2),
         _ => switch (processingStatus) {
+            // The technician's own step (13 Nov review): "Ready to Review" read like it was
+            // waiting for the reviewer, which is "Submitted". The status value is unchanged.
             'ready_to_review' =>
-              const ScanStatusLook('Ready to Review', Color(0xFFFCEFD9), Color(0xFFB4540A), needsAction: true),
+              const ScanStatusLook('Check & submit', Color(0xFFFCEFD9), Color(0xFFB4540A), needsAction: true),
             'failed' => ScanStatusLook('Extraction failed', _red.$1, _red.$2, needsAction: true),
             'retake_required' => ScanStatusLook('Retake needed', _red.$1, _red.$2, needsAction: true),
             'uploading' => ScanStatusLook('Uploading', _blue.$1, _blue.$2),

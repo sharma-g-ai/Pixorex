@@ -245,7 +245,8 @@ class _ReviewScreenState extends State<ReviewScreen> {
             ? const Text('Scan')
             : Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text(s.equipmentTypeName, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
-                Text('${formatScanId(s.recordNo)} · ${shortPlace(s.locationPath)} · ${_statusLabel(s)}',
+                // No status here: the screen itself shows it (the form, or the status page).
+                Text('${formatScanId(s.recordNo)} · ${shortPlace(s.locationPath)}',
                     style: const TextStyle(fontSize: 11, color: Colors.white70)),
               ]),
         actions: [
@@ -301,18 +302,8 @@ class _ReviewScreenState extends State<ReviewScreen> {
     );
   }
 
-  String _statusLabel(Scan s) => switch ((s.processingStatus, s.reviewStatus)) {
-        (_, 'waiting_for_approval') => 'Submitted',
-        (_, 'approved') => 'Approved',
-        (_, 'rejected') => 'Rejected',
-        ('ready_to_review', _) => 'Ready to Review',
-        ('failed', _) => 'Extraction failed',
-        ('retake_required', _) => 'Retake needed',
-        _ => 'Extracting',
-      };
-
   Widget _form(ReviewDraft d) {
-    final fields = [...d.scan.fields.where((f) => f.isFlagged), ...d.scan.fields.where((f) => !f.isFlagged)];
+    final fields = d.ordered;
     return Column(children: [
       Container(
         width: double.infinity,
@@ -320,8 +311,8 @@ class _ReviewScreenState extends State<ReviewScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         child: const Wrap(spacing: 14, runSpacing: 6, children: [
           _Legend(_green, 'Looks right'),
-          _Legend(_amber, 'Check this'),
-          _Legend(_red, 'Likely wrong'),
+          _Legend(_amber, 'Requires Review'),
+          _Legend(_red, 'Low Confidence'),
           _Legend(Brand.navy, 'Done'),
         ]),
       ),
@@ -330,6 +321,8 @@ class _ReviewScreenState extends State<ReviewScreen> {
           if (d.scan.photoUrls.isNotEmpty) _Photos(urls: d.scan.photoUrls),
           for (final f in fields)
             Padding(
+              // Keyed here: a field that moves up after a fix keeps its card's state.
+              key: ValueKey('row-${f.fieldKey}'),
               padding: const EdgeInsets.only(top: 10),
               child: _FieldCard(
                 key: ValueKey(f.fieldKey),
@@ -360,13 +353,14 @@ class _ReviewScreenState extends State<ReviewScreen> {
             loading: _sending,
             onPressed: d.canSubmit ? _submit : null,
           ),
-          const SizedBox(height: 8),
-          Text(
-            left > 0 || empty == 0
-                ? 'Each flagged field shows why it was flagged'
-                : '$empty required field${empty == 1 ? ' is' : 's are'} still empty',
-            style: const TextStyle(fontSize: 11.5, color: Brand.hint),
-          ),
+          // Only a hint that changes what to do: required fields that would go empty.
+          if (left == 0 && empty > 0) ...[
+            const SizedBox(height: 8),
+            Text(
+              '$empty required field${empty == 1 ? ' is' : 's are'} still empty',
+              style: const TextStyle(fontSize: 11.5, color: Brand.hint),
+            ),
+          ],
         ]),
       ),
     );
@@ -484,11 +478,11 @@ class _FieldCardState extends State<_FieldCard> {
         Text(f.aiValue ?? '—', style: _mono.copyWith(fontSize: 15, fontWeight: FontWeight.w600)),
       ]);
     }
-    final was = 'Was flagged: ${flagText(f)[0].toLowerCase()}${flagText(f).substring(1)}';
+    // Answered cards say only what was done (the status) and the value: why the field was
+    // flagged mattered before answering, and is gone once it is checked.
     switch (a.verdict) {
       case Verdict.corrected:
         return _Card(bar: Brand.navy, label: f.label, status: 'Corrected', statusColor: Brand.navy, children: [
-          _Chip(was),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
             decoration: BoxDecoration(color: Brand.surfaceAlt, borderRadius: BorderRadius.circular(8)),
@@ -503,20 +497,16 @@ class _FieldCardState extends State<_FieldCard> {
         ]);
       case Verdict.accepted:
         return _Card(bar: Brand.navy, label: f.label, status: 'Kept as read', statusColor: Brand.navy, children: [
-          _Chip(was),
           Text(f.aiValue ?? '—', style: _mono.copyWith(fontSize: 15, fontWeight: FontWeight.w600)),
-          const Text('You confirmed the AI value matches the plate', style: TextStyle(fontSize: 11, color: Brand.muted)),
           _Link('Change', _reopen),
         ]);
       case Verdict.unreadable:
         return _Card(bar: Brand.body, label: f.label, status: 'Marked unreadable', statusColor: Brand.body, children: [
-          _Chip(was),
           Text.rich(TextSpan(style: const TextStyle(fontSize: 13), children: [
             const TextSpan(text: 'Reason: '),
             TextSpan(text: a.reason!.label.replaceAll(' — add a note', ''), style: const TextStyle(fontWeight: FontWeight.w700)),
             if (a.note != null && a.note!.isNotEmpty) TextSpan(text: ' · ${a.note}'),
           ])),
-          const Text('The reviewer sees this was checked, not skipped', style: TextStyle(fontSize: 11, color: Brand.muted)),
           _Link('Undo', () => widget.onAnswer(const FieldAnswer.pending())),
         ]);
       case Verdict.pending:
@@ -529,7 +519,7 @@ class _FieldCardState extends State<_FieldCard> {
     return _Card(
       bar: wrong ? _red : _amber,
       label: f.label,
-      status: wrong ? 'Likely wrong' : 'Check this',
+      status: wrong ? 'Low Confidence' : 'Requires Review',
       statusColor: wrong ? _red : const Color(0xFFB4540A),
       children: [
         _Chip(flagText(f)),
@@ -588,10 +578,10 @@ class _FieldCardState extends State<_FieldCard> {
             ),
           ),
           const SizedBox(height: 7),
-          Row(children: [
-            const Expanded(child: Text('Type it in, or mark it unreadable', style: TextStyle(fontSize: 11.5, color: Brand.errorInk))),
-            _Link('Mark unreadable', widget.onUnreadable, key: Key('unreadable-${f.fieldKey}')),
-          ]),
+          Align(
+            alignment: Alignment.centerRight,
+            child: _Link('Mark unreadable', widget.onUnreadable, key: Key('unreadable-${f.fieldKey}')),
+          ),
         ]),
       );
 }

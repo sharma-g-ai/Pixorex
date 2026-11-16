@@ -125,12 +125,34 @@ void main() {
     expect(find.byType(CircularProgressIndicator), findsNothing);
   });
 
+  testWidgets('GIVEN an empty field WHEN its value is saved THEN it moves above the empty ones on screen', (t) async {
+    await pumpReview(t);
+    double top(String key) => t.getTopLeft(find.byKey(ValueKey('row-$key'))).dy;
+    // Filled ones (model, serial, manufacturer) above the empty barcode.
+    expect(top('model'), lessThan(top('serial')));
+    expect(top('manufacturer'), lessThan(top('barcode')));
+
+    await t.enterText(find.widgetWithText(TextField, 'Add barcode'), '4006381333931');
+    await t.pumpAndSettle(); // Save shows once there is text
+    await t.tap(find.text('Save'));
+    await t.pumpAndSettle();
+    expect(top('barcode'), lessThan(top('manufacturer')));
+    expect(find.text('Corrected'), findsOneWidget);
+  });
+
   testWidgets('GIVEN a scan ready to review WHEN opened THEN flagged fields show why, submit waits', (t) async {
     await pumpReview(t);
     expect(find.text('Control Valve V-071'), findsOneWidget);
-    expect(find.text('REC-71 · Bin 05 · Ready to Review'), findsOneWidget);
+    expect(find.text('REC-71 · Bin 05'), findsOneWidget); // no status in the title: the form shows it
+    expect(find.textContaining('Ready to Review'), findsNothing);
+    expect(find.text('Each flagged field shows why it was flagged'), findsNothing);
+    expect(find.text('Type it in, or mark it unreadable'), findsNothing);
     expect(find.text('0 of 3 checked'), findsOneWidget);
-    expect(find.text('Likely wrong'), findsWidgets); // legend + model number
+    // Red level: legend + model number (low score). Amber: legend + serial number (no score).
+    expect(find.text('Low Confidence'), findsNWidgets(2));
+    expect(find.text('Requires Review'), findsNWidgets(2));
+    expect(find.text('Likely wrong'), findsNothing);
+    expect(find.text('Check this'), findsNothing);
     expect(find.text('Low confidence · 42%'), findsOneWidget);
     expect(find.text('No confidence score from the reader'), findsOneWidget);
     expect(find.text('Missing · required for this type'), findsOneWidget);
@@ -150,14 +172,15 @@ void main() {
     await t.tap(find.text('Save fix'));
     await t.pumpAndSettle();
     expect(find.text('Corrected'), findsOneWidget);
-    expect(find.text('Was flagged: low confidence · 42%'), findsOneWidget);
+    expect(find.textContaining('Was flagged'), findsNothing); // answered: the status says it
+    expect(find.text('Low confidence · 42%'), findsNothing);
     expect(find.text('CR 32-4-1 A-F-A-E-HQQE'), findsOneWidget);
 
     // Serial number: keep it.
     await t.tap(find.text('Keep as is'));
     await t.pumpAndSettle();
     expect(find.text('Kept as read'), findsOneWidget);
-    expect(find.text('You confirmed the AI value matches the plate'), findsOneWidget);
+    expect(find.text('You confirmed the AI value matches the plate'), findsNothing);
     expect(submitOn(t), isTrue);
     expect(find.text('1 required field is still empty'), findsOneWidget);
 
@@ -171,6 +194,7 @@ void main() {
     await t.tap(find.widgetWithText(PillButton, 'Mark unreadable'));
     await t.pumpAndSettle();
     expect(find.text('Marked unreadable'), findsOneWidget);
+    expect(find.text('The reviewer sees this was checked, not skipped'), findsNothing);
     expect(find.text('3 of 3 checked'), findsOneWidget);
 
     await t.tap(find.text('Submit for review'));
@@ -287,7 +311,7 @@ void main() {
     final api = ReviewApi()..scan = valve(processing: 'extracting');
     await pumpReview(t, api: api, settle: false);
     expect(find.text('Reading the label…'), findsOneWidget);
-    expect(find.text('REC-71 · Bin 05 · Extracting'), findsOneWidget);
+    expect(find.text('REC-71 · Bin 05'), findsOneWidget); // the status is the page, not the title
 
     api.scan = valve();
     await t.pump(const Duration(seconds: 1));

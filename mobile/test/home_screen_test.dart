@@ -75,7 +75,7 @@ void main() {
       expect(initials('Jorge  Martinez'), 'JM');
     });
     test('status pills follow review status first, then processing', () {
-      expect(ScanStatusLook.of('ready_to_review', 'draft').label, 'Ready to Review');
+      expect(ScanStatusLook.of('ready_to_review', 'draft').label, 'Check & submit'); // the technician's step
       expect(ScanStatusLook.of('ready_to_review', 'draft').needsAction, isTrue);
       expect(ScanStatusLook.of('failed', 'draft').label, 'Extraction failed');
       expect(ScanStatusLook.of('retake_required', 'draft').label, 'Retake needed');

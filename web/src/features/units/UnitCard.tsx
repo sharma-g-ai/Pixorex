@@ -2,7 +2,7 @@ import { Link } from 'react-router'
 import type { BusinessUnit } from '../../api/businessUnits'
 import type { Invite } from '../../api/invites'
 import { Person } from '../../components/Person'
-import { timeAgo } from '../../lib/time'
+import { dateTime } from '../../lib/time'
 import { technicianCount } from './unitSummary'
 
 interface UnitCardProps {
@@ -22,7 +22,7 @@ export function UnitCard({ unit, alsoRuns, adminLastActive, invite }: UnitCardPr
     alsoRuns.length > 0
       ? `Also runs ${alsoRuns.join(', ')}`
       : adminLastActive
-        ? `Active ${timeAgo(adminLastActive)}`
+        ? `Active ${dateTime(adminLastActive)}`
         : undefined
 
   return (

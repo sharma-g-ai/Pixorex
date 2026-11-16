@@ -37,7 +37,7 @@ class MyScansScreen extends StatefulWidget {
   final Duration searchDelay;
 
   /// While a scan is uploading or being read the list asks again by itself (there is no
-  /// push), so "Extracting" turns into "Ready to Review" or "Extraction failed" on screen.
+  /// push), so "Extracting" turns into "Check & submit" or "Extraction failed" on screen.
   final Duration pollEvery;
 
   @override
@@ -366,16 +366,8 @@ class MyScanTile extends StatelessWidget {
     // Design 47, 63, 64: a failed scan can be retried while tries are left, or retaken at any time.
     final retake = (draft && (failed || s.processingStatus == 'retake_required')) || s.reviewStatus == 'rejected';
     final left = Scan.maxAttempts - s.attemptsUsed;
-    // The second line only says what the technician has to do. Where a scan is, and when
-    // things happened, is on Scan details (tap the row), not on every row.
-    final (action, red) = switch ((s.processingStatus, s.reviewStatus)) {
-      (_, 'rejected') => ('Sent back · tap to fix', true),
-      (_, 'closed') => ('Retaken as a new scan', false),
-      ('failed', 'draft') => ("Couldn't read this image · try ${s.attemptsUsed} of ${Scan.maxAttempts}", true),
-      ('retake_required', 'draft') => ('Failed ${Scan.maxAttempts} times — retake the photo', true),
-      ('ready_to_review', 'draft') => ('Check what was read', false),
-      _ => (null, false),
-    };
+    // No extra line of instructions under the scan: the status pill, the coloured border and
+    // the Retry / Retake buttons already say what to do. Tap the row for details.
     final edge = s.reviewStatus == 'rejected' || failed || retake
         ? Brand.error
         : look.needsAction
@@ -409,8 +401,6 @@ class MyScanTile extends StatelessWidget {
                     Text('Scanned ${eventTime(s.capturedAt!)}',
                         key: Key('scanned-${s.scanId}'),
                         style: const TextStyle(fontSize: 11, color: Brand.hint, fontFeatures: [FontFeature.tabularFigures()])),
-                  if (action != null)
-                    Text(action, style: TextStyle(fontSize: 11, color: red ? Brand.error : (closed ? Brand.hint : Brand.warn))),
                 ]),
               ),
               ScanStatusPill(look),

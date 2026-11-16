@@ -91,7 +91,7 @@ void main() {
     expect(find.text('LAST USED IN PPG PLANT 04 — COATINGS'), findsOneWidget);
     expect(find.text('Bin 05 · A'), findsOneWidget);
     expect(find.text('PPG Industries › Plant 04 › Building C › Paint Shop'), findsOneWidget);
-    expect(find.text('Used for your last scan, 8 min ago'), findsOneWidget);
+    expect(find.textContaining(RegExp(r'^Used for your last scan, \d{1,2} \w{3} \d{2}:\d{2}:\d{2}$')), findsOneWidget);
     expect(submitEnabled(t), isTrue);
 
     await t.tap(find.text('Submit scan'));

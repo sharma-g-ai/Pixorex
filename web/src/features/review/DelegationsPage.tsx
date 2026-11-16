@@ -20,7 +20,7 @@ import { PageHeader } from '../../components/layout/PageHeader'
 import { ProgressBar } from '../../components/ProgressBar'
 import { Tabs } from '../../components/Tabs'
 import { TextAreaField } from '../../components/TextAreaField'
-import { timeAgo } from '../../lib/time'
+import { dateTime } from '../../lib/time'
 import { DelegateDialog } from './DelegateDialog'
 import { batchStatus } from './reviewRules'
 import { TechnicianDecisionsTable } from './TechnicianDecisionsTable'
@@ -65,7 +65,7 @@ function DelegationsOfUnit({ buId }: { buId: string }) {
         />
       ),
     },
-    { header: 'Delegated', width: 0.9, cell: (b) => timeAgo(b.created_at) },
+    { header: 'Delegated', width: 0.9, cell: (b) => dateTime(b.created_at) },
     {
       header: 'Status',
       width: 1.3,

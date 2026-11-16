@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -6,6 +8,8 @@ import '../../core/theme.dart';
 import '../../widgets/auth_widgets.dart';
 import '../auth/me.dart';
 import '../auth/session_controller.dart';
+import '../review/batch_screen.dart';
+import '../review/delegated_models.dart';
 import '../scan/scan_models.dart';
 import '../scan/rejection_screens.dart';
 import '../scan/review_screen.dart';
@@ -175,13 +179,36 @@ class _HomeTabState extends State<HomeTab> {
   HomeData? _data;
   String? _error;
 
+  /// Batches a BU Admin gave me to review (contract 3.15). No push: read when Home opens
+  /// or is pulled down. Loaded on its own, so a problem here never hides the rest of Home.
+  List<ReviewBatch> _batches = const [];
+
   @override
   void initState() {
     super.initState();
     _load();
   }
 
+  Future<void> _loadBatches() async {
+    try {
+      final batches = await widget.scans.myReviewBatches();
+      if (mounted) setState(() => _batches = batches);
+    } on ApiException {
+      // Keep what was shown; the card is extra, not the point of Home.
+    } on TypeError {
+      // A reply that doesn't match the contract: show no card rather than a red screen.
+    }
+  }
+
+  Future<void> _openBatch(ReviewBatch b) async {
+    await Navigator.of(context).push<void>(MaterialPageRoute(
+      builder: (_) => BatchScreen(scans: widget.scans, batchId: b.batchId, batchNo: b.batchNo),
+    ));
+    if (mounted) await _load();
+  }
+
   Future<void> _load() async {
+    unawaited(_loadBatches());
     try {
       final r = await Future.wait([
         widget.scans.myScans(tab: 'needs_action', limit: 100),
@@ -262,7 +289,16 @@ class _HomeTabState extends State<HomeTab> {
     );
   }
 
+  /// Design T 74 entry: one row per batch with its progress and who gave it.
+  List<Widget> _toReview() => [
+        if (_batches.isNotEmpty) ...[
+          _ReviewCard(batches: _batches, onOpen: _openBatch),
+          const SizedBox(height: 16),
+        ],
+      ];
+
   List<Widget> _firstTime(String firstName) => [
+        ..._toReview(),
         Text('Welcome, $firstName', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
         const SizedBox(height: 6),
         const Text("You haven't scanned anything yet. Here's how a scan works:",
@@ -289,6 +325,7 @@ class _HomeTabState extends State<HomeTab> {
     final failed = needs.length - review - rejected;
     final now = widget.clock();
     return [
+      ..._toReview(),
       if (needs.isNotEmpty)
         _ActionCard(
           onTap: widget.onMyScans == null ? null : () => widget.onMyScans!(tab: 'needs_action'),
@@ -383,6 +420,44 @@ class ScanRow extends StatelessWidget {
     );
     return onTap == null ? row : GestureDetector(onTap: onTap, child: row);
   }
+}
+
+/// "Scans to review": batches given to me, each opening its batch screen.
+class _ReviewCard extends StatelessWidget {
+  const _ReviewCard({required this.batches, required this.onOpen});
+  final List<ReviewBatch> batches;
+  final void Function(ReviewBatch) onOpen;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        decoration: BoxDecoration(
+          color: Brand.info,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: const Color(0xFF7FA3EA), width: 1.5),
+        ),
+        padding: const EdgeInsets.fromLTRB(14, 12, 14, 6),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const Text('Scans to review', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Brand.navy)),
+          for (final b in batches)
+            InkWell(
+              key: Key('batch-${b.batchId}'),
+              onTap: () => onOpen(b),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Row(children: [
+                  Expanded(
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text('${b.batchNo} · from ${b.createdByName}',
+                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Brand.ink)),
+                      Text(b.progress, style: const TextStyle(fontSize: 11.5, color: Brand.body)),
+                    ]),
+                  ),
+                  const Icon(Icons.chevron_right, color: Brand.navy),
+                ]),
+              ),
+            ),
+        ]),
+      );
 }
 
 class _ActionCard extends StatelessWidget {
