@@ -6,9 +6,11 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
+from app.auth import signed_urls
 from app.auth.context import Session
 from app.core.paging import PageInfo, decode_cursor, encode_cursor
 from app.core.problems import ProblemError
+from app.core.storage import StorageConfig
 from app.repositories import audit, notifications
 from app.repositories import delegation as repo
 from app.services.review import require_unit_admin
@@ -52,6 +54,9 @@ class Batch(BaseModel):
     created_by_name: str
     scan_count: int
     decided_count: int
+    open_count: int  # still assigned: what is left to review
+    overridden_count: int  # the technician's decisions here that a BU Admin changed
+    overridden_unseen_count: int  # of those, not seen yet (0 for anyone but that technician)
     created_at: datetime
     reminded_at: datetime | None
     status: Literal["active", "completed", "taken_back"]
@@ -62,11 +67,79 @@ class BatchPage(BaseModel):
     page: PageInfo
 
 
+RejectCategory = Literal["image_unclear", "data_correction_needed", "wrong_equipment_type", "other"]
+
+
+class DecisionOverride(BaseModel):
+    """The BU Admin's decision that replaced the technician's (contract 3.7; T 77)."""
+
+    decision: Literal["approved", "rejected"]
+    reject_category: RejectCategory | None
+    note: str | None
+    decided_by_name: str
+    decided_at: datetime
+    notification_id: UUID | None  # "Got it" marks it read (3.21)
+    seen: bool
+
+
+class BatchDecision(BaseModel):
+    """The assigned technician's own decision on a scan in this batch (T 74 "you approved")."""
+
+    decision: Literal["approved", "rejected"]
+    reject_category: RejectCategory | None
+    decided_at: datetime
+    override: DecisionOverride | None
+
+
 class Assignment(BaseModel):
     scan_id: UUID
     record_no: str
     status: Literal["assigned", "decided", "removed"]
     removed_reason: Literal["taken_back", "reassigned", "admin_decided", "user_removed"] | None
+    equipment_type_name: str
+    captured_by_name: str
+    location_path: str
+    flag_count: int
+    submitted_at: datetime
+    thumbnail_url: str | None  # signed, 15 minutes; only after the access check
+    my_decision: BatchDecision | None  # only for the assigned technician
+
+
+def _assignment(row: dict, storage: StorageConfig | None) -> Assignment:  # type: ignore[type-arg]
+    mine = None
+    if row["my_decision"] is not None:
+        override = None
+        if row["ov_decision"] is not None:
+            override = DecisionOverride(
+                decision=row["ov_decision"],
+                reject_category=row["ov_category"],
+                note=row["ov_note"],
+                decided_by_name=row["ov_by"],
+                decided_at=row["ov_at"],
+                notification_id=row["ov_notification_id"],
+                seen=bool(row["ov_seen"]),
+            )
+        mine = BatchDecision(
+            decision=row["my_decision"],
+            reject_category=row["my_category"],
+            decided_at=row["my_decided_at"],
+            override=override,
+        )
+    return Assignment(
+        scan_id=row["scan_id"],
+        record_no=row["record_no"],
+        status=row["status"],
+        removed_reason=row["removed_reason"],
+        equipment_type_name=row["equipment_type_name"],
+        captured_by_name=row["captured_by_name"],
+        location_path=row["location_path"],
+        flag_count=row["flag_count"],
+        submitted_at=row["submitted_at"],
+        thumbnail_url=signed_urls.photo_url(storage, row["photo_key"])
+        if storage is not None and row["photo_key"]
+        else None,
+        my_decision=mine,
+    )
 
 
 class BatchDetail(BaseModel):
@@ -233,13 +306,15 @@ async def list_batches(
 
 
 async def my_batches(session: Session, *, cursor: str | None, limit: int) -> BatchPage:
-    """Contract 3.15: the active batches given to the calling technician."""
+    """Contract 3.15: the active batches given to the calling technician, and any other one
+    while it holds a decision of theirs a BU Admin changed that they haven't seen (T 77)."""
     if not session.caller.units("field_technician"):
         raise ProblemError(403, "forbidden")
     rows = await repo.batches(
         session.conn,
         assigned_to=session.caller.user_id,
         status="active",
+        or_unseen_override=True,
         after=decode_cursor(cursor, 2),
         limit=limit,
     )
@@ -255,18 +330,22 @@ async def my_batches(session: Session, *, cursor: str | None, limit: int) -> Bat
     )
 
 
-async def get_batch(session: Session, batch_id: UUID) -> BatchDetail:
-    """Contract 3.11: admins of the unit, or the assigned technician."""
+async def get_batch(
+    session: Session, batch_id: UUID, storage: StorageConfig | None = None
+) -> BatchDetail:
+    """Contract 3.11: admins of the unit, or the assigned technician. Thumbnails are signed
+    only after this check (BC-09); my_decision is filled only for the assigned technician."""
     row = await repo.batch(session.conn, batch_id)
     if row is None:
         raise ProblemError(404, "not-found")
     caller = session.caller
-    if row["assigned_to"] != caller.user_id:
+    technician = row["assigned_to"] == caller.user_id
+    if not technician:
         require_unit_admin(session, row["bu_id"])
-    return BatchDetail(
-        batch=Batch(**row),
-        assignments=[Assignment(**a) for a in await repo.assignments(session.conn, batch_id)],
+    rows = await repo.assignments(
+        session.conn, batch_id, technician=caller.user_id if technician else None
     )
+    return BatchDetail(batch=Batch(**row), assignments=[_assignment(a, storage) for a in rows])
 
 
 async def _active(session: Session, batch_id: UUID) -> dict:  # type: ignore[type-arg]

@@ -308,7 +308,8 @@ paths:
       description: 'Contract ref 3.5 in the API Contracts doc.
 
 
-        reject_category required when rejecting (400). Resolves an open escalation. An admin deciding a delegated
+        reject_category required when rejecting (400); with reject_category other, a note is required too (400,
+        O-21 decided 2026-11-16). Resolves an open escalation. An admin deciding a delegated
         scan marks its assignment removed (admin_decided) and alerts the technician (scan_removed_from_batch). Alerts
         the scan''s technician (scan_approved / scan_rejected). Audit (review). Screens BU 07, 20-21; EA 05-07;
         T 75-76.'
@@ -318,8 +319,7 @@ paths:
       - US-013
       - US-031
       x-sprint: S4
-      x-decision-pending: 'O-9: Release Plan lets the reviewer edit values; V3 does not. O-21: whether the reject
-        note is required.'
+      x-decision-pending: 'O-9: Release Plan lets the reviewer edit values; V3 does not.'
       parameters:
       - *id006
       - *id004
@@ -422,8 +422,9 @@ paths:
       description: 'Contract ref 3.7 in the API Contracts doc.
 
 
-        Inserts a new decision with overrides_decision_id; the old one stops being current. Screens show only approval
-        to rejection. Alerts the delegated technician (decision_overridden). Audit (override). Screens BU 22-23;
+        Inserts a new decision with overrides_decision_id; the old one stops being current. Works both ways
+        (approval to rejection, rejection to approval). Rejecting needs reject_category, and a note when it is other
+        (400, O-21). Alerts the delegated technician (decision_overridden). Audit (override). Screens BU 22-23;
         T 77.'
       x-roles: *id008
       x-brd:
@@ -431,7 +432,6 @@ paths:
       x-brd-note: No BRD story found in the earlier contract mapping; feature comes from V3 data model + 13 Oct
         screens. Confirm the story ID.
       x-sprint: S4
-      x-decision-pending: 'O-21: whether the note is required.'
       parameters:
       - *id006
       - $ref: '#/components/parameters/DecisionId'
@@ -844,7 +844,9 @@ paths:
       description: 'Contract ref 3.15 in the API Contracts doc.
 
 
-        Screen T 74.'
+        Active batches given to the caller, plus any batch (also completed) where the BU Admin changed one of the
+        caller''s decisions and the caller has not read that decision_overridden notification yet (T 77 stays
+        reachable). Screens T 14, T 74.'
       x-roles: *id001
       x-brd:
       - none
@@ -1442,6 +1444,14 @@ components:
           description: Who rejected it, who a fix goes back to, or who rejected the scan a retake replaces (screens T 70, 73).
         updated_at:
           $ref: ./common.yaml#/components/schemas/Timestamp
+        captured_at:
+          $ref: ./common.yaml#/components/schemas/Timestamp
+          description: When the technician took the photo; set once, never changes (row "Scanned 13 Nov 10:30:42").
+        thumbnail_url:
+          type:
+          - string
+          - 'null'
+          description: Signed link to photo 1, valid 15 minutes; null without a photo or photo storage.
       required:
       - scan_id
       - record_no
@@ -1455,6 +1465,8 @@ components:
       - retake_of_scan_id
       - reviewer_name
       - updated_at
+      - captured_at
+      - thumbnail_url
     RevisionFieldInput:
       type: object
       properties:
@@ -1891,6 +1903,16 @@ components:
           type: integer
         decided_count:
           type: integer
+        open_count:
+          type: integer
+          description: Scans still assigned (not decided, not removed). What is left to review.
+        overridden_count:
+          type: integer
+          description: Decisions the assigned technician made in this batch that the BU Admin changed.
+        overridden_unseen_count:
+          type: integer
+          description: Of overridden_count, the ones whose decision_overridden notification the assigned technician
+            has not read. Always 0 for other callers.
         created_at:
           $ref: ./common.yaml#/components/schemas/Timestamp
         reminded_at:
@@ -1911,6 +1933,9 @@ components:
       - created_by_name
       - scan_count
       - decided_count
+      - open_count
+      - overridden_count
+      - overridden_unseen_count
       - created_at
       - reminded_at
       - status
@@ -1937,11 +1962,101 @@ components:
           - admin_decided
           - user_removed
           - null
+        equipment_type_name:
+          type: string
+        captured_by_name:
+          type: string
+        location_path:
+          type: string
+          description: The location as captured, e.g. "Plant 04 › Building C › Bin 02".
+        flag_count:
+          type: integer
+          description: Flagged fields in the scan's current revision.
+        submitted_at:
+          $ref: ./common.yaml#/components/schemas/Timestamp
+        thumbnail_url:
+          type:
+          - string
+          - 'null'
+          description: Signed link to photo 1, valid 15 minutes; null without photo storage.
+        my_decision:
+          description: The assigned technician's own decision on this scan in this batch (T 74 "you approved", T 77).
+            Null when there is none, and always null for callers other than the assigned technician.
+          oneOf:
+          - $ref: '#/components/schemas/BatchDecision'
+          - type: 'null'
       required:
       - scan_id
       - record_no
       - status
       - removed_reason
+      - equipment_type_name
+      - captured_by_name
+      - location_path
+      - flag_count
+      - submitted_at
+      - thumbnail_url
+      - my_decision
+    BatchDecision:
+      type: object
+      properties:
+        decision:
+          type: string
+          enum:
+          - approved
+          - rejected
+        reject_category:
+          oneOf:
+          - $ref: '#/components/schemas/RejectCategory'
+          - type: 'null'
+        decided_at:
+          $ref: ./common.yaml#/components/schemas/Timestamp
+        override:
+          description: Set when the BU Admin changed this decision (contract 3.7).
+          oneOf:
+          - $ref: '#/components/schemas/DecisionOverride'
+          - type: 'null'
+      required:
+      - decision
+      - reject_category
+      - decided_at
+      - override
+    DecisionOverride:
+      type: object
+      properties:
+        decision:
+          type: string
+          enum:
+          - approved
+          - rejected
+        reject_category:
+          oneOf:
+          - $ref: '#/components/schemas/RejectCategory'
+          - type: 'null'
+        note:
+          type:
+          - string
+          - 'null'
+        decided_by_name:
+          type: string
+        decided_at:
+          $ref: ./common.yaml#/components/schemas/Timestamp
+        notification_id:
+          description: The technician's decision_overridden notification; "Got it" marks it read (3.21).
+          oneOf:
+          - $ref: ./common.yaml#/components/schemas/Uuid
+          - type: 'null'
+        seen:
+          type: boolean
+          description: That notification has been read.
+      required:
+      - decision
+      - reject_category
+      - note
+      - decided_by_name
+      - decided_at
+      - notification_id
+      - seen
     Escalation:
       type: object
       properties:

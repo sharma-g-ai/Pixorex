@@ -145,8 +145,8 @@ async def my_batches(
 
 
 @router.get("/review-batches/{batch_id}", operation_id="getReviewBatch")
-async def get_batch(batch_id: UUID, session: SignedIn) -> delegation.BatchDetail:
-    return await delegation.get_batch(session, batch_id)
+async def get_batch(batch_id: UUID, request: Request, session: SignedIn) -> delegation.BatchDetail:
+    return await delegation.get_batch(session, batch_id, request.app.state.storage)
 
 
 @router.post("/review-batches/{batch_id}/reassign", operation_id="reassignReviewBatch")

@@ -188,6 +188,9 @@ beforeEach(() => {
       created_by_name: 'R. K',
       scan_count: 30,
       decided_count: 0,
+      open_count: 0,
+      overridden_count: 0,
+      overridden_unseen_count: 0,
       created_at: '2026-10-03T12:00:00Z',
       reminded_at: null,
       status: 'active',
@@ -297,6 +300,22 @@ describe('Scan review', () => {
       decision: 'rejected',
       reject_category: 'image_unclear',
     })
+  })
+
+  it('GIVEN reason Other THEN a note is required before it can be sent (O-21)', () => {
+    inShell(<ScanReviewView scanId="s1" back={{ to: '/', label: 'Back' }} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Reject' }))
+    const send = () => dialog().getByRole('button', { name: 'Reject scan' })
+    expect(send()).toBeDisabled() // no reason yet
+    fireEvent.click(dialog().getByLabelText('Other'))
+    expect(send()).toBeDisabled() // Other without a note
+    fireEvent.change(dialog().getByLabelText(/required for Other/), {
+      target: { value: 'Plate is for a different motor' },
+    })
+    expect(send()).toBeEnabled()
+    fireEvent.click(dialog().getByLabelText('Image unclear'))
+    fireEvent.change(dialog().getByLabelText(/Note for/), { target: { value: '' } })
+    expect(send()).toBeEnabled() // a listed reason needs no note
   })
 })
 

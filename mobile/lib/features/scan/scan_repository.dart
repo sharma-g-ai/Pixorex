@@ -143,6 +143,10 @@ class ScanRepository {
     );
   }
 
+  /// Contract 3.21: "Got it" on a changed decision (T 77) marks its notification read.
+  Future<void> markNotificationRead(String notificationId) =>
+      _api.post('/me/notifications/$notificationId/read');
+
   /// Contract 3.4: the scan as submitted, read only.
   Future<DelegatedScan> scanReview(String scanId) async =>
       DelegatedScan.fromJson(await _api.get('/scans/$scanId/review'));

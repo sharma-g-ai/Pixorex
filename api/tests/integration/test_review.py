@@ -236,6 +236,94 @@ def test_delegation_from_batch_to_override(api: Api, owner_sql: Any) -> None:
     )  # no longer current
 
 
+def test_reject_reason_other_needs_a_note(api: Api, owner_sql: Any) -> None:
+    """O-21 (decided 2026-11-16): a category always; with "other", a note as well."""
+    scan = waiting_scan(owner_sql, TARA)
+    _problem(_decide(api, BO, scan["scan_id"], "rejected"), 400, "validation")
+    _problem(
+        _decide(api, BO, scan["scan_id"], "rejected", reject_category="other", note="  "),
+        400,
+        "validation",
+    )
+    done = _decide(
+        api, BO, scan["scan_id"], "rejected", reject_category="other", note="Wrong plate"
+    )
+    assert done.status_code == 201, done.text
+    other = waiting_scan(owner_sql, TARA)  # a listed reason needs no note
+    assert (
+        _decide(api, BO, other["scan_id"], "rejected", reject_category="image_unclear").status_code
+        == 201
+    )
+
+
+def test_technician_batch_view_shows_rows_own_decisions_and_overrides(
+    api: Api, owner_sql: Any
+) -> None:
+    """Contracts 3.11 / 3.15 for screens T 74 and T 77."""
+    first = waiting_scan(owner_sql, TARA)
+    second = waiting_scan(owner_sql, TARA)
+    batch = api.post(
+        f"/business-units/{P04}/review-batches",
+        BO,
+        headers=_key(),
+        json={"assigned_to": THEO, "scan_ids": [first["scan_id"], second["scan_id"]]},
+    ).json()
+    url = f"/review-batches/{batch['batch_id']}"
+
+    detail = api.get(url, THEO).json()
+    assert (detail["batch"]["open_count"], detail["batch"]["overridden_count"]) == (2, 0)
+    row = detail["assignments"][0]
+    assert row["captured_by_name"] and row["equipment_type_name"] and row["location_path"]
+    assert isinstance(row["flag_count"], int) and row["submitted_at"]
+    assert row["my_decision"] is None
+
+    decided = _decide(api, THEO, first["scan_id"])
+    assert decided.status_code == 201, decided.text
+    rows = {a["scan_id"]: a for a in api.get(url, THEO).json()["assignments"]}
+    assert rows[first["scan_id"]]["my_decision"]["decision"] == "approved"
+    assert rows[first["scan_id"]]["my_decision"]["override"] is None
+    # Still to review comes first.
+    assert api.get(url, THEO).json()["assignments"][0]["scan_id"] == second["scan_id"]
+    # Admins see the rows but not "your decision".
+    assert all(a["my_decision"] is None for a in api.get(url, BO).json()["assignments"])
+
+    # The BU Admin takes the open one back and changes Theo's approval: the batch is done.
+    assert api.post(f"{url}/take-back", BO, json={}).status_code == 204
+    changed = api.post(
+        f"/decisions/{decided.json()['decision_id']}/override",
+        BO,
+        headers=_key(),
+        json={"decision": "rejected", "reject_category": "image_unclear", "note": "Check 460 V"},
+    )
+    assert changed.status_code == 201, changed.text
+
+    detail = api.get(url, THEO).json()
+    assert detail["batch"]["open_count"] == 0
+    assert (detail["batch"]["overridden_count"], detail["batch"]["overridden_unseen_count"]) == (
+        1,
+        1,
+    )
+    override = next(a for a in detail["assignments"] if a["scan_id"] == first["scan_id"])[
+        "my_decision"
+    ]["override"]
+    assert (override["decision"], override["note"], override["seen"]) == (
+        "rejected",
+        "Check 460 V",
+        False,
+    )
+    removed = next(a for a in detail["assignments"] if a["scan_id"] == second["scan_id"])
+    assert (removed["status"], removed["removed_reason"]) == ("removed", "taken_back")
+
+    # Not active any more, but listed for Theo until he has seen the change (T 77).
+    mine = api.get("/me/review-batches", THEO).json()["items"]
+    assert batch["batch_id"] in [b["batch_id"] for b in mine]
+    seen = api.post(f"/me/notifications/{override['notification_id']}/read", THEO)
+    assert seen.status_code == 204, seen.text
+    assert api.get(url, THEO).json()["batch"]["overridden_unseen_count"] == 0
+    mine = api.get("/me/review-batches", THEO).json()["items"]
+    assert batch["batch_id"] not in [b["batch_id"] for b in mine]
+
+
 def test_admin_deciding_a_delegated_scan_takes_it_out_of_the_batch(
     api: Api, owner_sql: Any
 ) -> None:

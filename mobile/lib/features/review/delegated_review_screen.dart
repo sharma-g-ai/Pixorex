@@ -8,18 +8,23 @@ import '../../core/theme.dart';
 import '../../widgets/auth_widgets.dart';
 import '../scan/review_model.dart' show flagReasonText;
 import '../scan/review_screen.dart' show PhotoZoom;
-import '../scan/scan_models.dart' show formatScanId, shortPlace;
 import '../scan/scan_repository.dart';
 import '../scan/scan_thumb.dart' show NetworkPhoto;
 import 'delegated_models.dart';
+
+const _green = Color(0xFF2C7A30);
+const _approve = Color(0xFF3A9E3E);
 
 /// Approve or reject a scan someone else captured (screens T 75-76; contracts 3.4, 3.5).
 /// Read only: the reviewer cannot change values. Pops with a sentence for the batch screen
 /// to show (decided, or why the scan is no longer theirs), which then reloads.
 class DelegatedReviewScreen extends StatefulWidget {
-  const DelegatedReviewScreen({super.key, required this.scans, required this.scanId});
+  const DelegatedReviewScreen({super.key, required this.scans, required this.scanId, this.position});
   final ScanRepository scans;
   final String scanId;
+
+  /// Where this scan sits in the batch, e.g. "19 of 30" (design T 75 header).
+  final String? position;
 
   @override
   State<DelegatedReviewScreen> createState() => _DelegatedReviewScreenState();
@@ -72,7 +77,7 @@ class _DelegatedReviewScreenState extends State<DelegatedReviewScreen> {
         note: note,
         idempotencyKey: _keys.putIfAbsent(body, _uuid.v4),
       );
-      if (mounted) Navigator.of(context).pop('${approve ? 'Approved' : 'Rejected'} · ${formatScanId(s.recordNo)}');
+      if (mounted) Navigator.of(context).pop('${approve ? 'Approved' : 'Rejected'} · ${s.equipmentTypeName}');
     } on ApiException catch (e) {
       if (!mounted) return;
       final gone = decisionProblemText(e.code, e.status);
@@ -93,7 +98,7 @@ class _DelegatedReviewScreenState extends State<DelegatedReviewScreen> {
     final picked = await showModalBottomSheet<(String, String?)>(
       context: context,
       isScrollControlled: true,
-      builder: (_) => const _RejectSheet(),
+      builder: (_) => _RejectSheet(capturedBy: _scan!.capturedByName),
     );
     if (picked != null) await _decide(approve: false, category: picked.$1, note: picked.$2);
   }
@@ -106,14 +111,14 @@ class _DelegatedReviewScreenState extends State<DelegatedReviewScreen> {
       appBar: AppBar(
         backgroundColor: Brand.navy,
         foregroundColor: Colors.white,
-        titleSpacing: 0,
-        title: s == null
-            ? const Text('Review')
-            : Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(s.equipmentTypeName, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
-                Text('${formatScanId(s.recordNo)} · ${shortPlace(s.locationPath)}',
-                    style: const TextStyle(fontSize: 11, color: Colors.white70)),
-              ]),
+        title: Text(s?.equipmentTypeName ?? 'Review', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+        actions: [
+          if (widget.position != null)
+            Padding(
+              padding: const EdgeInsets.only(right: 16),
+              child: Center(child: Text(widget.position!, style: const TextStyle(fontSize: 13, color: Colors.white70))),
+            ),
+        ],
       ),
       body: s == null
           ? (_loadError == null
@@ -130,13 +135,20 @@ class _DelegatedReviewScreenState extends State<DelegatedReviewScreen> {
                   ]),
                 ))
           : ListView(padding: const EdgeInsets.all(16), children: [
-              Text('Captured by ${s.capturedByName}', style: const TextStyle(fontSize: 13, color: Brand.body)),
+              if (s.photoUrls.isNotEmpty) ...[_Photos(urls: s.photoUrls), const SizedBox(height: 10)],
+              Text.rich(TextSpan(style: const TextStyle(fontSize: 13, color: Brand.body), children: [
+                const TextSpan(text: 'Captured by '),
+                TextSpan(text: s.capturedByName, style: const TextStyle(fontWeight: FontWeight.w700, color: Brand.ink)),
+                TextSpan(text: ' · ${s.locationPath}'),
+              ])),
+              const SizedBox(height: 10),
+              _ReadOnly(capturedBy: s.capturedByName),
               if (s.emptyRequiredFields.isNotEmpty) ...[
                 const SizedBox(height: 10),
                 InfoBanner(text: 'Sent with required fields empty: ${s.emptyRequiredFields.join(', ')}.', error: true),
               ],
-              if (s.photoUrls.isNotEmpty) ...[const SizedBox(height: 12), _Photos(urls: s.photoUrls)],
-              for (final f in s.fields) Padding(padding: const EdgeInsets.only(top: 10), child: _FieldCard(f)),
+              for (final f in s.fields)
+                Padding(padding: const EdgeInsets.only(top: 10), child: _FieldCard(f, capturedBy: s.capturedByName)),
             ]),
       bottomNavigationBar: s == null
           ? null
@@ -166,7 +178,7 @@ class _DelegatedReviewScreenState extends State<DelegatedReviewScreen> {
                       child: FilledButton(
                         onPressed: _sending ? null : () => _decide(approve: true),
                         style: FilledButton.styleFrom(
-                          backgroundColor: Brand.navy,
+                          backgroundColor: _approve,
                           minimumSize: const Size.fromHeight(48),
                           shape: const StadiumBorder(),
                         ),
@@ -183,21 +195,53 @@ class _DelegatedReviewScreenState extends State<DelegatedReviewScreen> {
   }
 }
 
-/// One field as submitted: what the AI read, what the technician sent, their verdict and
-/// why it was flagged. Nothing to edit.
+class _ReadOnly extends StatelessWidget {
+  const _ReadOnly({required this.capturedBy});
+  final String capturedBy;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(color: Brand.segment, borderRadius: BorderRadius.circular(10)),
+        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const Icon(Icons.lock_outline, size: 16, color: Brand.body),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text.rich(TextSpan(style: const TextStyle(fontSize: 12.5, color: Brand.body), children: [
+              const TextSpan(text: 'Read-only. You approve or reject — only '),
+              TextSpan(text: capturedBy, style: const TextStyle(fontWeight: FontWeight.w700, color: Brand.ink)),
+              const TextSpan(text: ', who captured it, can correct or retake it.'),
+            ])),
+          ),
+        ]),
+      );
+}
+
+/// One field as submitted (design T 75): the verdict, what the AI read (struck through when
+/// corrected), the technician's value only when corrected, and why it was flagged.
 class _FieldCard extends StatelessWidget {
-  const _FieldCard(this.f);
+  const _FieldCard(this.f, {required this.capturedBy});
   final ReviewedField f;
+  final String capturedBy;
 
   static const _mono = TextStyle(fontFamily: 'IBM Plex Mono', fontSize: 14, fontWeight: FontWeight.w600);
 
+  String get _flagLine {
+    if (f.verificationState == 'unreadable') {
+      final why = f.unreadableText == null ? '' : ' (${f.unreadableText})';
+      return 'Flagged: missing · marked unreadable by $capturedBy$why';
+    }
+    if (f.flagReasons.isEmpty) return 'Looks right';
+    final text = f.flagReasons.map((r) => flagReasonText(r, f.confidence)).join(' · ');
+    return 'Flagged: ${text[0].toLowerCase()}${text.substring(1)}';
+  }
+
   @override
   Widget build(BuildContext context) {
-    final corrected = f.verificationState == 'corrected';
-    final (fg, bg) = switch (f.verificationState) {
-      'corrected' => (Brand.navy, Brand.info),
-      'unreadable' || 'left_empty' => (Brand.errorInk, Brand.errorBg),
-      _ => (const Color(0xFF2C7A30), const Color(0xFFE4F5E5)),
+    final color = switch (f.verificationState) {
+      'corrected' => Brand.navy,
+      'unreadable' || 'left_empty' => Brand.body,
+      _ => _green,
     };
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -208,33 +252,33 @@ class _FieldCard extends StatelessWidget {
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
-          Expanded(child: Text(f.label, style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: Brand.body))),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-            decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(999)),
-            child: Text(f.verdict, style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: fg)),
-          ),
+          Expanded(child: Text(f.label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Brand.body))),
+          Text(f.verdict, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: color)),
         ]),
         const SizedBox(height: 8),
-        _line('AI read', f.aiValue, struck: corrected),
-        _line('Technician', f.technicianValue),
+        _line('AI read', f.aiValue, struck: f.corrected),
+        if (f.corrected) _line('Technician', f.technicianValue, you: true),
         if (f.note != null && f.note!.isNotEmpty) _line('Note', f.note),
-        for (final r in f.flagReasons)
-          Padding(
-            padding: const EdgeInsets.only(top: 6),
-            child: Text(flagReasonText(r, f.confidence), style: const TextStyle(fontSize: 11, color: Brand.warn)),
-          ),
+        Padding(
+          padding: const EdgeInsets.only(top: 6),
+          child: Text(_flagLine, style: const TextStyle(fontSize: 11.5, color: Brand.hint)),
+        ),
       ]),
     );
   }
 
-  Widget _line(String label, String? value, {bool struck = false}) => Padding(
+  Widget _line(String label, String? value, {bool struck = false, bool you = false}) => Padding(
         padding: const EdgeInsets.symmetric(vertical: 2),
         child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          SizedBox(width: 78, child: Text(label, style: const TextStyle(fontSize: 11, color: Brand.hint))),
+          SizedBox(
+            width: 82,
+            child: Text(label,
+                style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: you ? Brand.navy : Brand.hint)),
+          ),
           Expanded(
             child: Text(value ?? '—',
                 style: _mono.copyWith(
+                  fontSize: you ? 15 : 14,
                   color: struck ? Brand.hint : Brand.ink,
                   decoration: struck ? TextDecoration.lineThrough : null,
                 )),
@@ -249,7 +293,7 @@ class _Photos extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => SizedBox(
-        height: 140,
+        height: 150,
         child: ListView.separated(
           scrollDirection: Axis.horizontal,
           itemCount: urls.length,
@@ -258,17 +302,34 @@ class _Photos extends StatelessWidget {
             onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => PhotoZoom(urls: urls, first: i))),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(10),
-              child: SizedBox(width: urls.length == 1 ? 320 : 180, child: NetworkPhoto(url: urls[i])),
+              child: SizedBox(
+                width: urls.length == 1 ? 330 : (i == 0 ? 280 : 70),
+                child: Stack(fit: StackFit.expand, children: [
+                  NetworkPhoto(url: urls[i]),
+                  if (i == 0)
+                    Positioned(
+                      right: 10,
+                      bottom: 10,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+                        decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(999)),
+                        child: const Text('Tap to zoom',
+                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.white)),
+                      ),
+                    ),
+                ]),
+              ),
             ),
           ),
         ),
       );
 }
 
-/// Design 76: a reason is required; the note is sent as typed (whether it is required is
-/// the API's call, O-21). Pops (category, note or null).
+/// Design T 76: a reason is required; with "Other" a note is too (O-21). Pops (category,
+/// note or null).
 class _RejectSheet extends StatefulWidget {
-  const _RejectSheet();
+  const _RejectSheet({required this.capturedBy});
+  final String capturedBy;
 
   @override
   State<_RejectSheet> createState() => _RejectSheetState();
@@ -285,40 +346,48 @@ class _RejectSheetState extends State<_RejectSheet> {
   }
 
   @override
-  Widget build(BuildContext context) => Padding(
-        padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
-            child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-              const Text('Reject this scan', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-              const SizedBox(height: 4),
-              const Text('The technician who captured it sees the reason and your note.',
-                  style: TextStyle(fontSize: 12.5, color: Brand.body)),
-              RadioGroup<String>(
-                groupValue: _category,
-                onChanged: (c) => setState(() => _category = c),
-                child: Column(children: [
-                  for (final (code, label) in rejectCategories)
-                    RadioListTile<String>(value: code, title: Text(label), dense: true, contentPadding: EdgeInsets.zero),
-                ]),
+  Widget build(BuildContext context) {
+    final noteNeeded = _category == 'other';
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
+      child: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            const Text('Why are you rejecting it?', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+            const SizedBox(height: 4),
+            RadioGroup<String>(
+              groupValue: _category,
+              onChanged: (c) => setState(() => _category = c),
+              child: Column(children: [
+                for (final (code, label) in rejectCategories)
+                  RadioListTile<String>(value: code, title: Text(label), dense: true, contentPadding: EdgeInsets.zero),
+              ]),
+            ),
+            TextField(
+              controller: _note,
+              maxLines: 3,
+              maxLength: 2000,
+              onChanged: (_) => setState(() {}),
+              decoration: InputDecoration(
+                labelText: noteNeeded
+                    ? 'Add a note for ${widget.capturedBy} (required for Other)'
+                    : 'Add a note for ${widget.capturedBy} (optional)',
+                border: const OutlineInputBorder(),
               ),
-              TextField(
-                controller: _note,
-                maxLines: 3,
-                maxLength: 2000,
-                decoration: const InputDecoration(labelText: 'Note for the technician', border: OutlineInputBorder()),
-              ),
-              const SizedBox(height: 8),
-              FilledButton(
-                onPressed: _category == null
-                    ? null
-                    : () => Navigator.of(context).pop((_category!, _note.text.trim().isEmpty ? null : _note.text.trim())),
-                style: FilledButton.styleFrom(backgroundColor: Brand.error, minimumSize: const Size.fromHeight(48), shape: const StadiumBorder()),
-                child: const Text('Reject scan', style: TextStyle(fontWeight: FontWeight.w700)),
-              ),
-            ]),
-          ),
+            ),
+            const SizedBox(height: 8),
+            FilledButton(
+              onPressed: rejectReady(_category, _note.text)
+                  ? () => Navigator.of(context).pop((_category!, _note.text.trim().isEmpty ? null : _note.text.trim()))
+                  : null,
+              style: FilledButton.styleFrom(backgroundColor: Brand.error, minimumSize: const Size.fromHeight(48), shape: const StadiumBorder()),
+              child: const Text('Reject scan', style: TextStyle(fontWeight: FontWeight.w700)),
+            ),
+            TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel')),
+          ]),
         ),
-      );
+      ),
+    );
+  }
 }

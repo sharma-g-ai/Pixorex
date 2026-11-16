@@ -291,8 +291,8 @@ class _HomeTabState extends State<HomeTab> {
 
   /// Design T 74 entry: one row per batch with its progress and who gave it.
   List<Widget> _toReview() => [
-        if (_batches.isNotEmpty) ...[
-          _ReviewCard(batches: _batches, onOpen: _openBatch),
+        for (final b in _batches) ...[
+          _ReviewCard(batch: b, onOpen: () => _openBatch(b)),
           const SizedBox(height: 16),
         ],
       ];
@@ -325,8 +325,7 @@ class _HomeTabState extends State<HomeTab> {
     final failed = needs.length - review - rejected;
     final now = widget.clock();
     return [
-      ..._toReview(),
-      if (needs.isNotEmpty)
+      if (needs.isNotEmpty) ...[
         _ActionCard(
           onTap: widget.onMyScans == null ? null : () => widget.onMyScans!(tab: 'needs_action'),
           count: needs.length,
@@ -337,7 +336,11 @@ class _HomeTabState extends State<HomeTab> {
             if (failed > 0) '$failed failed',
           ].join(' · '),
         ),
-      const SizedBox(height: 16),
+        const SizedBox(height: 10),
+      ],
+      // Design T 14: the batch card sits under "needs your action".
+      ..._toReview(),
+      const SizedBox(height: 6),
       Row(crossAxisAlignment: CrossAxisAlignment.baseline, textBaseline: TextBaseline.alphabetic, children: [
         const Expanded(child: Text('Today', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700))),
         Text(dayLabel(now), style: const TextStyle(fontSize: 11.5, color: Brand.hint)),
@@ -422,42 +425,50 @@ class ScanRow extends StatelessWidget {
   }
 }
 
-/// "Scans to review": batches given to me, each opening its batch screen.
+/// Design T 14: "12 scans to review for R. Kowalski" / "Batch B-13 · from other technicians".
+/// A finished batch stays here only while the admin changed a decision I haven't seen (T 77).
 class _ReviewCard extends StatelessWidget {
-  const _ReviewCard({required this.batches, required this.onOpen});
-  final List<ReviewBatch> batches;
-  final void Function(ReviewBatch) onOpen;
+  const _ReviewCard({required this.batch, required this.onOpen});
+  final ReviewBatch batch;
+  final VoidCallback onOpen;
 
   @override
-  Widget build(BuildContext context) => Container(
-        decoration: BoxDecoration(
-          color: Brand.info,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: const Color(0xFF7FA3EA), width: 1.5),
-        ),
-        padding: const EdgeInsets.fromLTRB(14, 12, 14, 6),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Text('Scans to review', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Brand.navy)),
-          for (final b in batches)
-            InkWell(
-              key: Key('batch-${b.batchId}'),
-              onTap: () => onOpen(b),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                child: Row(children: [
-                  Expanded(
-                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text('${b.batchNo} · from ${b.createdByName}',
-                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Brand.ink)),
-                      Text(b.progress, style: const TextStyle(fontSize: 11.5, color: Brand.body)),
-                    ]),
-                  ),
-                  const Icon(Icons.chevron_right, color: Brand.navy),
-                ]),
-              ),
+  Widget build(BuildContext context) {
+    final b = batch;
+    final onlyChange = b.openCount == 0 && b.overriddenUnseenCount > 0;
+    return Material(
+      key: Key('batch-${b.batchId}'),
+      color: const Color(0xFFEDEEFB),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+        side: const BorderSide(color: Color(0xFFC9CCF2), width: 1.5),
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(10),
+        onTap: onOpen,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          child: Row(children: [
+            CircleAvatar(
+              radius: 15,
+              backgroundColor: onlyChange ? Brand.error : Brand.navy,
+              child: Icon(onlyChange ? Icons.error_outline : Icons.fact_check_outlined, color: Colors.white, size: 17),
             ),
-        ]),
-      );
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(onlyChange ? b.changedText : b.toReviewText,
+                    style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: Brand.navyDeep)),
+                Text(onlyChange ? 'Batch ${b.batchNo} · tap to see why' : 'Batch ${b.batchNo} · from other technicians',
+                    style: const TextStyle(fontSize: 12, color: Brand.navyDeep)),
+              ]),
+            ),
+            const Icon(Icons.chevron_right, color: Brand.navy),
+          ]),
+        ),
+      ),
+    );
+  }
 }
 
 class _ActionCard extends StatelessWidget {

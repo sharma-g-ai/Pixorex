@@ -1,6 +1,6 @@
 /// Delegated review: a BU Admin gives waiting scans to a technician as a batch, and the
 /// technician approves or rejects them on the phone (contracts 3.4, 3.5, 3.11, 3.15;
-/// screens T 74-76). Names follow the contract's snake_case fields.
+/// screens T 14, T 74-77). Names follow the contract's snake_case fields.
 library;
 
 /// A batch given to me (contract 3.15 / 3.11 `Batch`).
@@ -12,6 +12,9 @@ class ReviewBatch {
     required this.scanCount,
     required this.decidedCount,
     required this.status,
+    this.openCount = 0,
+    this.overriddenCount = 0,
+    this.overriddenUnseenCount = 0,
   });
   final String batchId;
   final String batchNo;
@@ -19,11 +22,27 @@ class ReviewBatch {
   final int scanCount;
   final int decidedCount;
 
+  /// Still assigned to me: what is left to review (removed scans don't count).
+  final int openCount;
+
+  /// My decisions here the BU Admin changed, and of those the ones I haven't seen (T 77).
+  final int overriddenCount;
+  final int overriddenUnseenCount;
+
   /// `active`, `completed` or `taken_back`.
   final String status;
 
-  int get open => scanCount - decidedCount;
-  String get progress => '$decidedCount of $scanCount reviewed';
+  /// Scans that stay in the batch: decided plus still to review ("18 of 30 done").
+  int get total => decidedCount + openCount;
+
+  /// Design T 74: "18 of 30 done".
+  String get progress => '$decidedCount of $total done';
+
+  /// Design T 14: "12 scans to review for R. Kowalski".
+  String get toReviewText => '$openCount scan${openCount == 1 ? '' : 's'} to review for $createdByName';
+
+  /// Design T 74 banner: "R. Kowalski changed 1 of your decisions."
+  String get changedText => '$createdByName changed $overriddenUnseenCount of your decisions.';
 
   factory ReviewBatch.fromJson(Map<String, dynamic> j) => ReviewBatch(
         batchId: j['batch_id'] as String,
@@ -32,12 +51,76 @@ class ReviewBatch {
         scanCount: j['scan_count'] as int,
         decidedCount: j['decided_count'] as int,
         status: j['status'] as String,
+        openCount: (j['open_count'] as int?) ?? (j['scan_count'] as int) - (j['decided_count'] as int),
+        overriddenCount: (j['overridden_count'] as int?) ?? 0,
+        overriddenUnseenCount: (j['overridden_unseen_count'] as int?) ?? 0,
+      );
+}
+
+/// The BU Admin's decision that replaced mine (contract 3.7; T 77).
+class DecisionOverride {
+  const DecisionOverride({
+    required this.decision,
+    required this.decidedByName,
+    required this.decidedAt,
+    required this.seen,
+    this.rejectCategory,
+    this.note,
+    this.notificationId,
+  });
+  final String decision;
+  final String? rejectCategory;
+  final String? note;
+  final String decidedByName;
+  final DateTime decidedAt;
+
+  /// "Got it" marks this notification read (contract 3.21).
+  final String? notificationId;
+  final bool seen;
+
+  factory DecisionOverride.fromJson(Map<String, dynamic> j) => DecisionOverride(
+        decision: j['decision'] as String,
+        rejectCategory: j['reject_category'] as String?,
+        note: j['note'] as String?,
+        decidedByName: j['decided_by_name'] as String,
+        decidedAt: DateTime.parse(j['decided_at'] as String),
+        notificationId: j['notification_id'] as String?,
+        seen: j['seen'] as bool? ?? false,
+      );
+}
+
+/// My own decision on a scan in the batch (T 74 "you approved").
+class BatchDecision {
+  const BatchDecision({required this.decision, required this.decidedAt, this.rejectCategory, this.override});
+  final String decision;
+  final String? rejectCategory;
+  final DateTime decidedAt;
+  final DecisionOverride? override;
+
+  bool get approved => decision == 'approved';
+
+  factory BatchDecision.fromJson(Map<String, dynamic> j) => BatchDecision(
+        decision: j['decision'] as String,
+        rejectCategory: j['reject_category'] as String?,
+        decidedAt: DateTime.parse(j['decided_at'] as String),
+        override: j['override'] == null ? null : DecisionOverride.fromJson(j['override'] as Map<String, dynamic>),
       );
 }
 
 /// One scan in a batch (contract 3.11 `Assignment`).
 class Assignment {
-  const Assignment({required this.scanId, required this.recordNo, required this.status, this.removedReason});
+  const Assignment({
+    required this.scanId,
+    required this.recordNo,
+    required this.status,
+    this.removedReason,
+    this.equipmentTypeName = '',
+    this.capturedByName = '',
+    this.locationPath = '',
+    this.flagCount = 0,
+    this.thumbnailUrl,
+    this.myDecision,
+  });
   final String scanId;
   final String recordNo;
 
@@ -46,13 +129,33 @@ class Assignment {
 
   /// Set when removed: `taken_back`, `reassigned`, `admin_decided`, `user_removed`.
   final String? removedReason;
+  final String equipmentTypeName;
+  final String capturedByName;
+  final String locationPath;
+  final int flagCount;
+
+  /// Signed link to photo 1 (15 minutes), or null.
+  final String? thumbnailUrl;
+  final BatchDecision? myDecision;
 
   /// Only a scan still assigned to me can be reviewed.
   bool get canOpen => status == 'assigned';
+  bool get removed => status == 'removed';
 
+  /// Where the scan ended: my decision, or the BU Admin's when they changed it. Null when
+  /// nobody decided it here.
+  bool? get endedApproved {
+    final d = myDecision;
+    if (status != 'decided' || d == null) return null;
+    return d.override == null ? d.approved : d.override!.decision == 'approved';
+  }
+
+  /// The status tag on the row. A decision the admin changed shows where it ended, so a
+  /// rejected scan never shows a green "Approved" (decided 2026-11-16).
   String get statusText => switch (status) {
         'assigned' => 'To review',
-        'decided' => 'Done',
+        'decided' when myDecision?.override != null => 'Changed → ${endedApproved! ? 'Approved' : 'Rejected'}',
+        'decided' => myDecision == null ? 'Done' : (myDecision!.approved ? 'Approved' : 'Rejected'),
         _ => switch (removedReason) {
             'taken_back' => 'Taken back by the admin',
             'reassigned' => 'Reassigned to someone else',
@@ -66,6 +169,12 @@ class Assignment {
         recordNo: j['record_no'] as String,
         status: j['status'] as String,
         removedReason: j['removed_reason'] as String?,
+        equipmentTypeName: (j['equipment_type_name'] as String?) ?? '',
+        capturedByName: (j['captured_by_name'] as String?) ?? '',
+        locationPath: (j['location_path'] as String?) ?? '',
+        flagCount: (j['flag_count'] as int?) ?? 0,
+        thumbnailUrl: j['thumbnail_url'] as String?,
+        myDecision: j['my_decision'] == null ? null : BatchDecision.fromJson(j['my_decision'] as Map<String, dynamic>),
       );
 }
 
@@ -92,13 +201,18 @@ class ReviewedField {
   final String? unreadableReason;
   final String? note;
 
-  /// The technician's verdict, as the reviewer reads it.
+  bool get corrected => verificationState == 'corrected';
+
+  /// The technician's verdict, as the reviewer reads it (design T 75).
   String get verdict => switch (verificationState) {
         'corrected' => 'Corrected',
-        'unreadable' => unreadableReason == null ? 'Unreadable' : 'Unreadable · ${unreadableReason!.replaceAll('_', ' ')}',
+        'unreadable' => 'Unreadable',
         'left_empty' => 'Left empty',
         _ => 'Kept as read',
       };
+
+  /// Why the technician couldn't read it, in words: "label worn".
+  String? get unreadableText => unreadableReason?.replaceAll('_', ' ');
 
   factory ReviewedField.fromJson(Map<String, dynamic> j) => ReviewedField(
         label: j['label'] as String,
@@ -159,6 +273,13 @@ const rejectCategories = [
   ('wrong_equipment_type', 'Wrong equipment type'),
   ('other', 'Other'),
 ];
+
+String rejectCategoryLabel(String? code) =>
+    rejectCategories.firstWhere((c) => c.$1 == code, orElse: () => (code ?? '', code ?? '')).$2;
+
+/// O-21 (decided 2026-11-16): a reason always; "Other" also needs a note.
+bool rejectReady(String? category, String note) =>
+    category != null && (category != 'other' || note.trim().isNotEmpty);
 
 /// Said when the scan is no longer the reviewer's to decide.
 const takenBackText = 'This scan is no longer assigned to you. The admin took it back or reassigned it.';

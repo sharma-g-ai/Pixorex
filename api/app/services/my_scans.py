@@ -37,7 +37,7 @@ class MyScan(BaseModel):
     reviewer_name: str | None  # who rejected it, or who a fix or retake goes to
     updated_at: datetime
     captured_at: datetime  # when the technician took the photo; set once, never changes
-    thumbnail_url: str | None = None  # signed link to photo 1 (15 minutes); None without a photo
+    thumbnail_url: str | None  # signed link to photo 1 (15 minutes); None without a photo
 
 
 class MyScanPage(BaseModel):

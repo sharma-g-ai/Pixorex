@@ -125,7 +125,7 @@ export interface paths {
          * Approve or reject the current revision
          * @description Contract ref 3.5 in the API Contracts doc.
          *
-         *     reject_category required when rejecting (400). Resolves an open escalation. An admin deciding a delegated scan marks its assignment removed (admin_decided) and alerts the technician (scan_removed_from_batch). Alerts the scan's technician (scan_approved / scan_rejected). Audit (review). Screens BU 07, 20-21; EA 05-07; T 75-76.
+         *     reject_category required when rejecting (400); with reject_category other, a note is required too (400, O-21 decided 2026-11-16). Resolves an open escalation. An admin deciding a delegated scan marks its assignment removed (admin_decided) and alerts the technician (scan_removed_from_batch). Alerts the scan's technician (scan_approved / scan_rejected). Audit (review). Screens BU 07, 20-21; EA 05-07; T 75-76.
          */
         post: operations["decideScan"];
         delete?: never;
@@ -169,7 +169,7 @@ export interface paths {
          * Override a delegated technician's decision
          * @description Contract ref 3.7 in the API Contracts doc.
          *
-         *     Inserts a new decision with overrides_decision_id; the old one stops being current. Screens show only approval to rejection. Alerts the delegated technician (decision_overridden). Audit (override). Screens BU 22-23; T 77.
+         *     Inserts a new decision with overrides_decision_id; the old one stops being current. Works both ways (approval to rejection, rejection to approval). Rejecting needs reject_category, and a note when it is other (400, O-21). Alerts the delegated technician (decision_overridden). Audit (override). Screens BU 22-23; T 77.
          */
         post: operations["overrideDecision"];
         delete?: never;
@@ -327,7 +327,7 @@ export interface paths {
          * Active batches assigned to me
          * @description Contract ref 3.15 in the API Contracts doc.
          *
-         *     Screen T 74.
+         *     Active batches given to the caller, plus any batch (also completed) where the BU Admin changed one of the caller's decisions and the caller has not read that decision_overridden notification yet (T 77 stays reachable). Screens T 14, T 74.
          */
         get: operations["listMyReviewBatches"];
         put?: never;
@@ -564,6 +564,10 @@ export interface components {
             /** @description Who rejected it, who a fix goes back to, or who rejected the scan a retake replaces (screens T 70, 73). */
             reviewer_name: string | null;
             updated_at: components["schemas"]["Timestamp"];
+            /** @description When the technician took the photo; set once, never changes (row "Scanned 13 Nov 10:30:42"). */
+            captured_at: components["schemas"]["Timestamp"];
+            /** @description Signed link to photo 1, valid 15 minutes; null without a photo or photo storage. */
+            thumbnail_url: string | null;
         };
         RevisionFieldInput: {
             field_key: string;
@@ -710,6 +714,12 @@ export interface components {
             created_by_name: string;
             scan_count: number;
             decided_count: number;
+            /** @description Scans still assigned (not decided, not removed). What is left to review. */
+            open_count: number;
+            /** @description Decisions the assigned technician made in this batch that the BU Admin changed. */
+            overridden_count: number;
+            /** @description Of overridden_count, the ones whose decision_overridden notification the assigned technician has not read. Always 0 for other callers. */
+            overridden_unseen_count: number;
             created_at: components["schemas"]["Timestamp"];
             /** Format: date-time */
             reminded_at: string | null;
@@ -723,6 +733,37 @@ export interface components {
             status: "assigned" | "decided" | "removed";
             /** @enum {string|null} */
             removed_reason: "taken_back" | "reassigned" | "admin_decided" | "user_removed" | null;
+            equipment_type_name: string;
+            captured_by_name: string;
+            /** @description The location as captured, e.g. "Plant 04 › Building C › Bin 02". */
+            location_path: string;
+            /** @description Flagged fields in the scan's current revision. */
+            flag_count: number;
+            submitted_at: components["schemas"]["Timestamp"];
+            /** @description Signed link to photo 1, valid 15 minutes; null without photo storage. */
+            thumbnail_url: string | null;
+            /** @description The assigned technician's own decision on this scan in this batch (T 74 "you approved", T 77). Null when there is none, and always null for callers other than the assigned technician. */
+            my_decision: components["schemas"]["BatchDecision"] | null;
+        };
+        BatchDecision: {
+            /** @enum {string} */
+            decision: "approved" | "rejected";
+            reject_category: components["schemas"]["RejectCategory"] | null;
+            decided_at: components["schemas"]["Timestamp"];
+            /** @description Set when the BU Admin changed this decision (contract 3.7). */
+            override: components["schemas"]["DecisionOverride"] | null;
+        };
+        DecisionOverride: {
+            /** @enum {string} */
+            decision: "approved" | "rejected";
+            reject_category: components["schemas"]["RejectCategory"] | null;
+            note: string | null;
+            decided_by_name: string;
+            decided_at: components["schemas"]["Timestamp"];
+            /** @description The technician's decision_overridden notification; "Got it" marks it read (3.21). */
+            notification_id: components["schemas"]["Uuid"] | null;
+            /** @description That notification has been read. */
+            seen: boolean;
         };
         Escalation: {
             escalation_id: components["schemas"]["Uuid"];

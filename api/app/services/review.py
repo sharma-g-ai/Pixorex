@@ -150,7 +150,11 @@ def _check_input(body: DecisionInput) -> str | None:
         raise ProblemError(400, "validation", "Pick a reason for the rejection.")
     if body.decision == "approved" and body.reject_category is not None:
         raise ProblemError(400, "validation", "An approval has no rejection reason.")
-    return (body.note or "").strip() or None
+    note = (body.note or "").strip() or None
+    # O-21 (decided 2026-11-16): no listed reason fits, so "other" has to say why.
+    if body.reject_category == "other" and note is None:
+        raise ProblemError(400, "validation", "Add a note when the reason is Other.")
+    return note
 
 
 # ---- 3.3 / 3.6 queue and lists ------------------------------------------------------------

@@ -32,13 +32,15 @@ export function DecisionReasonDialog({
 }: DecisionReasonDialogProps) {
   const [category, setCategory] = useState<RejectCategory | null>(null)
   const [note, setNote] = useState('')
+  // O-21 (decided 2026-11-16): a reason always; "Other" also needs a note saying why.
+  const noteNeeded = category === 'other'
 
   return (
     <ConfirmDialog
       title={title}
       confirmLabel={confirmLabel}
       danger
-      disabled={category === null}
+      disabled={category === null || (noteNeeded && note.trim() === '')}
       onClose={onClose}
       onConfirm={() => (category ? onSubmit(category, note.trim()) : Promise.resolve())}
     >
@@ -56,7 +58,11 @@ export function DecisionReasonDialog({
             />
           ))}
         </fieldset>
-        <TextAreaField label={noteLabel} value={note} onChange={(e) => setNote(e.target.value)} />
+        <TextAreaField
+          label={noteNeeded ? `${noteLabel} (required for Other)` : noteLabel}
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+        />
         {outro && <p className="text-small">{outro}</p>}
       </div>
     </ConfirmDialog>

@@ -86,6 +86,21 @@ async def assign(
         )
 
 
+# A technician's decision in batch b that a BU Admin replaced (contract 3.7): d is the
+# technician's decision, o the one that replaced it.
+_OVERRIDDEN = (
+    " FROM review_decision d JOIN review_decision o ON o.overrides_decision_id = d.id"
+    " JOIN revision r ON r.id = d.revision_id"
+    " WHERE d.batch_id = b.id AND d.decider_role = 'delegated_technician'"
+)
+# ...whose decision_overridden notification is still unread. Notifications are visible to
+# their recipient only (RLS), so for anyone but that technician this finds nothing.
+_UNSEEN = (
+    " AND EXISTS (SELECT 1 FROM notification n WHERE n.kind = 'decision_overridden'"
+    "   AND n.recipient_user_id = d.decided_by AND n.object_id = r.scan_id"
+    "   AND n.read_at IS NULL AND n.created_at >= o.decided_at)"
+)
+
 _BATCH = (
     "SELECT b.id AS batch_id, b.bu_id, b.tenant_id, b.batch_no, b.assigned_to, b.status,"
     " b.created_at, b.reminded_at, a.full_name AS assigned_to_name,"
@@ -93,7 +108,11 @@ _BATCH = (
     " (SELECT count(DISTINCT x.scan_id) FROM review_assignment x WHERE x.batch_id = b.id)"
     "   AS scan_count,"
     " (SELECT count(DISTINCT x.scan_id) FROM review_assignment x WHERE x.batch_id = b.id"
-    "   AND x.status = 'decided') AS decided_count"
+    "   AND x.status = 'decided') AS decided_count,"
+    " (SELECT count(DISTINCT x.scan_id) FROM review_assignment x WHERE x.batch_id = b.id"
+    "   AND x.status = 'assigned') AS open_count,"
+    f" (SELECT count(*){_OVERRIDDEN}) AS overridden_count,"
+    f" (SELECT count(*){_OVERRIDDEN}{_UNSEEN}) AS overridden_unseen_count"
     " FROM review_batch b JOIN app_user a ON a.id = b.assigned_to"
     " JOIN app_user c ON c.id = b.created_by"
 )
@@ -107,8 +126,10 @@ async def batches(
     status: str | None,
     after: list[str] | None,
     limit: int,
+    or_unseen_override: bool = False,
 ) -> list[dict[str, Any]]:
-    """A unit's batches, or the batches given to one technician."""
+    """A unit's batches, or the batches given to one technician. With [or_unseen_override],
+    a batch in another status is listed too while it has an override not seen yet (T 77)."""
     where: list[str] = ["true"]
     params: list[object] = []
     if bu_id is not None:
@@ -117,7 +138,10 @@ async def batches(
     if assigned_to is not None:
         where.append("b.assigned_to = %s")
         params.append(assigned_to)
-    if status:
+    if status and or_unseen_override:
+        where.append(f"(b.status = %s OR EXISTS (SELECT 1{_OVERRIDDEN}{_UNSEEN}))")
+        params.append(status)
+    elif status:
         where.append("b.status = %s")
         params.append(status)
     if after:
@@ -137,16 +161,60 @@ async def batch(conn: Conn, batch_id: UUID, *, lock: bool = False) -> dict[str, 
     return await cur.fetchone()
 
 
-async def assignments(conn: Conn, batch_id: UUID) -> list[dict[str, Any]]:
-    """The latest assignment of each scan in the batch."""
+async def assignments(
+    conn: Conn, batch_id: UUID, *, technician: UUID | None = None
+) -> list[dict[str, Any]]:
+    """The latest assignment of each scan in the batch, with what a row shows (T 74): type,
+    who captured it, where, flags, photo 1. With [technician], also that technician's own
+    decision in this batch and, if a BU Admin replaced it, the replacing decision (T 77).
+    One query: a batch holds at most 50 scans."""
     cur = await conn.execute(
-        "SELECT DISTINCT ON (a.scan_id) a.scan_id, s.record_no, a.status, a.removed_reason"
-        " FROM review_assignment a JOIN scan s ON s.id = a.scan_id WHERE a.batch_id = %s"
+        "SELECT DISTINCT ON (a.scan_id) a.scan_id, s.record_no, a.status, a.removed_reason,"
+        " et.name AS equipment_type_name, tech.full_name AS captured_by_name,"
+        " s.location_path_snapshot AS location_path,"
+        " coalesce(cr.submitted_at, s.captured_at) AS submitted_at,"
+        " (SELECT count(*) FROM revision_field rf JOIN ai_field_value av"
+        "    ON av.id = rf.ai_field_value_id"
+        "   WHERE rf.revision_id = cr.id AND cardinality(av.flag_reasons) > 0) AS flag_count,"
+        " (SELECT sp.object_key FROM scan_photo sp WHERE sp.scan_id = s.id"
+        "   ORDER BY sp.photo_no LIMIT 1) AS photo_key,"
+        " md.decision AS my_decision, md.reject_category AS my_category,"
+        " md.decided_at AS my_decided_at,"
+        " o.decision AS ov_decision, o.reject_category AS ov_category, o.note AS ov_note,"
+        " ob.full_name AS ov_by, o.decided_at AS ov_at,"
+        " nn.id AS ov_notification_id, (nn.read_at IS NOT NULL) AS ov_seen"
+        " FROM review_assignment a JOIN scan s ON s.id = a.scan_id"
+        " JOIN equipment_type et ON et.id = s.equipment_type_id"
+        " JOIN app_user tech ON tech.id = s.technician_id"
+        " LEFT JOIN LATERAL (SELECT r.id, r.submitted_at FROM revision r WHERE r.scan_id = s.id"
+        "   ORDER BY r.revision_no DESC LIMIT 1) cr ON true"
+        " LEFT JOIN LATERAL (SELECT d.id, d.decision, d.reject_category, d.decided_at"
+        "   FROM review_decision d JOIN revision dr ON dr.id = d.revision_id"
+        "   WHERE d.batch_id = a.batch_id AND dr.scan_id = s.id AND d.decided_by = %(me)s"
+        "   ORDER BY d.decided_at DESC LIMIT 1) md ON true"
+        " LEFT JOIN review_decision o ON o.overrides_decision_id = md.id"
+        " LEFT JOIN app_user ob ON ob.id = o.decided_by"
+        " LEFT JOIN LATERAL (SELECT n.id, n.read_at FROM notification n"
+        "   WHERE n.kind = 'decision_overridden' AND n.recipient_user_id = %(me)s"
+        "   AND n.object_id = s.id AND n.created_at >= o.decided_at"
+        "   ORDER BY n.created_at LIMIT 1) nn ON o.id IS NOT NULL"
+        " WHERE a.batch_id = %(batch)s"
         " ORDER BY a.scan_id, a.created_at DESC",
-        (batch_id,),
+        {"batch": batch_id, "me": technician},
     )
     rows = await cur.fetchall()
-    return sorted(rows, key=lambda r: r["record_no"])
+    return sorted(rows, key=_batch_order)
+
+
+def _batch_order(r: dict[str, Any]) -> tuple[int, float, str]:
+    """T 74: still to review first (longest waiting on top), then done (latest decision on
+    top), then scans that left the batch."""
+    if r["status"] == "assigned":
+        return (0, r["submitted_at"].timestamp(), r["record_no"])
+    if r["status"] == "decided":
+        when = r["my_decided_at"] or r["submitted_at"]
+        return (1, -when.timestamp(), r["record_no"])
+    return (2, 0.0, r["record_no"])
 
 
 async def open_assignments(conn: Conn, batch_id: UUID) -> list[dict[str, Any]]:
