@@ -40,7 +40,7 @@ export function BuAdminsTable({ admins, onEdit, onRemove }: BuAdminsTableProps) 
       width: 1.9,
       align: 'right',
       cell: (a) => (
-        <div className="flex justify-end gap-3.5">
+        <div className="flex flex-wrap justify-end gap-x-3.5 gap-y-1">
           <button
             type="button"
             className={buttonClasses('link')}

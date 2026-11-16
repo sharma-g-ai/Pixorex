@@ -111,7 +111,7 @@ function RowActions({
   }
   const expired = inviteExpired(row.invite)
   return (
-    <div className="flex justify-end gap-3.5">
+    <div className="flex flex-wrap justify-end gap-x-3.5 gap-y-1">
       <button
         type="button"
         disabled={busy}

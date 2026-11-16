@@ -122,7 +122,7 @@ export function TypeDetail({ buId, unitName, typeId, onDeleted }: TypeDetailProp
               const i = fields.indexOf(f)
               const ids = fields.map((x) => x.field_id)
               return (
-                <div className="flex justify-end gap-2.5">
+                <div className="flex flex-wrap justify-end gap-x-2.5 gap-y-1">
                   <button
                     type="button"
                     className={buttonClasses('link')}
