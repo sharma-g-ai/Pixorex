@@ -1,10 +1,10 @@
 # Location setup: guided flow — implementation plan
 
-Status: **built** (T00–T09). Manual end-to-end run (section 8) still to do by a person. Vishnu, 13 Nov 2026.
+Status: **replaced on 16 Nov 2026** (was built, T00–T09). Manual end-to-end run (section 8) still to do by a person. Vishnu, 13 Nov 2026.
 Go-ahead: given by the manager for the proposal page (reported by Vishnu, 13 Nov 2026). To be recorded in `STATE.md` → *Decisions* as task T01 below.
 Proposal with screen mock-ups: https://claude.ai/artifact/Aksmr3FLPxsY6DUQPzgpzv
 
-**Changed 16 Nov 2026** (decision in `STATE.md`): the guided setup is one screen, not two steps (each part is a kind + its name); kinds are picked from a standard menu, not typed; the tree has no Status column (a place to fix is tinted and says why under its name, so "Ready" and "Scan here" are no longer shown). Where the sections below say step 1 / step 2, typed kinds or a Status column, this note wins. The rules (`guideProblems`, `rowStatus`, `canScanAt`) and the API calls are unchanged.
+**Replaced 16 Nov 2026** (decisions in `STATE.md`): the guided setup, the "Edit kinds" page, the Status column and the phone preview described below are no longer in the app. Location setup is one screen: places are added and renamed in the tree row, kinds come from the standard list and are saved or removed with their places, and a kind is marked "can be skipped" on the "Technicians will pick" line. Mock-up: https://claude.ai/artifact/1LNGFPZHwk5SJiG9knb8Uf. This document is kept for the reasoning (D1–D7) and the API facts, which still hold; the rules now live in `web/src/features/locations/locationTree.ts` and `useTreeActions.ts`.
 
 Everything in "What is true today" was checked in the code on branch `PX-08-T02-next-changes` (which contains `PX-01-T17-invite-flow-fixes` at `e9f2e56`). Section 6 marks what is built.
 
