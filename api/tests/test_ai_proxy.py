@@ -102,6 +102,45 @@ async def test_odd_answers_are_cleaned_up() -> None:
     ]
 
 
+async def test_readings_are_never_suggested_as_field_labels() -> None:
+    """GIVEN a plate whose uncaptioned values (3/60CYCLE, 3-PHASE, 230/460) came back as labels
+    WHEN the answer is cleaned THEN only real captions are kept, and look-alikes survive."""
+    labels = [
+        "3/60CYCLE", "3x60 cycle", "3-PHASE", "3 PH", "3~Mot.", "230/460", "1.15", "%",
+        "Phase", "Frequency (Hz)", "1S thermal current", "额定电压",
+    ]  # fmt: skip
+    content = json.dumps({"fields": [{"label": lbl, "data_type": "text"} for lbl in labels]})
+    async with _client(content) as http:
+        fields = await ai_proxy.suggest_fields(
+            http, CONFIG, type_name="Motor", image=PNG, mime="image/png"
+        )
+    assert [f["label"] for f in fields] == [
+        "Phase", "Frequency (Hz)", "1S thermal current", "额定电压",
+    ]  # fmt: skip
+
+
+async def test_same_caption_spelt_differently_is_one_field_and_dropdown_becomes_text() -> None:
+    """GIVEN 'Serial No.' and 'Serial no:' (same field key) and a dropdown with no choices
+    WHEN cleaned THEN one Serial field is kept, without the colon, and the dropdown is text."""
+    content = json.dumps(
+        {
+            "fields": [
+                {"label": "Serial No.", "data_type": "text"},
+                {"label": " Serial  no: ", "data_type": "text"},
+                {"label": "Duty:", "data_type": "dropdown"},
+            ]
+        }
+    )
+    async with _client(content) as http:
+        fields = await ai_proxy.suggest_fields(
+            http, CONFIG, type_name="Motor", image=PNG, mime="image/png"
+        )
+    assert fields == [
+        {"label": "Serial No.", "data_type": "text"},
+        {"label": "Duty", "data_type": "text"},
+    ]
+
+
 @pytest.mark.parametrize(("content", "status"), [("no json here", 200), (None, 200), ("{}", 500)])
 async def test_unusable_answers_raise(content: str | None, status: int) -> None:
     async with _client(content, status) as http:
