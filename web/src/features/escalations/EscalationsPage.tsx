@@ -266,18 +266,28 @@ function EscalationCard({
           ? 'No BU Admin. Assign one with a magic link, or review or delegate these yourself.'
           : `${admin ?? 'The BU Admin'} also sees these. Remind them, or delegate. Whoever decides first wins.`}
       </p>
-      <div className="mt-auto flex flex-wrap gap-2">
-        <Button onClick={onReview}>Review</Button>
+      {/* The same three full-width buttons on every card, at the bottom, so cards side by side
+          line up whatever their names. The BU Admin's name is already above, so the button says
+          "Remind BU Admin"; screen readers still hear the name. */}
+      <div className="mt-auto flex flex-col gap-2">
+        <Button className="w-full" onClick={onReview}>
+          Review
+        </Button>
         {noAdmin ? (
-          <Button variant="secondary" onClick={onAssign}>
+          <Button variant="secondary" className="w-full" onClick={onAssign}>
             Assign BU Admin
           </Button>
         ) : (
-          <Button variant="secondary" onClick={onRemind}>
-            Remind {admin ?? 'BU Admin'}
+          <Button
+            variant="secondary"
+            className="w-full"
+            aria-label={`Remind ${admin ?? 'BU Admin'}`}
+            onClick={onRemind}
+          >
+            Remind BU Admin
           </Button>
         )}
-        <Button variant="secondary" onClick={onDelegate}>
+        <Button variant="secondary" className="w-full" onClick={onDelegate}>
           Delegate to technicians
         </Button>
       </div>
