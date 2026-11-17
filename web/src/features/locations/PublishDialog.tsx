@@ -13,7 +13,7 @@ interface PublishDialogProps {
   setup: LocationSetup
   onClose: () => void
   onPublished: () => void
-  /** "Show me": closes the dialog and previews that place. */
+  /** "Show me": closes the dialog and shows that place in the tree. */
   onShow: (nodeId: string) => void
 }
 
@@ -21,8 +21,10 @@ const SHOWN_PROBLEMS = 5
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`
 
 /**
- * Review & publish (contracts 2.7–2.8). Publishing is one-way, so that comes first. Only
- * placeholders block it (the API's can_publish); empty places are named as warnings (plan D2).
+ * Review & publish (contracts 2.7–2.8). Publishing is one-way, so that comes first.
+ * Placeholders block it (the API's can_publish); empty places are named as warnings (plan D2).
+ * It is also blocked here while no place can be scanned at: the phone asks for every kind that
+ * is not "can be skipped", so a kind without places would stop every technician.
  */
 export function PublishDialog({
   buId,
@@ -41,6 +43,8 @@ export function PublishDialog({
   )
   const placeholders = check.data?.placeholders_left ?? 0
   const empty = check.data?.empty_branches ?? []
+  // The API names one complete place when there is one (sample_path).
+  const canScan = Boolean(check.data?.sample_path)
 
   const confirm = () =>
     publish
@@ -58,7 +62,7 @@ export function PublishDialog({
             Keep editing
           </Button>
           <Button
-            disabled={!check.data?.can_publish || publish.isPending}
+            disabled={!check.data?.can_publish || !canScan || publish.isPending}
             onClick={() => void confirm()}
           >
             {publish.isPending ? 'Publishing…' : 'Publish and lock'}
@@ -98,7 +102,13 @@ export function PublishDialog({
                   ? '✓ No temporary names left'
                   : `✕ Rename ${plural(placeholders, 'temporary name', 'temporary names')} first`}
               </li>
-              {empty.length === 0 && (
+              {!canScan && placeholders === 0 && (
+                <li className="text-danger">
+                  ✕ Technicians could not scan anywhere yet. Add places down to the last kind that
+                  is always asked, or mark that kind “can be skipped”.
+                </li>
+              )}
+              {empty.length === 0 && canScan && (
                 <li className="text-success">✓ Every place goes down to where technicians scan</li>
               )}
               {empty.slice(0, SHOWN_PROBLEMS).map((branch) => (

@@ -1,29 +1,19 @@
 import { useMemo, useState } from 'react'
 import { useLocation, useSearchParams } from 'react-router'
 import { useBusinessUnits } from '../../api/businessUnits'
-import { errorMessage } from '../../api/client'
-import {
-  useCreateSkeleton,
-  useLocationSetup,
-  useSetLevels,
-  useUpdateNode,
-  type LocationSetup,
-} from '../../api/locations'
+import { useLocationSetup } from '../../api/locations'
 import { Alert } from '../../components/Alert'
 import { Button } from '../../components/Button'
 import { Card } from '../../components/Card'
 import { PageHeader } from '../../components/layout/PageHeader'
 import { SelectField } from '../../components/SelectField'
-import { LevelsEditor } from './LevelsEditor'
 import { LocationTreeView } from './LocationTreeView'
 import { PublishDialog } from './PublishDialog'
-import { SetupGuide } from './SetupGuide'
 import { toFix, treeRows } from './locationTree'
-import { guideLevels, guideRenames, setupScreen, type GuidePart } from './guideRules'
 
 /**
- * EA-02 Locations setup for one unit (contracts 2.1–2.8). Guided setup until the first place
- * exists, then the working page (decision 2026-11-13, docs/proposals/location-setup-flow-plan.md).
+ * EA-02 Locations setup for one unit (contracts 2.1–2.8), on one screen: kinds and places
+ * together, then Review & publish (decision 2026-11-16 in STATE.md).
  */
 export function LocationsPage() {
   const units = useBusinessUnits()
@@ -51,11 +41,6 @@ export function LocationsPage() {
         }
       />
       <div className="flex grow flex-col gap-4 overflow-y-auto px-8 pt-6 pb-8 *:shrink-0">
-        {created && (
-          <Alert tone="info" role="status">
-            <b>{created}</b> was created. Next, set up its locations.
-          </Alert>
-        )}
         {units.isPending && <Card>Loading units…</Card>}
         {units.data && list.length === 0 && (
           <Card title="No business units yet">Create a unit on the Overview page first.</Card>
@@ -66,6 +51,7 @@ export function LocationsPage() {
             buId={buId}
             unitName={list.find((u) => u.bu_id === buId)?.name ?? ''}
             siteName={list.find((u) => u.bu_id === buId)?.facility_name ?? ''}
+            created={created}
           />
         )}
       </div>
@@ -75,8 +61,14 @@ export function LocationsPage() {
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`
 
-/** The working page's banner: what is left before publishing (placeholders block it). */
-function notPublishedText({ placeholders, empty }: { placeholders: number; empty: number }) {
+/** The banner: what is left before publishing (temporary names block it). */
+function notPublishedText(
+  { placeholders, empty }: { placeholders: number; empty: number },
+  siteName: string,
+  places: number,
+) {
+  // The facility alone is not a setup: there is nothing for a technician to pick.
+  if (places <= 1) return `Not published yet. Add the first places inside ${siteName}.`
   if (placeholders > 0)
     return `Not published yet. Rename ${plural(placeholders, 'temporary name', 'temporary names')} before you can publish.`
   if (empty > 0)
@@ -84,55 +76,22 @@ function notPublishedText({ placeholders, empty }: { placeholders: number; empty
   return 'Not published yet. Everything is ready. After publishing, nothing here can be changed.'
 }
 
-const KEPT_PLACEHOLDERS =
-  'Some places kept a temporary name and are marked Placeholder below. Rename them to continue.'
-
-/**
- * Create from the guided setup with the existing calls only (plan D1): the kinds (2.2), the
- * skeleton (2.3), then one rename (2.5) per place, which also clears its placeholder flag.
- */
-function useCreateFromGuide(buId: string, setup: LocationSetup) {
-  const setLevels = useSetLevels(buId)
-  const skeleton = useCreateSkeleton(buId)
-  const rename = useUpdateNode(buId)
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
-  const create = async (parts: GuidePart[]) => {
-    setBusy(true)
-    setError(null)
-    let treeMade = false
-    try {
-      await setLevels.mutateAsync(guideLevels(parts, setup.levels))
-      const tree = await skeleton.mutateAsync(undefined)
-      treeMade = true
-      const renames = guideRenames(parts, tree)
-      if (!renames) return setError(KEPT_PLACEHOLDERS)
-      for (const r of renames) await rename.mutateAsync({ nodeId: r.node_id, name: r.name })
-    } catch (err) {
-      setError(treeMade ? `${KEPT_PLACEHOLDERS} (${errorMessage(err)})` : errorMessage(err))
-    } finally {
-      setBusy(false)
-    }
-  }
-  return { create, busy, error }
-}
-
 function UnitLocations({
   buId,
   unitName,
   siteName,
+  created,
 }: {
   buId: string
   unitName: string
   siteName: string
+  /** The unit's name when the admin has just created it and landed here. */
+  created?: string
 }) {
   const setup = useLocationSetup(buId)
-  const [editingKinds, setEditingKinds] = useState(false)
   const [publishing, setPublishing] = useState(false)
-  const [previewId, setPreviewId] = useState<string | null>(null)
+  const [focusId, setFocusId] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
-  const guide = useCreateFromGuide(buId, setup.data ?? emptySetup)
   const left = useMemo(
     () =>
       setup.data ? toFix(setup.data.levels, treeRows(setup.data.levels, setup.data.nodes)) : null,
@@ -145,47 +104,47 @@ function UnitLocations({
   const data = setup.data
   const live = data.status === 'published'
 
-  if (setupScreen(data) === 'guide' || guide.busy) {
-    return (
-      <SetupGuide
-        key={siteName}
-        levels={data.levels}
-        siteName={siteName}
-        busy={guide.busy}
-        error={guide.error}
-        onCreate={(parts) => void guide.create(parts)}
-      />
-    )
-  }
-
   return (
     <>
-      <Alert tone="info" role={notice ? 'status' : undefined}>
+      {/* One bar: where the unit stands, and under it what the last change did. */}
+      <Alert tone="info">
         <div className="flex flex-wrap items-center gap-3">
-          <span className="grow">
-            {notice ??
-              (live
-                ? 'Published — locked to protect scan history. Levels and locations can’t be added, edited or deleted.'
-                : notPublishedText(left ?? { placeholders: 0, empty: 0 }))}
-          </span>
-          <Button variant="secondary" onClick={() => setEditingKinds((on) => !on)}>
-            {editingKinds ? 'Back to places' : live ? 'View kinds' : 'Edit kinds'}
-          </Button>
-          {!live && <Button onClick={() => setPublishing(true)}>Review &amp; publish</Button>}
+          <div className="grow">
+            <p>
+              {created && data.nodes.length <= 1 && (
+                <>
+                  <b>{created}</b> was created.{' '}
+                </>
+              )}
+              {live
+                ? 'Published — locked to protect scan history. Kinds and places can’t be added, renamed or deleted.'
+                : notPublishedText(
+                    left ?? { placeholders: 0, empty: 0 },
+                    siteName,
+                    data.nodes.length,
+                  )}
+            </p>
+            {notice && (
+              <p role="status" className="mt-0.5 text-small">
+                {notice}
+              </p>
+            )}
+          </div>
+          {!live && data.nodes.length > 1 && (
+            <Button onClick={() => setPublishing(true)}>Review &amp; publish</Button>
+          )}
         </div>
       </Alert>
-      {guide.error && (left?.placeholders ?? 0) > 0 && <Alert tone="danger">{guide.error}</Alert>}
 
-      {editingKinds ? (
-        <LevelsEditor
-          key={JSON.stringify(data.levels)}
-          buId={buId}
-          setup={data}
-          onDone={() => setEditingKinds(false)}
-        />
-      ) : (
-        <LocationTreeView buId={buId} setup={data} previewId={previewId} onPreview={setPreviewId} />
-      )}
+      {/* A new key on "Show me": the tree opens fully, with no search, so the place is in view. */}
+      <LocationTreeView
+        key={`${siteName}:${focusId ?? ''}`}
+        buId={buId}
+        setup={data}
+        siteName={siteName}
+        focusId={focusId}
+        onNotice={setNotice}
+      />
 
       {publishing && (
         <PublishDialog
@@ -195,8 +154,7 @@ function UnitLocations({
           onClose={() => setPublishing(false)}
           onShow={(nodeId) => {
             setPublishing(false)
-            setEditingKinds(false)
-            setPreviewId(nodeId)
+            setFocusId(nodeId)
           }}
           onPublished={() => {
             setPublishing(false)
@@ -207,5 +165,3 @@ function UnitLocations({
     </>
   )
 }
-
-const emptySetup: LocationSetup = { version_id: '', status: 'not_published', levels: [], nodes: [] }

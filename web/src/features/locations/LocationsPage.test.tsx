@@ -106,53 +106,78 @@ beforeEach(() => {
   }
 })
 
-describe('Guided setup and the working page (plan R4–R6)', () => {
-  const type = (label: string, value: string) =>
-    fireEvent.change(screen.getByLabelText(label), { target: { value } })
+const empty: LocationSetup = { version_id: 'v', status: 'not_published', levels: [], nodes: [] }
+const [fac, bin] = levels as [(typeof levels)[0], (typeof levels)[0]]
+const sent = ({ level_id, level_name, requirement }: (typeof levels)[0]) => ({
+  level_id,
+  level_name,
+  requirement,
+})
+const type = (label: string, value: string) =>
+  fireEvent.change(screen.getByLabelText(label), { target: { value } })
+const click = (name: string) => fireEvent.click(screen.getByRole('button', { name }))
+const tree = () => within(screen.getByRole('list', { name: 'Location tree' }))
+/** Picks an action from a place's "⋯" menu. */
+const pick = (place: string, action: string) => {
+  click(`More for ${place}`)
+  fireEvent.click(screen.getByRole('menuitem', { name: action }))
+}
+// What the screens say for an error that is not an API problem (errorMessage).
+const WENT_WRONG = 'Something went wrong. Please try again.'
 
-  it('GIVEN a new unit WHEN Create THEN 2.2, 2.3, then one 2.5 per place, top included (R4)', async () => {
-    setup = { version_id: 'v', status: 'not_published', levels: [], nodes: [] }
-    calls.skeleton.mockResolvedValue({
-      ...withTree,
-      nodes: withTree.nodes.map((n) => ({
-        ...n,
-        name: n.level_id === 'fac' ? 'Plant 04' : 'Bin',
-        is_placeholder: true,
-      })),
-    })
+describe('A unit with no place yet', () => {
+  it('GIVEN a new unit THEN its facility is there with the add form, offering the standard kinds', () => {
+    setup = empty
     renderPage()
-    expect(screen.queryByRole('tab')).not.toBeInTheDocument()
-    type('Place 2', 'Bin 07')
-    type('Kind 1', 'Facility')
-    type('Kind 2', 'Bin')
-    fireEvent.click(screen.getByRole('button', { name: 'Create and add more places' }))
+    expect(tree().getByText('Plant 04')).toBeInTheDocument()
+    expect(screen.getByText(/Add the first places inside Plant 04/)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Review & publish' })).not.toBeInTheDocument()
+    const kinds = within(screen.getByLabelText('What you are adding')).getAllByRole('option')
+    expect(kinds.map((o) => o.textContent)).toEqual(['Building', 'Shop', 'Bin', 'Sub-bin'])
+  })
 
-    await waitFor(() => expect(calls.updateNode).toHaveBeenCalledTimes(2))
-    expect(calls.setLevels).toHaveBeenCalledWith([
-      { level_id: null, level_name: 'Facility', requirement: 'required' },
-      { level_id: null, level_name: 'Bin', requirement: 'required' },
+  it('GIVEN the first add THEN the top place is made, then the kind, then the places (2.2–2.5)', async () => {
+    setup = empty
+    const top = { ...topNode, child_count: 0, is_placeholder: true }
+    calls.setLevels
+      .mockResolvedValueOnce({ ...empty, levels: [fac] })
+      .mockResolvedValueOnce({ ...empty, levels })
+    calls.skeleton.mockResolvedValue({ ...empty, levels: [fac], nodes: [top] })
+    renderPage()
+    type('What you are adding', 'Bin')
+    type('Names, inside Plant 04', 'Bin 01, Bin 02')
+    click('Add')
+
+    await waitFor(() => expect(calls.addNodes).toHaveBeenCalled())
+    expect(calls.setLevels.mock.calls).toEqual([
+      [[{ level_id: null, level_name: 'Facility', requirement: 'required' }]],
+      [[sent(fac), { level_id: null, level_name: 'Bin', requirement: 'required' }]],
     ])
     expect(calls.skeleton).toHaveBeenCalledTimes(1)
-    expect(calls.updateNode.mock.calls).toEqual([
-      [{ nodeId: 'f', name: 'Plant 04' }],
-      [{ nodeId: 'b1', name: 'Bin 07' }],
-    ])
+    // Renaming the top place to its own name clears the temporary-name flag.
+    expect(calls.updateNode).toHaveBeenCalledWith({ nodeId: 'f', name: 'Plant 04' })
+    expect(calls.addNodes).toHaveBeenCalledWith({
+      parent_id: 'f',
+      level_id: 'bin',
+      names: ['Bin 01', 'Bin 02'],
+      idempotencyKey: expect.any(String),
+    })
+    expect(await screen.findByText(/2 places added inside Plant 04/)).toBeInTheDocument()
+    expect(screen.getByText(/Technicians will now be asked for a bin/)).toBeInTheDocument()
   })
 
-  it('GIVEN a rename fails during Create THEN it says the places can be renamed here (R5)', async () => {
-    setup = { version_id: 'v', status: 'not_published', levels: [], nodes: [] }
-    calls.skeleton.mockResolvedValue(withTree)
-    calls.updateNode.mockRejectedValue(new Error('offline'))
+  it('GIVEN the first add fails THEN the reason stays on the page', async () => {
+    setup = empty
+    calls.setLevels.mockRejectedValue(new Error('offline'))
     renderPage()
-    type('Place 2', 'Bin 07')
-    type('Kind 1', 'Facility')
-    type('Kind 2', 'Bin')
-    fireEvent.click(screen.getByRole('button', { name: 'Create and add more places' }))
-    expect(await screen.findByText(/Some places kept a temporary name/)).toBeInTheDocument()
+    type('Names, inside Plant 04', 'Hall A')
+    click('Add')
+    expect((await screen.findAllByText(WENT_WRONG)).length).toBeGreaterThan(0)
+    expect(calls.addNodes).not.toHaveBeenCalled()
   })
 
-  it('GIVEN the unit list arrives after the page THEN the guide still starts from the site name', () => {
-    setup = { version_id: 'v', status: 'not_published', levels: [], nodes: [] }
+  it('GIVEN the unit list arrives after the page THEN the facility still shows its name', () => {
+    setup = empty
     unitList = []
     const page = () => (
       <MemoryRouter initialEntries={['/locations?unit=p04']}>
@@ -160,119 +185,21 @@ describe('Guided setup and the working page (plan R4–R6)', () => {
       </MemoryRouter>
     )
     const view = render(page())
-    expect(screen.getByLabelText('Place 1')).toHaveValue('')
+    expect(screen.queryByLabelText('Names, inside Plant 04')).not.toBeInTheDocument()
     unitList = [plant04]
     view.rerender(page())
-    expect(screen.getByLabelText('Place 1')).toHaveValue('Plant 04')
-  })
-
-  it('GIVEN Create left temporary names WHEN they are renamed THEN its error goes away', async () => {
-    setup = { version_id: 'v', status: 'not_published', levels: [], nodes: [] }
-    calls.skeleton.mockResolvedValue(withTree)
-    calls.updateNode.mockRejectedValue(new Error('offline'))
-    const page = () => (
-      <MemoryRouter initialEntries={['/locations?unit=p04']}>
-        <LocationsPage />
-      </MemoryRouter>
-    )
-    const view = render(page())
-    type('Place 2', 'Bin 07')
-    type('Kind 1', 'Facility')
-    type('Kind 2', 'Bin')
-    fireEvent.click(screen.getByRole('button', { name: 'Create and add more places' }))
-    await screen.findByText(/Some places kept a temporary name/)
-
-    setup = { ...withTree, nodes: withTree.nodes.map((n) => ({ ...n, is_placeholder: true })) }
-    view.rerender(page())
-    expect(screen.getByRole('table', { name: 'Location tree' })).toBeInTheDocument()
-    expect(screen.getByText(/Some places kept a temporary name/)).toBeInTheDocument()
-    setup = withTree
-    view.rerender(page())
-    expect(screen.queryByText(/Some places kept a temporary name/)).not.toBeInTheDocument()
-  })
-
-  it('GIVEN levels saved but no places THEN the guided setup opens with those kinds', () => {
-    setup = { ...withTree, nodes: [] }
-    renderPage()
-    type('Place 2', 'Bin 07')
-    expect(screen.getByLabelText('Kind 2')).toHaveValue('Bin')
-  })
-
-  it('GIVEN places THEN the working page with the tree; Edit kinds opens the level editor (R6)', () => {
-    renderPage()
-    expect(screen.getByRole('table', { name: 'Location tree' })).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Edit kinds' }))
-    expect(screen.getByRole('button', { name: 'Save levels' })).toBeInTheDocument()
-  })
-
-  it('GIVEN Edit kinds THEN each level is picked from the standard menu', () => {
-    renderPage()
-    fireEvent.click(screen.getByRole('button', { name: 'Edit kinds' }))
-    const name = screen.getByLabelText('Level 2 name')
-    expect(name.tagName).toBe('SELECT')
-    expect(name).toHaveValue('Bin')
-    fireEvent.click(screen.getByRole('button', { name: '+ Add level' }))
-    expect(screen.getByLabelText('Level 3 name')).toHaveValue('')
-  })
-
-  it('GIVEN the working page THEN the kinds show above the list, top to bottom', () => {
-    renderPage()
-    expect(screen.getByText('Kinds: Facility › Bin')).toBeInTheDocument()
-  })
-
-  it('GIVEN the working page WHEN a place is picked THEN the phone preview shows it (R7)', () => {
-    renderPage()
-    const phone = () => within(screen.getByRole('region', { name: "On the technician's phone" }))
-    expect(phone().getByText('Plant 04 › Bin 01')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Preview Plant 04 on the phone' }))
-    expect(phone().getByText(/pick a place further down/)).toBeInTheDocument()
-  })
-
-  it('GIVEN placeholders or empty places THEN the banner says what is left to fix', () => {
-    setup = {
-      ...withTree,
-      nodes: [{ ...topNode, child_count: 0, is_placeholder: true }],
-    }
-    renderPage()
-    expect(screen.getByText(/Rename 1 temporary name before you can publish/)).toBeInTheDocument()
-    setup = { ...withTree, nodes: [{ ...topNode, child_count: 0 }] }
-    cleanup()
-    renderPage()
-    expect(screen.getByText(/1 place has nothing inside yet/)).toBeInTheDocument()
-  })
-
-  it('GIVEN a place to fix THEN its row is tinted and says why; there is no Status column', () => {
-    setup = { ...withTree, nodes: [{ ...topNode, child_count: 0, is_placeholder: true }] }
-    renderPage()
-    const table = within(screen.getByRole('table', { name: 'Location tree' }))
-    expect(table.queryByRole('columnheader', { name: 'Status' })).not.toBeInTheDocument()
-    expect(table.getByText('⚠ Placeholder').closest('[role="row"]')).toHaveClass('bg-warning-soft')
-    setup = withTree
-    cleanup()
-    renderPage()
-    const rows = screen.getAllByRole('row').slice(1)
-    expect(rows.every((r) => !r.classList.contains('bg-warning-soft'))).toBe(true)
-  })
-
-  it('GIVEN a published unit THEN the kinds can be viewed but not changed', () => {
-    setup = { ...withTree, status: 'published' }
-    renderPage()
-    fireEvent.click(screen.getByRole('button', { name: 'View kinds' }))
-    expect(screen.getByText(/Published and locked to protect scan history/)).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Save levels' })).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Names, inside Plant 04')).toBeInTheDocument()
   })
 })
 
-describe('Locations tree', () => {
-  it('GIVEN Add several WHEN Bin 02–04 THEN contract 2.4 gets three names with one key', async () => {
+describe('Places, added and changed in the row', () => {
+  it('GIVEN names with a range THEN contract 2.4 gets every name, and no kind is saved', async () => {
     renderPage()
-    fireEvent.click(screen.getByRole('button', { name: 'Add inside Plant 04' }))
-    fireEvent.click(dialog().getByLabelText('Add several'))
-    fireEvent.change(dialog().getByLabelText('Name starts with'), { target: { value: 'Bin ' } })
-    fireEvent.change(dialog().getByLabelText('From'), { target: { value: '02' } })
-    fireEvent.change(dialog().getByLabelText('To'), { target: { value: '04' } })
-    fireEvent.click(dialog().getByRole('button', { name: 'Create' }))
-
+    click('Add inside Plant 04')
+    type('What you are adding', 'Bin')
+    type('Names, inside Plant 04', 'Bin 02-04')
+    expect(screen.getByText('Bin 04')).toBeInTheDocument() // "Adds 3: Bin 02 … Bin 04"
+    click('Add')
     await waitFor(() =>
       expect(calls.addNodes).toHaveBeenCalledWith({
         parent_id: 'f',
@@ -281,38 +208,207 @@ describe('Locations tree', () => {
         idempotencyKey: expect.any(String),
       }),
     )
+    expect(calls.setLevels).not.toHaveBeenCalled()
+    expect(await screen.findByText('3 places added inside Plant 04.')).toBeInTheDocument()
   })
 
-  it('GIVEN a name already used among siblings THEN it is refused before sending', async () => {
-    renderPage()
-    fireEvent.click(screen.getByRole('button', { name: 'Add inside Plant 04' }))
-    fireEvent.change(dialog().getByLabelText('Name of the new bin'), {
-      target: { value: 'bin 01' },
+  it('GIVEN a kind not used yet THEN it is saved at its place first, then the places', async () => {
+    const bld = { level_id: 'bld', level_name: 'Building', level_order: 2, requirement: 'optional' }
+    calls.setLevels.mockResolvedValue({
+      ...withTree,
+      levels: [fac, bld, { ...bin, level_order: 3 }],
     })
-    fireEvent.click(dialog().getByRole('button', { name: 'Create' }))
+    renderPage()
+    click('Add inside Plant 04')
+    const kinds = within(screen.getByLabelText('What you are adding')).getAllByRole('option')
+    // Sub-bin is not offered inside the facility: Bin, in between, is always asked.
+    expect(kinds.map((o) => o.textContent)).toEqual(['Building', 'Shop', 'Bin'])
+    type('What you are adding', 'Building')
+    type('Names, inside Plant 04', 'Hall A')
+    click('Add')
+    await waitFor(() =>
+      expect(calls.addNodes).toHaveBeenCalledWith({
+        parent_id: 'f',
+        level_id: 'bld',
+        names: ['Hall A'],
+        idempotencyKey: expect.any(String),
+      }),
+    )
+    expect(calls.setLevels).toHaveBeenCalledWith([
+      sent(fac),
+      { level_id: null, level_name: 'Building', requirement: 'required' },
+      sent(bin),
+    ])
+    // The API saved it as optional, because bins already sit below it.
+    expect(await screen.findByText(/Building was added as "can be skipped"/)).toBeInTheDocument()
+  })
 
-    expect(await dialog().findByText('bin 01 already exists here.')).toBeInTheDocument()
+  it('GIVEN the add fails after a new kind was saved THEN the kind is taken back', async () => {
+    const bld = { level_id: 'bld', level_name: 'Building', level_order: 2, requirement: 'optional' }
+    calls.setLevels.mockResolvedValue({ ...withTree, levels: [fac, bld, bin] })
+    calls.addNodes.mockRejectedValue(new Error('offline'))
+    renderPage()
+    click('Add inside Plant 04')
+    type('What you are adding', 'Building')
+    type('Names, inside Plant 04', 'Hall A')
+    click('Add')
+    expect(await screen.findByText(WENT_WRONG)).toBeInTheDocument()
+    expect(calls.setLevels).toHaveBeenLastCalledWith([sent(fac), sent(bin)])
+  })
+
+  it('GIVEN a name already used here, or too many names THEN refused before sending', () => {
+    renderPage()
+    click('Add inside Plant 04')
+    type('What you are adding', 'Bin')
+    click('Add')
+    expect(screen.getByText('Type at least one name.')).toBeInTheDocument()
+    type('Names, inside Plant 04', 'bin 01')
+    click('Add')
+    expect(screen.getByText('bin 01 already exists here.')).toBeInTheDocument()
+    type('Names, inside Plant 04', 'Bin 1-60')
+    click('Add')
+    expect(screen.getByText(/more than 50 names/)).toBeInTheDocument()
     expect(calls.addNodes).not.toHaveBeenCalled()
   })
 
-  it('GIVEN Rename THEN contract 2.5 gets the new name', async () => {
+  it('GIVEN Rename THEN the name is edited in the row and contract 2.5 gets it', async () => {
     renderPage()
-    fireEvent.click(screen.getByRole('button', { name: 'Rename Bin 01' }))
-    fireEvent.change(dialog().getByLabelText('Name technicians see'), {
-      target: { value: 'Bin 1A' },
-    })
-    fireEvent.click(dialog().getByRole('button', { name: 'Save name' }))
+    pick('Bin 01', 'Rename')
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    type('New name for Bin 01', 'Bin 1A')
+    click('Save name')
     await waitFor(() =>
       expect(calls.updateNode).toHaveBeenCalledWith({ nodeId: 'b1', name: 'Bin 1A' }),
     )
+    expect(await screen.findByText('Renamed to Bin 1A.')).toBeInTheDocument()
   })
 
-  it('GIVEN Delete THEN contract 2.6 is called after confirming', async () => {
+  it('GIVEN Delete of the last bin THEN 2.6, and the kind nothing uses is removed (2.2)', async () => {
     renderPage()
-    fireEvent.click(screen.getByRole('button', { name: 'Delete Bin 01' }))
+    pick('Bin 01', 'Delete')
     expect(dialog().getByText('Nothing is inside it.')).toBeInTheDocument()
     fireEvent.click(dialog().getByRole('button', { name: 'Yes, delete' }))
-    await waitFor(() => expect(calls.deleteNode).toHaveBeenCalledWith('b1'))
+    await waitFor(() => expect(calls.setLevels).toHaveBeenCalledWith([sent(fac)]))
+    expect(calls.deleteNode).toHaveBeenCalledWith('b1')
+    expect(
+      await screen.findByText(/No bin is left, so technicians are no longer asked/),
+    ).toBeInTheDocument()
+  })
+
+  it('GIVEN the top place THEN it can be renamed, not moved or deleted', () => {
+    renderPage()
+    click('More for Plant 04')
+    expect(screen.getAllByRole('menuitem').map((i) => i.textContent)).toEqual(['Rename'])
+    fireEvent.click(screen.getByRole('button', { name: 'Close menu' }))
+    click('More for Bin 01')
+    expect(screen.getAllByRole('menuitem').map((i) => i.textContent)).toEqual([
+      'Rename',
+      'Move',
+      'Delete',
+    ])
+  })
+
+  it('GIVEN a search or a closed place THEN only the matching or open rows show', () => {
+    renderPage()
+    click('Close Plant 04')
+    expect(tree().queryByText('Bin 01')).not.toBeInTheDocument()
+    click('Open Plant 04')
+    expect(tree().getByText('Bin 01')).toBeInTheDocument()
+    // A short tree has no search box; a long one does.
+    expect(screen.queryByLabelText('Search locations')).not.toBeInTheDocument()
+    const bin01 = withTree.nodes[1]
+    if (!bin01) throw new Error('fixture')
+    const more = Array.from({ length: 8 }, (_, i) => ({
+      ...bin01,
+      node_id: `m${i}`,
+      name: `Bin 1${i}`,
+    }))
+    setup = { ...withTree, nodes: [...withTree.nodes, ...more] }
+    cleanup()
+    renderPage()
+    type('Search locations', 'Bin 13')
+    expect(tree().getByText('Bin 13')).toBeInTheDocument()
+    expect(tree().getByText('Plant 04')).toBeInTheDocument()
+    expect(tree().queryByText('Bin 14')).not.toBeInTheDocument()
+    type('Search locations', 'zzz')
+    expect(screen.getByText('No location matches your search.')).toBeInTheDocument()
+  })
+
+  it('GIVEN a place to fix THEN its row is tinted and says why', () => {
+    const bin01 = withTree.nodes[1]
+    if (!bin01) throw new Error('fixture')
+    setup = { ...withTree, nodes: [topNode, { ...bin01, name: 'Bin', is_placeholder: true }] }
+    renderPage()
+    expect(screen.getByText(/Rename 1 temporary name before you can publish/)).toBeInTheDocument()
+    expect(tree().getByText('⚠ Placeholder').closest('#place-b1')).toHaveClass('bg-warning-soft')
+    // A building with no bin: technicians could not finish picking there.
+    const bld = {
+      level_id: 'bld',
+      level_name: 'Building',
+      level_order: 2,
+      requirement: 'required' as const,
+    }
+    const hall = { ...bin01, node_id: 'h', level_id: 'bld', name: 'Hall A' }
+    setup = { ...withTree, levels: [fac, bld, { ...bin, level_order: 3 }], nodes: [topNode, hall] }
+    cleanup()
+    renderPage()
+    expect(screen.getByText(/1 place has nothing inside yet/)).toBeInTheDocument()
+    expect(tree().getByText('⚠ Needs a Bin').closest('#place-h')).toHaveClass('bg-warning-soft')
+    setup = withTree
+    cleanup()
+    renderPage()
+    expect(document.querySelector('.bg-warning-soft')).toBeNull()
+  })
+
+  it('GIVEN only the facility THEN there is nothing to publish yet', () => {
+    setup = { ...withTree, levels: [fac], nodes: [{ ...topNode, child_count: 0 }] }
+    renderPage()
+    expect(screen.getByText(/Add the first places inside Plant 04/)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Review & publish' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Add inside Plant 04' })).toBeInTheDocument()
+  })
+})
+
+describe('Kinds, on the same screen', () => {
+  const picks = () => within(screen.getByRole('list', { name: 'What technicians pick' }))
+
+  it('GIVEN a kind WHEN clicked THEN it becomes "can be skipped" (contract 2.2)', async () => {
+    renderPage()
+    expect(screen.queryByRole('button', { name: 'Edit kinds' })).not.toBeInTheDocument()
+    fireEvent.click(picks().getByRole('button', { name: 'Bin' }))
+    await waitFor(() =>
+      expect(calls.setLevels).toHaveBeenCalledWith([
+        sent(fac),
+        { ...sent(bin), requirement: 'optional' },
+      ]),
+    )
+    expect(await screen.findByText('Bin can now be skipped.')).toBeInTheDocument()
+  })
+
+  it('GIVEN a place that goes past a kind THEN the kind has to stay "can be skipped"', async () => {
+    const shop = {
+      level_id: 'shp',
+      level_name: 'Shop',
+      level_order: 2,
+      requirement: 'optional' as const,
+    }
+    setup = { ...withTree, levels: [fac, shop, { ...bin, level_order: 3 }] }
+    renderPage()
+    fireEvent.click(picks().getByRole('button', { name: 'Shop · can be skipped' }))
+    expect(
+      await screen.findByText(/Shop has to stay "can be skipped": 1 place has/),
+    ).toBeInTheDocument()
+    expect(calls.setLevels).not.toHaveBeenCalled()
+  })
+
+  it('GIVEN a published unit THEN kinds and places are shown, not changed', () => {
+    setup = { ...withTree, status: 'published' }
+    renderPage()
+    expect(screen.getByText(/Published — locked to protect scan history/)).toBeInTheDocument()
+    expect(picks().getByText('Bin')).toBeInTheDocument()
+    expect(picks().queryByRole('button')).not.toBeInTheDocument()
+    expect(tree().queryByRole('button', { name: /Add inside|More for/ })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Review & publish' })).not.toBeInTheDocument()
   })
 })
 
@@ -334,7 +430,7 @@ describe('Review & publish', () => {
     expect(dialog().getByText('Bin')).toBeInTheDocument()
   })
 
-  it('GIVEN an empty place THEN it is named, publishing is still allowed, Show me previews it', () => {
+  it('GIVEN an empty place THEN it is named, publishing is still allowed, Show me outlines it', () => {
     check = {
       placeholders_left: 0,
       empty_branches: [{ node_id: 'f', path: 'Plant 04' }],
@@ -347,8 +443,15 @@ describe('Review & publish', () => {
     expect(dialog().getByRole('button', { name: 'Publish and lock' })).toBeEnabled()
     fireEvent.click(dialog().getByRole('button', { name: 'Show me Plant 04' }))
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-    const phone = within(screen.getByRole('region', { name: "On the technician's phone" }))
-    expect(phone.getByText(/pick a place further down/)).toBeInTheDocument()
+    expect(document.getElementById('place-f')).toHaveClass('outline-brand-navy')
+  })
+
+  it('GIVEN no place a technician could scan at THEN publishing is blocked with the reason', () => {
+    check = { placeholders_left: 0, empty_branches: [], sample_path: null, can_publish: true }
+    renderPage()
+    fireEvent.click(screen.getByRole('button', { name: 'Review & publish' }))
+    expect(dialog().getByText(/Technicians could not scan anywhere yet/)).toBeInTheDocument()
+    expect(dialog().getByRole('button', { name: 'Publish and lock' })).toBeDisabled()
   })
 
   it('GIVEN all checks pass WHEN published THEN contract 2.8 is called and a notice shows', async () => {

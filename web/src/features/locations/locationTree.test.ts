@@ -1,17 +1,21 @@
 import { describe, expect, it } from 'vitest'
 import type { Level, LocationNode } from '../../api/locations'
 import {
+  MAX_NAMES,
+  addChoices,
   canScanAt,
   childLevels,
   countsByLevel,
   descendantCount,
   filterRows,
-  kindOptions,
+  levelsWithKind,
   moveTargets,
-  rangeNames,
-  rowStatus,
+  placesSkipping,
+  rowProblem,
   toFix,
   treeRows,
+  typedNames,
+  unusedAfterDelete,
 } from './locationTree'
 
 const level = (
@@ -79,36 +83,21 @@ describe('canScanAt', () => {
   })
 })
 
-describe('kindOptions', () => {
-  const values = (current: string) => kindOptions(current).map((o) => o.value)
-
-  it('GIVEN a standard kind or none THEN only the standard menu, after an empty choice', () => {
-    expect(values('')).toEqual(values('Bin'))
-    expect(values('')[0]).toBe('')
-    expect(values('')).toEqual(['', 'Facility', 'Building', 'Shop', 'Bin', 'Sub-bin'])
-  })
-
-  it('GIVEN a name saved earlier that is not on the menu as written THEN it is added', () => {
-    expect(values('Zone').at(-1)).toBe('Zone')
-    // "bin" is not "Bin": without its own option the menu would show another value.
-    expect(values('bin').at(-1)).toBe('bin')
-  })
-})
-
-describe('rowStatus', () => {
-  it('GIVEN any row THEN it has a status: placeholder, scan place, needs more, or ready', () => {
+describe('rowProblem', () => {
+  it('GIVEN any row THEN a temporary name, an empty place, or nothing wrong', () => {
     const placeholder = { ...node('p', 'Building', 'bld', 'f'), is_placeholder: true }
     const rows = treeRows(levels, [...nodes, placeholder])
-    const status = (id: string) => {
+    const problem = (id: string) => {
       const row = rows.find((r) => r.node.node_id === id)
-      return row ? rowStatus(levels, row) : null
+      return row ? rowProblem(levels, row) : undefined
     }
-    expect(status('p')).toEqual({ label: 'Placeholder', tone: 'warning' })
-    expect(status('b10')).toEqual({ label: 'Scan here', tone: 'neutral' })
+    expect(problem('p')).toEqual({ kind: 'placeholder', text: 'Placeholder' })
     // Building B is named but has nothing inside: a technician can't finish picking there.
-    expect(status('b')).toEqual({ label: 'Needs a Bin', tone: 'warning' })
-    expect(status('a')).toEqual({ label: 'Ready', tone: 'success' })
-    expect(status('f')).toEqual({ label: 'Ready', tone: 'success' })
+    expect(problem('b')).toEqual({ kind: 'empty', text: 'Needs a Bin' })
+    // A bin is where technicians scan; places with something inside are fine.
+    expect(problem('b10')).toBeNull()
+    expect(problem('a')).toBeNull()
+    expect(problem('f')).toBeNull()
   })
 })
 
@@ -173,14 +162,99 @@ describe('tree helpers', () => {
   })
 })
 
-describe('rangeNames', () => {
-  it('keeps the width of the numbers', () => {
-    expect(rangeNames('Bin ', '05', '08')).toEqual(['Bin 05', 'Bin 06', 'Bin 07', 'Bin 08'])
+describe('addChoices', () => {
+  const names = (ls: Level[], parent: string) => addChoices(ls, parent).map((c) => c.level_name)
+
+  it('GIVEN every standard kind in use THEN only what the API allows inside the place', () => {
+    expect(names(levels, 'bld')).toEqual(['Shop', 'Bin'])
+    expect(names(levels, 'bin')).toEqual(['Sub-bin'])
+    expect(names(levels, 'sub')).toEqual([])
   })
 
-  it('refuses ranges over 50, reversed or not numeric', () => {
-    expect(rangeNames('Bin ', '1', '51')).toBeNull()
-    expect(rangeNames('Bin ', '9', '3')).toBeNull()
-    expect(rangeNames('Bin ', 'a', '3')).toBeNull()
+  it('GIVEN standard kinds not used yet THEN they are offered, with no id, in the standard order', () => {
+    const two = [level('fac', 'Facility', 1, 'required'), level('bin', 'Bin', 2, 'required')]
+    expect(addChoices(two, 'fac')).toEqual([
+      { level_id: null, level_name: 'Building' },
+      { level_id: null, level_name: 'Shop' },
+      { level_id: 'bin', level_name: 'Bin', level_order: 2, requirement: 'required' },
+    ])
+    expect(names(two, 'bin')).toEqual(['Sub-bin'])
+  })
+
+  it('GIVEN a kind in between that is always asked THEN nothing below it is offered', () => {
+    const three = [
+      level('fac', 'Facility', 1, 'required'),
+      level('bld', 'Building', 2, 'required'),
+      level('bin', 'Bin', 3, 'optional'),
+    ]
+    // Shop and Bin go inside a facility only through a building; Sub-bin may skip Bin.
+    expect(names(three, 'fac')).toEqual(['Building'])
+    expect(names(three, 'bld')).toEqual(['Shop', 'Bin', 'Sub-bin'])
+  })
+
+  it('GIVEN kinds typed earlier, or a standard name that is off THEN no new kind is offered', () => {
+    const typed = [level('c', 'city', 1, 'required'), level('b', 'bin number', 2, 'required')]
+    expect(names(typed, 'c')).toEqual(['bin number'])
+    const withOff = [
+      level('fac', 'Facility', 1, 'required'),
+      level('shp', 'Shop', 2, 'off'),
+      level('bin', 'Bin', 3, 'required'),
+    ]
+    expect(names(withOff, 'fac')).toEqual(['Building', 'Bin'])
+  })
+})
+
+describe('levelsWithKind', () => {
+  it('GIVEN a new kind THEN it goes at its standard place, always asked, others unchanged', () => {
+    const two = [level('fac', 'Facility', 1, 'required'), level('bin', 'Bin', 2, 'optional')]
+    expect(levelsWithKind(two, 'Shop')).toEqual([
+      { level_id: 'fac', level_name: 'Facility', requirement: 'required' },
+      { level_id: null, level_name: 'Shop', requirement: 'required' },
+      { level_id: 'bin', level_name: 'Bin', requirement: 'optional' },
+    ])
+    expect(levelsWithKind(two, 'Sub-bin').map((l) => l.level_name)).toEqual([
+      'Facility',
+      'Bin',
+      'Sub-bin',
+    ])
+  })
+})
+
+describe('unusedAfterDelete', () => {
+  it('GIVEN a branch deleted THEN the kinds only it used are named', () => {
+    // Paint Shop is the only shop; its Bin 2 is not the only bin (Bin 10 stays).
+    expect(unusedAfterDelete(levels, nodes, 's').map((l) => l.level_name)).toEqual(['Shop'])
+    expect(unusedAfterDelete(levels, nodes, 'b2')).toEqual([])
+    expect(unusedAfterDelete(levels, nodes, 'a').map((l) => l.level_name)).toEqual(['Shop', 'Bin'])
+  })
+})
+
+describe('placesSkipping', () => {
+  it('GIVEN a bin straight inside a building THEN Shop is skipped by that building', () => {
+    expect(placesSkipping(levels, nodes, 'shp')).toBe(1)
+    expect(placesSkipping(levels, nodes, 'bin')).toBe(0)
+    expect(placesSkipping(levels, nodes, 'bld')).toBe(0)
+  })
+})
+
+describe('typedNames', () => {
+  it('GIVEN commas and spare spaces THEN one tidy name each', () => {
+    expect(typedNames(' Bin  01 , Bin 02,, ')).toEqual(['Bin 01', 'Bin 02'])
+    expect(typedNames('   ')).toEqual([])
+  })
+
+  it('GIVEN a range THEN one name per number, keeping the width', () => {
+    expect(typedNames('Bin 05-08')).toEqual(['Bin 05', 'Bin 06', 'Bin 07', 'Bin 08'])
+    expect(typedNames('Bay 9 – 11, Dock')).toEqual(['Bay 09', 'Bay 10', 'Bay 11', 'Dock'])
+  })
+
+  it('GIVEN a reversed or one-number range THEN it stays one name', () => {
+    expect(typedNames('Line 9-3')).toEqual(['Line 9-3'])
+    expect(typedNames('Line 4-4')).toEqual(['Line 4-4'])
+  })
+
+  it('GIVEN a range over the limit THEN more than MAX_NAMES come back, never thousands', () => {
+    expect(typedNames('Bin 1-51')).toHaveLength(MAX_NAMES + 1)
+    expect(typedNames('Bin 1-900000')).toHaveLength(MAX_NAMES + 1)
   })
 })
