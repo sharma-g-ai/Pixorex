@@ -221,6 +221,16 @@ describe('Scan review', () => {
     })
   })
 
+  it('GIVEN a scan THEN its location shows one place per line, biggest first', () => {
+    inShell(<ScanReviewView scanId="s1" back={{ to: '/', label: 'Back' }} />)
+    const list = screen.getByRole('list', { name: 'Building C › Bin 05' })
+    expect(
+      within(list)
+        .getAllByRole('listitem')
+        .map((li) => li.textContent),
+    ).toEqual(['Building C', '↳Bin 05'])
+  })
+
   it('GIVEN Reject THEN a category is required and the note is sent', async () => {
     inShell(<ScanReviewView scanId="s1" back={{ to: '/', label: 'Back' }} />)
     fireEvent.click(screen.getByRole('button', { name: 'Reject' }))

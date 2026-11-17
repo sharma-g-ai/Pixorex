@@ -1,37 +1,20 @@
-import type { Level, LevelInput, LocationNode, Requirement } from '../../api/locations'
-import type { BadgeStatus } from '../../components/Badge'
+import type { Level, LevelInput, LocationNode } from '../../api/locations'
 
-/** Ready-made level sets: the guided setup's "Common setups" (canvas EA 12 quick start). */
-export const presets: Record<2 | 3 | 4 | 5, LevelInput[]> = {
-  2: [
-    { level_name: 'Facility', requirement: 'required' },
-    { level_name: 'Bin', requirement: 'required' },
-  ],
-  3: [
-    { level_name: 'Facility', requirement: 'required' },
-    { level_name: 'Building', requirement: 'required' },
-    { level_name: 'Bin', requirement: 'required' },
-  ],
-  4: [
-    { level_name: 'Facility', requirement: 'required' },
-    { level_name: 'Building', requirement: 'required' },
-    { level_name: 'Shop', requirement: 'optional' },
-    { level_name: 'Bin', requirement: 'required' },
-  ],
-  5: [
-    { level_name: 'Facility', requirement: 'required' },
-    { level_name: 'Building', requirement: 'required' },
-    { level_name: 'Shop', requirement: 'optional' },
-    { level_name: 'Bin', requirement: 'required' },
-    { level_name: 'Sub-bin', requirement: 'optional' },
-  ],
-}
+/**
+ * The standard kinds a unit's places are made of, biggest to smallest: the five levels of PRD
+ * FR-2.1 (decision 2026-11-16 in STATE.md: the same names in every unit, picked, not typed).
+ */
+export const standardKinds = ['Facility', 'Building', 'Shop', 'Bin', 'Sub-bin'] as const
 
-export const requirementLabels: Record<Requirement, string> = {
-  required: 'Required',
-  optional: 'Optional',
-  off: 'Off',
-}
+const standardIndex = (name: string) => (standardKinds as readonly string[]).indexOf(name)
+const inUse = (levels: Level[]) => sortLevels(levels).filter((l) => l.requirement !== 'off')
+
+/** The 2.2 body for a saved level, unchanged. */
+export const levelInput = ({ level_id, level_name, requirement }: Level): LevelInput => ({
+  level_id,
+  level_name,
+  requirement,
+})
 
 export function sortLevels(levels: Level[]): Level[] {
   return [...levels].sort((a, b) => a.level_order - b.level_order)
@@ -108,28 +91,29 @@ export function treeRows(levels: Level[], nodes: LocationNode[]): TreeRow[] {
   return rows
 }
 
+/** What is wrong with a place, shown in its tinted row; null when nothing is. */
+export type RowProblem = { kind: 'placeholder' | 'empty'; text: string }
+
 /**
- * The Status column of the tree: every row says where it stands. A named location with nothing
- * inside that stops above a required level is what the publish check calls an empty branch.
+ * A temporary name (it blocks publishing), or a named place with nothing inside that stops
+ * above a required level: what the publish check calls an empty branch (contract 2.7).
  */
-export function rowStatus(levels: Level[], row: TreeRow): BadgeStatus {
-  if (row.node.is_placeholder) return { label: 'Placeholder', tone: 'warning' }
-  if (canScanAt(levels, row.node.level_id)) return { label: 'Scan here', tone: 'neutral' }
+export function rowProblem(levels: Level[], row: TreeRow): RowProblem | null {
+  if (row.node.is_placeholder) return { kind: 'placeholder', text: 'Placeholder' }
+  if (row.children > 0 || canScanAt(levels, row.node.level_id)) return null
   const needed = row.childLevels.find((l) => l.requirement === 'required')
-  if (row.children === 0 && needed)
-    return { label: `Needs a ${needed.level_name}`, tone: 'warning' }
-  return { label: 'Ready', tone: 'success' }
+  return needed ? { kind: 'empty', text: `Needs a ${needed.level_name}` } : null
 }
 
 /**
- * What is left before publishing, from the same statuses the tree shows: placeholders block
+ * What is left before publishing, from the same problems the tree shows: placeholders block
  * publishing; empty places only warn (contract 2.7, plan D2).
  */
 export function toFix(levels: Level[], rows: TreeRow[]): { placeholders: number; empty: number } {
-  const statuses = rows.map((r) => rowStatus(levels, r).label)
+  const kinds = rows.map((r) => rowProblem(levels, r)?.kind)
   return {
-    placeholders: statuses.filter((label) => label === 'Placeholder').length,
-    empty: statuses.filter((label) => label.startsWith('Needs a ')).length,
+    placeholders: kinds.filter((k) => k === 'placeholder').length,
+    empty: kinds.filter((k) => k === 'empty').length,
   }
 }
 
@@ -178,18 +162,118 @@ export function countsByLevel(levels: Level[], nodes: LocationNode[]) {
   }))
 }
 
+/** One kind a place may get inside it; level_id is null until the first place of that kind. */
+export interface AddChoice {
+  level_id: string | null
+  level_name: string
+}
+
 /**
- * "Add several": names from a prefix and a numeric range, keeping the width of the
- * numbers ("Bin " 05–08 → Bin 05 … Bin 08). Null when the range is not valid or over 50.
+ * What may be added straight inside a place of `parentLevelId`: the unit's own kinds (the
+ * API's rule, see childLevels), plus the standard kinds it does not use yet. A new kind is
+ * offered only while the unit's kinds are standard ones in the standard order, so its place
+ * in the order is known, and only if no kind in between is always asked.
  */
-export function rangeNames(prefix: string, from: string, to: string): string[] | null {
-  if (!/^\d+$/.test(from) || !/^\d+$/.test(to)) return null
-  const start = Number(from)
-  const end = Number(to)
-  if (end < start || end - start + 1 > 50) return null
-  const width = Math.max(from.length, to.length)
-  return Array.from(
-    { length: end - start + 1 },
-    (_, i) => `${prefix}${String(start + i).padStart(width, '0')}`,
+export function addChoices(levels: Level[], parentLevelId: string): AddChoice[] {
+  const saved: AddChoice[] = childLevels(levels, parentLevelId)
+  const used = inUse(levels)
+  const indexes = used.map((l) => standardIndex(l.level_name))
+  if (indexes.some((n, i) => n < 0 || n <= (indexes[i - 1] ?? -1))) return saved
+  const parent = standardIndex(used.find((l) => l.level_id === parentLevelId)?.level_name ?? '')
+  if (parent < 0) return saved
+  const taken = new Set(levels.map((l) => l.level_name.toLowerCase()))
+  const fresh = standardKinds.filter((kind, n) => {
+    const between = used.filter((l) => {
+      const at = standardIndex(l.level_name)
+      return at > parent && at < n
+    })
+    return (
+      n > parent &&
+      !taken.has(kind.toLowerCase()) &&
+      between.every((l) => l.requirement === 'optional')
+    )
+  })
+  return [...saved, ...fresh.map((kind) => ({ level_id: null, level_name: kind }))].sort(
+    (a, b) => standardIndex(a.level_name) - standardIndex(b.level_name),
   )
+}
+
+/**
+ * The 2.2 body that adds a standard kind at its place in the order. It is sent as always
+ * asked; the API saves it as "can be skipped" when places already sit below it.
+ */
+export function levelsWithKind(levels: Level[], kind: string): LevelInput[] {
+  const ordered = sortLevels(levels)
+  const at = ordered.findIndex(
+    (l) => l.requirement !== 'off' && standardIndex(l.level_name) > standardIndex(kind),
+  )
+  const result = ordered.map(levelInput)
+  result.splice(at < 0 ? result.length : at, 0, {
+    level_id: null,
+    level_name: kind,
+    requirement: 'required',
+  })
+  return result
+}
+
+/**
+ * Kinds no place uses any more once `nodeId` and everything inside it are deleted. A kind
+ * left without places would still be asked for on the phone, so nobody could finish picking.
+ */
+export function unusedAfterDelete(levels: Level[], nodes: LocationNode[], nodeId: string): Level[] {
+  const gone = new Set([nodeId])
+  // Parents come before their children in tree order, so one pass finds the whole branch.
+  for (const row of treeRows(levels, nodes)) {
+    if (row.node.parent_id && gone.has(row.node.parent_id)) gone.add(row.node.node_id)
+  }
+  const lost = new Set(nodes.filter((n) => gone.has(n.node_id)).map((n) => n.level_id))
+  const kept = new Set(nodes.filter((n) => !gone.has(n.node_id)).map((n) => n.level_id))
+  return levels.filter((l) => lost.has(l.level_id) && !kept.has(l.level_id))
+}
+
+/**
+ * How many places have something inside that goes past this kind (a bin straight inside a
+ * building goes past Shop). While there are any, the kind has to stay "can be skipped".
+ */
+export function placesSkipping(levels: Level[], nodes: LocationNode[], levelId: string): number {
+  const order = new Map(levels.map((l) => [l.level_id, l.level_order]))
+  const at = order.get(levelId) ?? 0
+  const byId = new Map(nodes.map((n) => [n.node_id, n]))
+  const parents = new Set<string>()
+  for (const child of nodes) {
+    const parent = child.parent_id ? byId.get(child.parent_id) : undefined
+    if (!parent) continue
+    if ((order.get(parent.level_id) ?? 0) < at && (order.get(child.level_id) ?? 0) > at)
+      parents.add(parent.node_id)
+  }
+  return parents.size
+}
+
+/** The most places one add may create (contract 2.4). */
+export const MAX_NAMES = 50
+
+/**
+ * The names typed into "Add inside": separated by commas, and a range of numbers becomes one
+ * name per number, keeping their width ("Bin 05-08" gives Bin 05, Bin 06, Bin 07, Bin 08).
+ * Spaces are tidied the way the API does. The caller checks the count against MAX_NAMES.
+ */
+export function typedNames(text: string): string[] {
+  return text
+    .split(',')
+    .map((part) => part.trim().split(/\s+/).join(' '))
+    .filter(Boolean)
+    .flatMap((part) => {
+      const range = /^(.*?)(\d+)\s*[-–]\s*(\d+)$/.exec(part)
+      if (!range) return [part]
+      const [, prefix = '', from = '', to = ''] = range
+      const start = Number(from)
+      const count = Number(to) - start + 1
+      // Not a range worth expanding: it stays one name, and a huge one is refused as too many.
+      if (count < 2) return [part]
+      const width = Math.max(from.length, to.length)
+      return Array.from(
+        { length: Math.min(count, MAX_NAMES + 1) },
+        (_, i) => `${prefix}${String(start + i).padStart(width, '0')}`,
+      )
+    })
 }

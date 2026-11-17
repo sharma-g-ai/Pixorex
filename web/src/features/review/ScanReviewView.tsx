@@ -68,7 +68,7 @@ export function ScanReviewView({ scanId, back }: ScanReviewViewProps) {
             <dl className="flex flex-col gap-2 text-body-sm">
               <Meta term="Captured by" value={scan.captured_by_name} />
               <Meta term="Type" value={scan.equipment_type_name} />
-              <Meta term="Location" value={scan.location_path} />
+              <LocationPath path={scan.location_path} />
               {/* Just the number: the earlier rejection and the fix are in the History below. */}
               <Meta term="Revision" value={`${scan.current_revision.revision_no}`} />
             </dl>
@@ -105,6 +105,37 @@ function Meta({ term, value }: { term: string; value: string }) {
     <div className="flex justify-between gap-2.5">
       <dt className="text-ink-muted">{term}</dt>
       <dd className="text-right font-semibold">{value}</dd>
+    </div>
+  )
+}
+
+/**
+ * The saved path ("Plant 04 › Building C › Bin 05", api PATH_SEPARATOR) shown one place per
+ * line, biggest first and each one indented under the one above, instead of one long line.
+ */
+function LocationPath({ path }: { path: string }) {
+  const parts = path.split(' › ')
+  return (
+    <div className="flex flex-col gap-1">
+      <dt className="text-ink-muted">Location</dt>
+      <dd>
+        <ol aria-label={path} className="flex flex-col gap-0.5 font-semibold">
+          {parts.map((part, i) => (
+            <li
+              key={i}
+              className="wrap-break-word"
+              style={{ paddingLeft: `calc(var(--spacing) * ${i * 3})` }}
+            >
+              {i > 0 && (
+                <span aria-hidden="true" className="mr-1 text-ink-subtle">
+                  ↳
+                </span>
+              )}
+              {part}
+            </li>
+          ))}
+        </ol>
+      </dd>
     </div>
   )
 }
