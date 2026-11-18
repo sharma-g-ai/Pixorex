@@ -12,12 +12,12 @@ transaction, after checking again that the attempt is still queued and the scan 
 
 Flags (FR-4.7; how each applies is our reading, the PRD only names them):
 - missing_required: a required field came back empty;
-- critical_not_found: a critical field came back empty;
 - no_confidence: a value without a confidence score;
-- low_confidence: confidence below the field's flag_below_confidence;
+- low_confidence: confidence below the field's flag_below_confidence (equal is not flagged);
 - format_failed: the value doesn't fit the data type (number, date, boolean, dropdown
-  choice), or the AI judges it doesn't match the field's format rule (format rules are
-  free text, e.g. "UN + 4 digits").
+  choice).
+critical_not_found is no longer set: "critical" was removed by the 18 Nov 2026 change
+request (old scans keep it). The field's description goes to the AI with its label and type.
 A1 (CONSTITUTION BC-03): prompt, injection defence and attempt budget need human review."""
 
 import asyncio
@@ -74,8 +74,6 @@ def flags_for(
     if value is None:
         if field["is_required"]:
             flags.append("missing_required")
-        if field["is_critical"]:
-            flags.append("critical_not_found")
         return flags
     if confidence is None:
         flags.append("no_confidence")
@@ -241,7 +239,6 @@ async def finish(conn: Conn, event: dict[str, Any], job: Job, outcome: Outcome) 
         return
     for field, value, fits in checked:
         item = result.fields.get(field["field_key"], {})
-        fits = fits and item.get("format_ok", True)
         confidence = item.get("confidence")
         await repo.save_ai_value(
             conn,

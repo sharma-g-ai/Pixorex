@@ -5,6 +5,7 @@ from typing import Any
 from uuid import UUID
 
 from app.core.db import Conn
+from app.core.timezone import from_day, to_day
 
 
 async def audit_page(
@@ -31,10 +32,10 @@ async def audit_page(
         where.append("a.category = %s")
         params.append(category)
     if since:
-        where.append("a.occurred_at >= %s::date")
+        where.append(from_day("a.occurred_at"))
         params.append(since)
     if until:  # inclusive: the whole "to" day
-        where.append("a.occurred_at < %s::date + 1")
+        where.append(to_day("a.occurred_at"))
         params.append(until)
     if after:
         where.append("(a.occurred_at, a.id) < (%s::timestamptz, %s::uuid)")

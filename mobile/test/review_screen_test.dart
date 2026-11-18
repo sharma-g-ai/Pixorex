@@ -18,7 +18,6 @@ Map<String, dynamic> fieldJson(String key, String label, String? value,
       'label': label,
       'data_type': 'text',
       'is_required': required,
-      'is_critical': false,
       'ai_value': value,
       'confidence': confidence,
       'flag_reasons': flags,
@@ -125,17 +124,22 @@ void main() {
     expect(find.byType(CircularProgressIndicator), findsNothing);
   });
 
-  testWidgets('GIVEN an empty field WHEN its value is saved THEN it moves above the empty ones on screen', (t) async {
+  testWidgets('GIVEN a red empty required field WHEN its value is saved THEN it leaves the top and joins the filled ones', (t) async {
     await pumpReview(t);
     double top(String key) => t.getTopLeft(find.byKey(ValueKey('row-$key'))).dy;
-    // Filled ones (model, serial, manufacturer) above the empty barcode.
+    // Red ones that need an answer (model: low score, barcode: required and empty) come first,
+    // even above the amber serial number and the filled manufacturer.
     expect(top('model'), lessThan(top('serial')));
-    expect(top('manufacturer'), lessThan(top('barcode')));
+    expect(top('barcode'), lessThan(top('serial')));
+    expect(top('barcode'), lessThan(top('manufacturer')));
 
     await t.enterText(find.widgetWithText(TextField, 'Add barcode'), '4006381333931');
     await t.pumpAndSettle(); // Save shows once there is text
     await t.tap(find.text('Save'));
     await t.pumpAndSettle();
+    // Answered: it is no longer at the top, but a filled field among the others.
+    expect(top('model'), lessThan(top('barcode')));
+    expect(top('serial'), lessThan(top('barcode')));
     expect(top('barcode'), lessThan(top('manufacturer')));
     expect(find.text('Corrected'), findsOneWidget);
   });

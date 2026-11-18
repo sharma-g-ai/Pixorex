@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/api_exception.dart';
+import '../../core/india_time.dart';
 import '../../core/theme.dart';
 import '../../widgets/auth_widgets.dart';
 import 'review_screen.dart' show PhotoZoom;
@@ -10,10 +11,10 @@ import 'scan_status.dart';
 
 const _months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-/// "4 Nov 15:15:42", in the phone's time. Today and yesterday read the same as other days: the
+/// "4 Nov 15:15:42", in Indian time. Today and yesterday read the same as other days: the
 /// history is a record, so it always shows the exact time. Used for every timestamp shown.
 String eventTime(DateTime t) {
-  final l = t.toLocal();
+  final l = toIst(t);
   String two(int n) => n.toString().padLeft(2, '0');
   return '${l.day} ${_months[l.month - 1]} ${two(l.hour)}:${two(l.minute)}:${two(l.second)}';
 }

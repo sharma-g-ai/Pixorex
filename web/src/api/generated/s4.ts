@@ -56,10 +56,10 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Review queue with tab counts
+         * Review queue with header filters and counts
          * @description Contract ref 3.3 in the API Contracts doc.
          *
-         *     Counts also feed the BU Admin home cards. filter=approved_this_week lists the scans counted in counts.approved_this_week (current decision approved since Monday 00:00 UTC). Screens BU 03, 05, 08, 10.
+         *     One list of scans with the filters of its column headers: status, schema, captured by, and a From/To range on the Date column (whole days of Indian time), sorted by that date (oldest first by default). status waiting means no decision yet and includes scans a technician still has; approved includes scans a technician approved; rejected means sent back to the technician and not resubmitted yet. Without status, waiting. Each item's date is the waiting-since time for a waiting scan and the decision time for a decided one. Counts also feed the BU Admin home cards; approved_this_week counts decisions since Monday 00:00 Indian time. filter is deprecated (the old tab queues); when it is sent the other filters are ignored. Screens BU 03, 05, 08, 10.
          */
         get: operations["getReviewQueue"];
         put?: never;
@@ -623,6 +623,8 @@ export interface components {
             corrected_count: number;
             unreadable_count: number;
             waiting_since: components["schemas"]["Timestamp"];
+            /** @description The open batch a technician has this scan in; null when nobody has it. */
+            batch_id: components["schemas"]["Uuid"] | null;
             batch_no: string | null;
             assigned_to_name: string | null;
             revision_no: number;
@@ -630,6 +632,15 @@ export interface components {
             resubmitted: boolean;
             /** @description Who approved the scan (the BU Admin, or the technician it was delegated to). Null until it is approved. */
             approved_by_name: string | null;
+            /**
+             * @description waiting = no decision yet (also while a technician has it); approved; rejected = sent back, not resubmitted yet. closed only on the deprecated filter queues.
+             * @enum {string}
+             */
+            status: "waiting" | "approved" | "rejected" | "closed";
+            /** @description When the scan was captured by the technician. This is what the Date column shows and what from, to and sort use. */
+            date: components["schemas"]["Timestamp"];
+            /** @description Who approved or rejected the scan (the BU Admin, an EA, or the technician it was delegated to). Null while waiting. */
+            decided_by_name: string | null;
         };
         ReviewQueue: {
             counts: components["schemas"]["QueueCounts"];
@@ -698,6 +709,9 @@ export interface components {
             reject_category: string | null;
             decided_at: components["schemas"]["Timestamp"];
             overridden: boolean;
+            /** @description The batch the technician decided the scan in. */
+            batch_id: components["schemas"]["Uuid"] | null;
+            batch_no: string | null;
         };
         Delegate: {
             user_id: components["schemas"]["Uuid"];
@@ -747,6 +761,18 @@ export interface components {
             thumbnail_url: string | null;
             /** @description The assigned technician's own decision on this scan in this batch (T 74 "you approved", T 77). Null when there is none, and always null for callers other than the assigned technician. */
             my_decision: components["schemas"]["BatchDecision"] | null;
+            /** @description Where the scan stands now (its current decision), for a unit's admins. Null while undecided, and always null for the assigned technician. */
+            outcome?: components["schemas"]["Outcome"] | null;
+        };
+        /** @description The current decision on a scan in a batch, as a unit's admin sees it. */
+        Outcome: {
+            /** @enum {string} */
+            decision: "approved" | "rejected";
+            reject_category: string | null;
+            decided_by_name: string;
+            decided_at: components["schemas"]["Timestamp"];
+            /** @description An admin replaced the technician's decision. */
+            overridden: boolean;
         };
         BatchDecision: {
             /** @enum {string} */
@@ -944,6 +970,12 @@ export interface components {
         DecisionId: components["schemas"]["Uuid"];
         BatchId: components["schemas"]["Uuid"];
         NotificationId: components["schemas"]["Uuid"];
+        /** @description First day of the Date column filter, YYYY-MM-DD, included. Whole days of Indian time (IST). */
+        FromDay: string;
+        /** @description Last day of the Date column filter, YYYY-MM-DD, included. Whole days of Indian time (IST). 400 when before from. */
+        ToDay: string;
+        /** @description Order of the Date column. Each list has its own default. */
+        SortByDate: "oldest_first" | "newest_first";
         /** @description Opaque cursor from the previous page's next_cursor. */
         Cursor: string;
         Limit: number;
@@ -1047,6 +1079,23 @@ export interface operations {
     getReviewQueue: {
         parameters: {
             query?: {
+                /** @description One or more of waiting, approved, rejected. Default waiting. */
+                status?: ("waiting" | "approved" | "rejected")[];
+                /** @description Only scans of these schemas (equipment types). */
+                equipment_type_id?: components["schemas"]["Uuid"][];
+                /** @description Only scans captured by these technicians. */
+                captured_by?: components["schemas"]["Uuid"][];
+                /** @description First day of the Date column filter, YYYY-MM-DD, included. Whole days of Indian time (IST). */
+                from?: components["parameters"]["FromDay"];
+                /** @description Last day of the Date column filter, YYYY-MM-DD, included. Whole days of Indian time (IST). 400 when before from. */
+                to?: components["parameters"]["ToDay"];
+                /** @description Only scans decided from this day on (YYYY-MM-DD, Indian time), whatever day they were captured. Home's "approved this week" link uses it. */
+                decided_from?: string;
+                /** @description Find scans by Scan ID. Only the digits typed count, so "100 000 039 6" and "1000000396" find the same scan, and part of an ID matches. A search with no digits finds nothing. */
+                q?: string;
+                /** @description Order of the Date column. Left out, the list is oldest first with the scans a technician holds after the others; oldest_first or newest_first sorts by date alone. */
+                sort?: "oldest_first" | "newest_first";
+                /** @deprecated */
                 filter?: "waiting" | "over_1d" | "over_1w" | "delegated" | "decided_by_technicians" | "approved_this_week";
                 /** @description Opaque cursor from the previous page's next_cursor. */
                 cursor?: components["parameters"]["Cursor"];
@@ -1189,6 +1238,14 @@ export interface operations {
         parameters: {
             query?: {
                 decision?: "approved" | "rejected";
+                /** @description Only decisions by these technicians. */
+                decided_by?: components["schemas"]["Uuid"][];
+                /** @description First day of the Date column filter, YYYY-MM-DD, included. Whole days of Indian time (IST). */
+                from?: components["parameters"]["FromDay"];
+                /** @description Last day of the Date column filter, YYYY-MM-DD, included. Whole days of Indian time (IST). 400 when before from. */
+                to?: components["parameters"]["ToDay"];
+                /** @description Order of the Date column. Each list has its own default. */
+                sort?: components["parameters"]["SortByDate"];
                 /** @description Opaque cursor from the previous page's next_cursor. */
                 cursor?: components["parameters"]["Cursor"];
                 limit?: components["parameters"]["Limit"];
@@ -1299,6 +1356,14 @@ export interface operations {
         parameters: {
             query?: {
                 status?: "active" | "completed" | "taken_back";
+                /** @description Only batches given to these technicians. */
+                assigned_to?: components["schemas"]["Uuid"][];
+                /** @description First day of the Date column filter, YYYY-MM-DD, included. Whole days of Indian time (IST). */
+                from?: components["parameters"]["FromDay"];
+                /** @description Last day of the Date column filter, YYYY-MM-DD, included. Whole days of Indian time (IST). 400 when before from. */
+                to?: components["parameters"]["ToDay"];
+                /** @description Order of the Date column. Each list has its own default. */
+                sort?: components["parameters"]["SortByDate"];
                 /** @description Opaque cursor from the previous page's next_cursor. */
                 cursor?: components["parameters"]["Cursor"];
                 limit?: components["parameters"]["Limit"];

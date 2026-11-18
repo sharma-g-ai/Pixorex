@@ -18,15 +18,18 @@ from app.services import ai_proxy
 
 DataType = Literal["text", "number", "date", "dropdown", "boolean"]
 DEFAULT_FLAG_BELOW = 0.85
+MAX_DESCRIPTION = 500  # field_definition.description CHECK (migration 0007)
 
 
 class FieldInput(BaseModel):
+    """A field as sent by a client. Old clients may still send is_critical or format_rule
+    (removed by the 18 Nov 2026 change request); unknown keys are ignored."""
+
     label: str = Field(min_length=1, max_length=100)
     data_type: DataType
     options: list[str] | None = None
     is_required: bool
-    is_critical: bool
-    format_rule: str | None = None
+    description: str | None = Field(default=None, max_length=MAX_DESCRIPTION)
     is_unique_in_unit: bool = False
     flag_below_confidence: float = Field(default=DEFAULT_FLAG_BELOW, ge=0, le=1)
 
@@ -38,8 +41,7 @@ class FieldChange(BaseModel):
     data_type: DataType | None = None
     options: list[str] | None = None
     is_required: bool | None = None
-    is_critical: bool | None = None
-    format_rule: str | None = None
+    description: str | None = Field(default=None, max_length=MAX_DESCRIPTION)
     is_unique_in_unit: bool | None = None
     flag_below_confidence: float | None = Field(default=None, ge=0, le=1)
 
@@ -49,6 +51,9 @@ class TypeField(FieldInput):
     field_key: str
     sort_order: int
     origin: Literal["manual", "ai_suggested"]
+    # Deprecated, always false: kept only so app builds from before the change request still
+    # read the field list. Remove once every phone runs the new app.
+    is_critical: bool = False
 
 
 class EquipmentType(BaseModel):
@@ -88,6 +93,7 @@ class Published(BaseModel):
 class SuggestedField(BaseModel):
     label: str
     data_type: DataType
+    description: str | None = None  # written by the AI; the admin can change it
 
 
 class Suggestions(BaseModel):
@@ -167,14 +173,13 @@ def _field_values(field: FieldInput) -> dict[str, Any]:
         options = [" ".join(o.split()) for o in field.options or []]
         if len([o for o in options if o]) < 2 or len(set(options)) != len(options) or "" in options:
             raise ProblemError(400, "validation", "A dropdown needs 2 or more different choices.")
-    format_rule = (field.format_rule or "").strip() or None
+    description = (field.description or "").strip() or None
     return {
         "label": label,
         "data_type": field.data_type,
         "options": options,
         "is_required": field.is_required,
-        "is_critical": field.is_critical,
-        "format_rule": format_rule,
+        "description": description,
         "is_unique_in_unit": field.is_unique_in_unit,
         "flag_below_confidence": field.flag_below_confidence,
     }

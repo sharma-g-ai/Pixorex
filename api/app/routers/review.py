@@ -19,11 +19,33 @@ IdempotencyKey = Annotated[UUID, Header()]  # stored 24 hours (services/idempote
 async def review_queue(
     bu_id: UUID,
     session: SignedIn,
-    filter: review.QueueFilter = "waiting",
+    filter: review.QueueFilter | None = None,
+    status: Annotated[list[review.QueueStatus] | None, Query()] = None,
+    equipment_type_id: Annotated[list[UUID] | None, Query()] = None,
+    captured_by: Annotated[list[UUID] | None, Query()] = None,
+    from_: Annotated[date | None, Query(alias="from")] = None,
+    to: date | None = None,
+    decided_from: date | None = None,
+    q: Annotated[str | None, Query(max_length=40)] = None,
+    sort: Literal["oldest_first", "newest_first"] | None = None,
     cursor: Cursor = None,
     limit: Limit = 25,
 ) -> review.ReviewQueue:
-    return await review.queue(session, bu_id, filter_=filter, cursor=cursor, limit=limit)
+    return await review.queue(
+        session,
+        bu_id,
+        filter_=filter,
+        statuses=status,
+        type_ids=equipment_type_id,
+        captured_by=captured_by,
+        date_from=from_,
+        date_to=to,
+        decided_from=decided_from,
+        search=q,
+        newest_first=None if sort is None else sort == "newest_first",
+        cursor=cursor,
+        limit=limit,
+    )
 
 
 @router.get("/scans/{scan_id}/review", operation_id="getScanReview")
@@ -55,11 +77,23 @@ async def technician_decisions(
     bu_id: UUID,
     session: SignedIn,
     decision: Literal["approved", "rejected"] | None = None,
+    decided_by: Annotated[list[UUID] | None, Query()] = None,
+    from_: Annotated[date | None, Query(alias="from")] = None,
+    to: date | None = None,
+    sort: Literal["oldest_first", "newest_first"] = "newest_first",
     cursor: Cursor = None,
     limit: Limit = 25,
 ) -> review.TechnicianDecisionPage:
     return await review.technician_decisions(
-        session, bu_id, decision=decision, cursor=cursor, limit=limit
+        session,
+        bu_id,
+        decision=decision,
+        decided_by=decided_by,
+        date_from=from_,
+        date_to=to,
+        newest_first=sort == "newest_first",
+        cursor=cursor,
+        limit=limit,
     )
 
 
@@ -131,10 +165,24 @@ async def list_batches(
     bu_id: UUID,
     session: SignedIn,
     status: Literal["active", "completed", "taken_back"] | None = None,
+    assigned_to: Annotated[list[UUID] | None, Query()] = None,
+    from_: Annotated[date | None, Query(alias="from")] = None,
+    to: date | None = None,
+    sort: Literal["oldest_first", "newest_first"] = "newest_first",
     cursor: Cursor = None,
     limit: Limit = 25,
 ) -> delegation.BatchPage:
-    return await delegation.list_batches(session, bu_id, status=status, cursor=cursor, limit=limit)
+    return await delegation.list_batches(
+        session,
+        bu_id,
+        status=status,
+        assigned_to=assigned_to,
+        date_from=from_,
+        date_to=to,
+        newest_first=sort == "newest_first",
+        cursor=cursor,
+        limit=limit,
+    )
 
 
 @router.get("/me/review-batches", operation_id="listMyReviewBatches")

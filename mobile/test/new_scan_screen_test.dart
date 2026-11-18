@@ -15,7 +15,7 @@ Map<String, dynamic> typesPage(List<String> names, {String? next}) => {
             'type_id': 't-$n',
             'name': n,
             'fields': [
-              {'field_key': 'serial', 'label': 'Serial', 'data_type': 'text', 'is_required': true, 'is_critical': true},
+              {'field_key': 'serial', 'label': 'Serial', 'data_type': 'text', 'is_required': true},
             ],
           },
       ],

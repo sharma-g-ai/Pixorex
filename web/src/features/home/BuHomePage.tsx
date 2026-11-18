@@ -1,10 +1,11 @@
 import { useInvites } from '../../api/invites'
-import { useBatches, useReviewQueue } from '../../api/review'
+import { useBatches, useQueueCounts } from '../../api/review'
 import { useDashboard } from '../../app/DashboardContext'
 import { Card } from '../../components/Card'
 import { NeedsYouItem } from '../../components/NeedsYouItem'
 import { PageHeader } from '../../components/layout/PageHeader'
 import { StatTile } from '../../components/StatTile'
+import { istMonday, TIME_ZONE } from '../../lib/time'
 import { RecentActivityCard } from '../auditLog/RecentActivityCard'
 import { RecentDecisions } from './RecentDecisions'
 import { buNeedsYou, calmSummary, greeting } from './homeRules'
@@ -32,15 +33,16 @@ function HomeOfUnit({
   unitName: string
   userName: string
 }) {
-  const queue = useReviewQueue(buId, 'waiting')
+  const queue = useQueueCounts(buId)
   const batches = useBatches(buId)
   const invites = useInvites(buId)
-  const counts = queue.data?.counts
+  const counts = queue.data
   const needs = buNeedsYou(counts, batches.data ?? [], invites.data ?? [])
   const today = new Date().toLocaleDateString('en-GB', {
     weekday: 'long',
     day: 'numeric',
     month: 'short',
+    timeZone: TIME_ZONE,
   })
 
   return (
@@ -57,7 +59,7 @@ function HomeOfUnit({
           <StatTile
             value={counts?.approved_this_week ?? '–'}
             label="approved this week"
-            to="/review-queue?tab=approved"
+            to={`/review-queue?status=approved&decided=${istMonday()}`}
           />
           <StatTile
             value={counts?.over_1d ?? '–'}

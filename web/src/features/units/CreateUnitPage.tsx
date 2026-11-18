@@ -66,7 +66,7 @@ export function CreateUnitPage() {
 
   return (
     <>
-      <PageHeader title="Create business unit" subtitle="Overview › New unit" />
+      <PageHeader title="Create business unit" />
       <form
         noValidate
         onSubmit={onSubmit}
@@ -136,10 +136,6 @@ export function CreateUnitPage() {
               <li>Invite field technicians.</li>
             </ol>
           </Card>
-          <Alert tone="info">
-            Each unit has exactly one BU Admin. Until they accept, this unit's scans that wait over
-            24 hours come to you.
-          </Alert>
           {formError && <Alert tone="danger">{formError}</Alert>}
           <div className="flex gap-2.5">
             <Link to="/overview" className={buttonClasses('secondary')}>

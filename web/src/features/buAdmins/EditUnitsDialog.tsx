@@ -86,10 +86,6 @@ export function EditUnitsDialog({
             />
           )}
         />
-        <Alert tone="info">
-          They switch between their units from the dashboard sidebar. The change is recorded in the
-          audit log.
-        </Alert>
         {formError && <Alert tone="danger">{formError}</Alert>}
       </form>
     </Dialog>

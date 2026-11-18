@@ -188,12 +188,18 @@ paths:
       tags:
       - Review
       operationId: getReviewQueue
-      summary: Review queue with tab counts
+      summary: Review queue with header filters and counts
       description: 'Contract ref 3.3 in the API Contracts doc.
 
 
-        Counts also feed the BU Admin home cards. filter=approved_this_week lists the scans counted in
-        counts.approved_this_week (current decision approved since Monday 00:00 UTC). Screens BU 03, 05, 08, 10.'
+        One list of scans with the filters of its column headers: status, schema, captured by, and a From/To
+        range on the Date column (whole days of Indian time), sorted by that date (oldest first by default).
+        status waiting means no decision yet and includes scans a technician still has; approved includes
+        scans a technician approved; rejected means sent back to the technician and not resubmitted yet. Without
+        status, waiting. Each item''s date is the waiting-since time for a waiting scan and the decision time for
+        a decided one. Counts also feed the BU Admin home cards; approved_this_week counts decisions since Monday
+        00:00 Indian time. filter is deprecated (the old tab queues); when it is sent the other filters are
+        ignored. Screens BU 03, 05, 08, 10.'
       x-roles: &id009
       - bu_admin
       - enterprise_admin
@@ -204,9 +210,63 @@ paths:
       parameters:
       - &id007
         $ref: ./common.yaml#/components/parameters/BuId
+      - name: status
+        in: query
+        required: false
+        description: One or more of waiting, approved, rejected. Default waiting.
+        schema:
+          type: array
+          items:
+            type: string
+            enum:
+            - waiting
+            - approved
+            - rejected
+      - name: equipment_type_id
+        in: query
+        required: false
+        description: Only scans of these schemas (equipment types).
+        schema:
+          type: array
+          items:
+            $ref: ./common.yaml#/components/schemas/Uuid
+      - name: captured_by
+        in: query
+        required: false
+        description: Only scans captured by these technicians.
+        schema:
+          type: array
+          items:
+            $ref: ./common.yaml#/components/schemas/Uuid
+      - $ref: '#/components/parameters/FromDay'
+      - $ref: '#/components/parameters/ToDay'
+      - name: decided_from
+        in: query
+        required: false
+        description: Only scans decided from this day on (YYYY-MM-DD, Indian time), whatever day they were captured. Home's "approved this week" link uses it.
+        schema:
+          type: string
+          format: date
+      - name: q
+        in: query
+        required: false
+        description: Find scans by Scan ID. Only the digits typed count, so "100 000 039 6" and "1000000396" find the same scan, and part of an ID matches. A search with no digits finds nothing.
+        schema:
+          type: string
+          maxLength: 40
+      - name: sort
+        in: query
+        required: false
+        description: Order of the Date column. Left out, the list is oldest first with the scans a technician holds after the others; oldest_first or newest_first sorts by date alone.
+        schema:
+          type: string
+          enum:
+          - oldest_first
+          - newest_first
       - name: filter
         in: query
         required: false
+        deprecated: true
         schema:
           type: string
           enum:
@@ -390,6 +450,17 @@ paths:
           enum:
           - approved
           - rejected
+      - name: decided_by
+        in: query
+        required: false
+        description: Only decisions by these technicians.
+        schema:
+          type: array
+          items:
+            $ref: ./common.yaml#/components/schemas/Uuid
+      - $ref: '#/components/parameters/FromDay'
+      - $ref: '#/components/parameters/ToDay'
+      - $ref: '#/components/parameters/SortByDate'
       - *id002
       - *id003
       responses:
@@ -619,6 +690,17 @@ paths:
           - active
           - completed
           - taken_back
+      - name: assigned_to
+        in: query
+        required: false
+        description: Only batches given to these technicians.
+        schema:
+          type: array
+          items:
+            $ref: ./common.yaml#/components/schemas/Uuid
+      - $ref: '#/components/parameters/FromDay'
+      - $ref: '#/components/parameters/ToDay'
+      - $ref: '#/components/parameters/SortByDate'
       - *id002
       - *id003
       responses:
@@ -1400,6 +1482,32 @@ components:
       required: true
       schema:
         $ref: ./common.yaml#/components/schemas/Uuid
+    FromDay:
+      name: from
+      in: query
+      required: false
+      description: First day of the Date column filter, YYYY-MM-DD, included. Whole days of Indian time (IST).
+      schema:
+        type: string
+        format: date
+    ToDay:
+      name: to
+      in: query
+      required: false
+      description: Last day of the Date column filter, YYYY-MM-DD, included. Whole days of Indian time (IST). 400 when before from.
+      schema:
+        type: string
+        format: date
+    SortByDate:
+      name: sort
+      in: query
+      required: false
+      description: Order of the Date column. Each list has its own default.
+      schema:
+        type: string
+        enum:
+        - oldest_first
+        - newest_first
   schemas:
     RejectCategory:
       type: string
@@ -1620,6 +1728,11 @@ components:
           type: integer
         waiting_since:
           $ref: ./common.yaml#/components/schemas/Timestamp
+        batch_id:
+          oneOf:
+          - $ref: ./common.yaml#/components/schemas/Uuid
+          - type: 'null'
+          description: The open batch a technician has this scan in; null when nobody has it.
         batch_no:
           type:
           - string
@@ -1638,6 +1751,22 @@ components:
           - string
           - 'null'
           description: Who approved the scan (the BU Admin, or the technician it was delegated to). Null until it is approved.
+        status:
+          type: string
+          enum:
+          - waiting
+          - approved
+          - rejected
+          - closed
+          description: waiting = no decision yet (also while a technician has it); approved; rejected = sent back, not resubmitted yet. closed only on the deprecated filter queues.
+        date:
+          $ref: ./common.yaml#/components/schemas/Timestamp
+          description: When the scan was captured by the technician. This is what the Date column shows and what from, to and sort use.
+        decided_by_name:
+          type:
+          - string
+          - 'null'
+          description: Who approved or rejected the scan (the BU Admin, an EA, or the technician it was delegated to). Null while waiting.
       required:
       - scan_id
       - record_no
@@ -1648,11 +1777,15 @@ components:
       - corrected_count
       - unreadable_count
       - waiting_since
+      - batch_id
       - batch_no
       - assigned_to_name
       - revision_no
       - resubmitted
       - approved_by_name
+      - status
+      - date
+      - decided_by_name
     ReviewQueue:
       type: object
       properties:
@@ -1859,6 +1992,15 @@ components:
           $ref: ./common.yaml#/components/schemas/Timestamp
         overridden:
           type: boolean
+        batch_id:
+          oneOf:
+          - $ref: ./common.yaml#/components/schemas/Uuid
+          - type: 'null'
+          description: The batch the technician decided the scan in.
+        batch_no:
+          type:
+          - string
+          - 'null'
       required:
       - decision_id
       - scan_id
@@ -1868,6 +2010,8 @@ components:
       - decision
       - reject_category
       - decided_at
+      - batch_id
+      - batch_no
       - overridden
     Delegate:
       type: object
@@ -1994,6 +2138,12 @@ components:
           oneOf:
           - $ref: '#/components/schemas/BatchDecision'
           - type: 'null'
+        outcome:
+          description: Where the scan stands now (its current decision), for a unit's admins. Null while undecided, and
+            always null for the assigned technician.
+          oneOf:
+          - $ref: '#/components/schemas/Outcome'
+          - type: 'null'
       required:
       - scan_id
       - record_no
@@ -2006,6 +2156,32 @@ components:
       - submitted_at
       - thumbnail_url
       - my_decision
+    Outcome:
+      type: object
+      description: The current decision on a scan in a batch, as a unit's admin sees it.
+      properties:
+        decision:
+          type: string
+          enum:
+          - approved
+          - rejected
+        reject_category:
+          type:
+          - string
+          - 'null'
+        decided_by_name:
+          type: string
+        decided_at:
+          $ref: ./common.yaml#/components/schemas/Timestamp
+        overridden:
+          type: boolean
+          description: An admin replaced the technician's decision.
+      required:
+      - decision
+      - reject_category
+      - decided_by_name
+      - decided_at
+      - overridden
     BatchDecision:
       type: object
       properties:

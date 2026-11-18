@@ -127,10 +127,6 @@ export function AuditLogPage() {
           />
         )}
         <LoadMore {...log} />
-        <p className="text-small text-ink-subtle">
-          The audit log can't be edited or deleted by anyone. It's kept 1 year online and 3 years
-          archived.
-        </p>
       </div>
       {exporting && (
         <ExportDialog

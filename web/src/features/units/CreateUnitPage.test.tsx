@@ -122,3 +122,14 @@ describe('CreateUnitPage', () => {
     expect(new Set(keys).size).toBe(1)
   })
 })
+
+describe('CreateUnitPage: no repeated text', () => {
+  it('GIVEN the page THEN no "Overview › New unit" subtitle and no 24-hour rule box', () => {
+    renderPage()
+    expect(screen.getByRole('heading', { name: 'Create business unit' })).toBeInTheDocument()
+    expect(screen.queryByText(/Overview ›/)).toBeNull()
+    expect(screen.queryByText(/scans that wait over/)).toBeNull()
+    expect(screen.getByText('After you create it')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Cancel' })).toBeInTheDocument()
+  })
+})

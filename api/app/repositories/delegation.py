@@ -1,10 +1,14 @@
 """Delegated review batches (contracts 3.8-3.14). A batch is a set of review assignments,
 never bulk approval (FR-5.6)."""
 
+from datetime import date
 from typing import Any
 from uuid import UUID
 
+from psycopg.errors import UniqueViolation
+
 from app.core.db import Conn
+from app.core.timezone import from_day, to_day
 
 
 async def delegates(
@@ -48,7 +52,9 @@ async def scans_for_batch(conn: Conn, bu_id: UUID, scan_ids: list[UUID]) -> list
 
 async def next_batch_no(conn: Conn, tenant_id: UUID) -> str:
     """Display numbers B-1, B-2... per tenant. Serialised by a transaction-level advisory lock
-    on the tenant, so two batches never get the same number."""
+    on the tenant, so two batches never get the same number. A BU Admin only sees the batches
+    of their own units (RLS), so this can be a number another unit already uses: see
+    [create_batch], which skips such numbers."""
     await conn.execute(
         "SELECT pg_advisory_xact_lock(hashtextextended(%s, 0))", (f"batch:{tenant_id}",)
     )
@@ -63,16 +69,27 @@ async def next_batch_no(conn: Conn, tenant_id: UUID) -> str:
 
 async def create_batch(
     conn: Conn, *, tenant_id: UUID, bu_id: UUID, batch_no: str, assigned_to: UUID, created_by: UUID
-) -> UUID:
-    cur = await conn.execute(
-        "INSERT INTO review_batch (tenant_id, bu_id, batch_no, assigned_to, created_by)"
-        " VALUES (%s, %s, %s, %s, %s) RETURNING id",
-        (tenant_id, bu_id, batch_no, assigned_to, created_by),
-    )
-    row = await cur.fetchone()
-    if row is None:
-        raise RuntimeError("INSERT ... RETURNING returned no row")
-    return UUID(str(row["id"]))
+) -> tuple[UUID, str]:
+    """Inserts the batch with [batch_no], or the next free number after it when another unit
+    (invisible to this caller under RLS) already uses it. Each try is its own savepoint, so a
+    taken number does not abort the request. Returns the batch id and the number it got."""
+    number = int(batch_no.removeprefix("B-"))
+    for _ in range(1000):
+        try:
+            async with conn.transaction():
+                cur = await conn.execute(
+                    "INSERT INTO review_batch (tenant_id, bu_id, batch_no, assigned_to, created_by)"
+                    " VALUES (%s, %s, %s, %s, %s) RETURNING id",
+                    (tenant_id, bu_id, f"B-{number}", assigned_to, created_by),
+                )
+                row = await cur.fetchone()
+        except UniqueViolation:
+            number += 1
+            continue
+        if row is None:
+            raise RuntimeError("INSERT ... RETURNING returned no row")
+        return UUID(str(row["id"])), f"B-{number}"
+    raise RuntimeError("no free batch number")
 
 
 async def assign(
@@ -127,9 +144,16 @@ async def batches(
     after: list[str] | None,
     limit: int,
     or_unseen_override: bool = False,
+    assigned_to_any: list[UUID] | None = None,
+    date_from: date | None = None,
+    date_to: date | None = None,
+    newest_first: bool = True,
 ) -> list[dict[str, Any]]:
     """A unit's batches, or the batches given to one technician. With [or_unseen_override],
-    a batch in another status is listed too while it has an override not seen yet (T 77)."""
+    a batch in another status is listed too while it has an override not seen yet (T 77).
+    [assigned_to_any]: only batches of these technicians. [date_from]/[date_to]: the day the
+    batch was made, whole days of Indian time, both included. Newest first unless
+    [newest_first] is false."""
     where: list[str] = ["true"]
     params: list[object] = []
     if bu_id is not None:
@@ -138,6 +162,15 @@ async def batches(
     if assigned_to is not None:
         where.append("b.assigned_to = %s")
         params.append(assigned_to)
+    if assigned_to_any:
+        where.append("b.assigned_to = ANY(%s::uuid[])")
+        params.append(assigned_to_any)
+    if date_from:
+        where.append(from_day("b.created_at"))
+        params.append(date_from)
+    if date_to:
+        where.append(to_day("b.created_at"))
+        params.append(date_to)
     if status and or_unseen_override:
         where.append(f"(b.status = %s OR EXISTS (SELECT 1{_OVERRIDDEN}{_UNSEEN}))")
         params.append(status)
@@ -145,10 +178,14 @@ async def batches(
         where.append("b.status = %s")
         params.append(status)
     if after:
-        where.append("(b.created_at, b.id) < (%s::timestamptz, %s::uuid)")
+        where.append(
+            f"(b.created_at, b.id) {'<' if newest_first else '>'} (%s::timestamptz, %s::uuid)"
+        )
         params += after
+    order = "DESC" if newest_first else "ASC"
     cur = await conn.execute(
-        f"{_BATCH} WHERE {' AND '.join(where)} ORDER BY b.created_at DESC, b.id DESC LIMIT %s",
+        f"{_BATCH} WHERE {' AND '.join(where)}"
+        f" ORDER BY b.created_at {order}, b.id {order} LIMIT %s",
         [*params, limit + 1],
     )
     return await cur.fetchall()
@@ -182,12 +219,18 @@ async def assignments(
         " md.decided_at AS my_decided_at,"
         " o.decision AS ov_decision, o.reject_category AS ov_category, o.note AS ov_note,"
         " ob.full_name AS ov_by, o.decided_at AS ov_at,"
-        " nn.id AS ov_notification_id, (nn.read_at IS NOT NULL) AS ov_seen"
+        " nn.id AS ov_notification_id, (nn.read_at IS NOT NULL) AS ov_seen,"
+        " dec.decision AS dec_decision, dec.reject_category AS dec_category,"
+        " dec.decided_at AS dec_at, dec.overridden AS dec_overridden, dec.by AS dec_by"
         " FROM review_assignment a JOIN scan s ON s.id = a.scan_id"
         " JOIN equipment_type et ON et.id = s.equipment_type_id"
         " JOIN app_user tech ON tech.id = s.technician_id"
         " LEFT JOIN LATERAL (SELECT r.id, r.submitted_at FROM revision r WHERE r.scan_id = s.id"
         "   ORDER BY r.revision_no DESC LIMIT 1) cr ON true"
+        " LEFT JOIN LATERAL (SELECT cd.decision, cd.reject_category, cd.decided_at,"
+        "   cd.overrides_decision_id IS NOT NULL AS overridden, cu.full_name AS by"
+        "   FROM review_decision cd JOIN app_user cu ON cu.id = cd.decided_by"
+        "   WHERE cd.revision_id = cr.id AND cd.is_current) dec ON true"
         " LEFT JOIN LATERAL (SELECT d.id, d.decision, d.reject_category, d.decided_at"
         "   FROM review_decision d JOIN revision dr ON dr.id = d.revision_id"
         "   WHERE d.batch_id = a.batch_id AND dr.scan_id = s.id AND d.decided_by = %(me)s"

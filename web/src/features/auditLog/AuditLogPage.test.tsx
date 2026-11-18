@@ -95,3 +95,11 @@ describe('Audit log (contract 3.22)', () => {
     expect(useAuditLog).toHaveBeenLastCalledWith(expect.objectContaining({ bu_id: 'p04' }))
   })
 })
+
+describe('Audit log: no retention footer', () => {
+  it('GIVEN the page THEN it does not repeat the retention policy under the table', () => {
+    page('bu_admin')
+    expect(screen.queryByText(/can't be edited or deleted by anyone/)).toBeNull()
+    expect(screen.queryByText(/archived/)).toBeNull()
+  })
+})

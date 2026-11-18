@@ -1,69 +1,207 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
+import { useEquipmentTypes } from '../../api/equipmentTypes'
 import type { ExportJob } from '../../api/exports'
-import { useReviewQueue, type QueueFilter, type QueueItem } from '../../api/review'
+import {
+  useQueueCounts,
+  useReviewQueue,
+  type QueueFilters,
+  type QueueItem,
+  type QueueStatus,
+} from '../../api/review'
+import { useTechnicians } from '../../api/technicians'
 import { useDashboard } from '../../app/DashboardContext'
 import { Alert } from '../../components/Alert'
 import { Badge } from '../../components/Badge'
 import { Button } from '../../components/Button'
+import { buttonClasses } from '../../components/buttonClasses'
 import { Card } from '../../components/Card'
+import {
+  CheckListFilter,
+  ColumnFilter,
+  ColumnHeader,
+  DateRangeFilter,
+  FilterChips,
+  SortToggle,
+  TextSearchFilter,
+  type Chip,
+} from '../../components/ColumnFilter'
+import { listChip, rangeChip } from '../../components/filterChips'
 import { DataTable, type Column } from '../../components/DataTable'
 import { PageHeader } from '../../components/layout/PageHeader'
-import { Tabs } from '../../components/Tabs'
+import { LoadMore } from '../../components/LoadMore'
+import { formatScanId } from '../../lib/scanId'
+import { dateTime, dayLabel, istDay } from '../../lib/time'
 import { ExportDialog } from '../exports/ExportDialog'
 import { ExportJobNotice } from '../exports/ExportJobNotice'
 import { DOWNLOADED_NOTICE } from '../exports/exportText'
 import { DelegateBatchDialog } from './DelegateBatchDialog'
+import {
+  ALL_STATUSES,
+  filtersFromParams,
+  isFiltered,
+  paramsFromFilters,
+  requestFilters,
+  statusLabels,
+} from './queueFilters'
+import { waitingStatus } from './reviewRules'
 import { MAX_BATCH, SelectionBar } from './SelectionBar'
-import { dateTime } from '../../lib/time'
-import { oldestWaitingFirst, timeOf, waitingStatus } from './reviewRules'
-import { DelegatedTable } from './DelegatedTable'
-import { formatScanId } from '../../lib/scanId'
 
-/** BU-03 Review queue of the current unit: review or delegate (canvas BU 05, 08, 10; contract 3.3). */
+/**
+ * BU-03 Review queue of the current unit (canvas BU 05, 08, 10; contract 3.3): one table of
+ * scans. Waiting is what still needs a decision (also while a technician has it); Approved and
+ * Rejected are reached with the Status filter. Each column header filters its own column.
+ */
 export function ReviewQueuePage() {
   const { unit } = useDashboard()
   if (!unit?.bu_id) return null
   return <QueueOfUnit key={unit.bu_id} buId={unit.bu_id} unitName={unit.name ?? ''} />
 }
 
+/** Only a waiting scan nobody has been given can be picked to delegate. */
+const canSelect = (item: QueueItem) => item.status === 'waiting' && !item.batch_id
+
 function QueueOfUnit({ buId, unitName }: { buId: string; unitName: string }) {
-  const [params] = useSearchParams()
-  // BU Home's "approved this week" card opens this tab (?tab=approved).
-  const [filter, setFilter] = useState<QueueFilter>(
-    params.get('tab') === 'approved' ? 'approved_this_week' : 'waiting',
-  )
-  const approved = filter === 'approved_this_week'
-  const queue = useReviewQueue(buId, filter)
-  const [selected, setSelected] = useState<string[]>([])
+  const [params, setParams] = useSearchParams()
+  const filters = useMemo(() => filtersFromParams(params), [params])
+  const patch = (change: Partial<QueueFilters>) =>
+    setParams(paramsFromFilters({ ...filters, ...change }), { replace: true })
+
+  const queue = useReviewQueue(buId, requestFilters(filters))
+  const counts = useQueueCounts(buId)
+  const types = useEquipmentTypes(buId)
+  const technicians = useTechnicians(buId)
+
+  const [picked, setPicked] = useState<string[]>([])
   const [delegating, setDelegating] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
   const [exporting, setExporting] = useState(false)
   const [exportJob, setExportJob] = useState<ExportJob | null>(null)
 
-  const counts = queue.data?.counts
+  const items = queue.items
+  const selectable = items.filter(canSelect).map((i) => i.scan_id)
+  // Only scans still shown and still free can stay picked, whatever the filters did meanwhile.
+  const chosen = picked.filter((id) => selectable.includes(id))
+  const allChosen =
+    selectable.length > 0 && chosen.length === Math.min(selectable.length, MAX_BATCH)
+  const someChosen = chosen.length > 0 && !allChosen
   const toggle = (scanId: string, on: boolean) =>
-    setSelected((s) => (on ? [...s, scanId].slice(0, MAX_BATCH) : s.filter((id) => id !== scanId)))
+    setPicked((s) => (on ? [...s, scanId].slice(0, MAX_BATCH) : s.filter((id) => id !== scanId)))
 
-  const allColumns: Column<QueueItem>[] = [
+  const clearAll = () =>
+    patch({
+      status: [],
+      schemas: [],
+      capturedBy: [],
+      from: '',
+      to: '',
+      search: '',
+      decidedFrom: '',
+    })
+  const dateRange = { from: filters.from, to: filters.to }
+  const nameOf = <T,>(list: T[] | undefined, id: string, key: (t: T) => [string, string]) =>
+    list?.map(key).find(([value]) => value === id)?.[1]
+
+  const chips: Chip[] = []
+  if (filters.status.length)
+    chips.push({
+      key: 'status',
+      text: listChip(
+        'Status',
+        filters.status.map((s) => statusLabels[s]),
+      ),
+      onRemove: () => patch({ status: [] }),
+    })
+  if (filters.schemas.length)
+    chips.push({
+      key: 'schema',
+      text: listChip(
+        'Schema',
+        filters.schemas.map(
+          (id) => nameOf(types.data, id, (t) => [t.type_id, t.name]) ?? 'Unknown',
+        ),
+      ),
+      onRemove: () => patch({ schemas: [] }),
+    })
+  if (filters.capturedBy.length)
+    chips.push({
+      key: 'by',
+      text: listChip(
+        'Captured by',
+        filters.capturedBy.map(
+          (id) => nameOf(technicians.data, id, (t) => [t.user_id, t.full_name]) ?? 'Unknown',
+        ),
+      ),
+      onRemove: () => patch({ capturedBy: [] }),
+    })
+  if (filters.search)
+    chips.push({
+      key: 'search',
+      text: `Scan ID: ${filters.search}`,
+      onRemove: () => patch({ search: '' }),
+    })
+  if (filters.decidedFrom)
+    chips.push({
+      key: 'decided',
+      text: `Decided from ${dayLabel(filters.decidedFrom)}`,
+      onRemove: () => patch({ decidedFrom: '' }),
+    })
+  if (filters.from || filters.to)
+    chips.push({
+      key: 'date',
+      text: rangeChip('Date', dateRange),
+      onRemove: () => patch({ from: '', to: '' }),
+    })
+
+  const columns: Column<QueueItem>[] = [
     {
-      header: 'Select',
-      width: 0.3,
+      header: (
+        <label className="inline-flex cursor-pointer items-center gap-2">
+          <input
+            type="checkbox"
+            className="size-4.5 accent-brand-navy"
+            aria-label="Select all waiting scans shown"
+            disabled={selectable.length === 0}
+            checked={allChosen}
+            ref={(el) => {
+              if (el) el.indeterminate = someChosen
+            }}
+            onChange={(e) => setPicked(e.target.checked ? selectable.slice(0, MAX_BATCH) : [])}
+          />
+        </label>
+      ),
+      width: '1.5rem', // just the checkbox: a share of the width would leave blank room beside it
+      align: 'right',
       cell: (item) =>
-        item.batch_no ? null : (
+        canSelect(item) ? (
           <input
             type="checkbox"
             className="size-4.5 accent-brand-navy"
             aria-label={`Select ${item.record_no}`}
-            checked={selected.includes(item.scan_id)}
-            disabled={!selected.includes(item.scan_id) && selected.length >= MAX_BATCH}
+            checked={chosen.includes(item.scan_id)}
+            disabled={!chosen.includes(item.scan_id) && chosen.length >= MAX_BATCH}
             onChange={(e) => toggle(item.scan_id, e.target.checked)}
           />
-        ),
+        ) : null,
     },
     {
-      header: 'Scan ID',
-      width: 1.4,
+      header: (
+        <ColumnHeader label="Scan ID">
+          <ColumnFilter label="Scan ID" active={filters.search !== ''}>
+            {(close) => (
+              <TextSearchFilter
+                title="Scan ID"
+                value={filters.search}
+                onChange={(search) => patch({ search })}
+                onDone={close}
+                placeholder="For example 100 000 039 6"
+                hint="Spaces don't matter, and part of an ID is enough."
+              />
+            )}
+          </ColumnFilter>
+        </ColumnHeader>
+      ),
+      width: 1.6,
       cell: (item) => (
         <Link to={`/review-queue/${item.scan_id}`} className="block min-w-0 hover:underline">
           <span className="font-mono font-semibold">{formatScanId(item.record_no)}</span>
@@ -76,19 +214,55 @@ function QueueOfUnit({ buId, unitName }: { buId: string; unitName: string }) {
       ),
     },
     {
-      header: 'Schema',
-      width: 1.3,
+      header: (
+        <ColumnHeader label="Schema">
+          <ColumnFilter label="Schema" active={filters.schemas.length > 0}>
+            {(close) => (
+              <CheckListFilter
+                title="Schema"
+                options={(types.data ?? []).map((t) => ({ value: t.type_id, label: t.name }))}
+                selected={filters.schemas}
+                onChange={(schemas) => patch({ schemas })}
+                onDone={close}
+              />
+            )}
+          </ColumnFilter>
+        </ColumnHeader>
+      ),
+      width: 1.4,
       cell: (item) => (
         <span className="block truncate" title={item.equipment_type_name}>
           {item.equipment_type_name}
         </span>
       ),
     },
-    { header: 'Captured by', width: 1, cell: (item) => item.captured_by_name },
+    {
+      header: (
+        <ColumnHeader label="Captured by">
+          <ColumnFilter label="Captured by" active={filters.capturedBy.length > 0}>
+            {(close) => (
+              <CheckListFilter
+                title="Captured by"
+                searchable
+                options={(technicians.data ?? []).map((t) => ({
+                  value: t.user_id,
+                  label: t.full_name,
+                }))}
+                selected={filters.capturedBy}
+                onChange={(capturedBy) => patch({ capturedBy })}
+                onDone={close}
+              />
+            )}
+          </ColumnFilter>
+        </ColumnHeader>
+      ),
+      width: 1.1,
+      cell: (item) => item.captured_by_name,
+    },
     {
       // Flags and technician edits are not columns here: the scan page shows them in full.
       header: 'Location',
-      width: 2,
+      width: 1.8,
       cell: (item) => (
         <span className="block truncate" title={item.location_path}>
           {item.location_path}
@@ -96,42 +270,54 @@ function QueueOfUnit({ buId, unitName }: { buId: string; unitName: string }) {
       ),
     },
     {
-      header: 'Waiting since',
-      width: 1.2,
-      cell: (item) => {
-        const status = waitingStatus(item.waiting_since)
-        return (
-          <span className="flex flex-col items-start gap-1">
-            <Badge tone={status.tone}>{status.label}</Badge>
-            <span className="font-mono text-meta text-ink-subtle">
-              {timeOf(item.waiting_since) === null ? '—' : dateTime(item.waiting_since)}
-            </span>
-          </span>
-        )
-      },
+      header: (
+        <ColumnHeader label="Date">
+          <SortToggle
+            label="Date"
+            direction={filters.sort === 'newest_first' ? 'newest_first' : 'oldest_first'}
+            // Default order (oldest first, scans a technician holds last) or newest first.
+            onToggle={() => patch({ sort: filters.sort === 'newest_first' ? '' : 'newest_first' })}
+          />
+          <ColumnFilter label="Date" align="right" active={Boolean(filters.from || filters.to)}>
+            {(close) => (
+              <DateRangeFilter
+                title="Date"
+                value={dateRange}
+                onChange={(range) => patch(range)}
+                onDone={close}
+                max={istDay()}
+                hint="The day the scan was captured. Leave a side empty for no limit."
+              />
+            )}
+          </ColumnFilter>
+        </ColumnHeader>
+      ),
+      width: 1.3,
+      cell: (item) => <span className="font-mono text-meta">{dateTime(item.date)}</span>,
     },
     {
-      header: 'Assigned',
-      width: 1.1,
-      cell: (item) =>
-        item.batch_no ? (
-          <span className="font-semibold text-brand-navy">
-            {item.assigned_to_name} · {item.batch_no}
-          </span>
-        ) : (
-          'Unassigned'
-        ),
-    },
-    {
-      header: 'Approved by',
-      width: 1.2,
-      cell: (item) => item.approved_by_name ?? '—',
+      header: (
+        <ColumnHeader label="Status">
+          <ColumnFilter label="Status" align="right" active={filters.status.length > 0}>
+            {(close) => (
+              <CheckListFilter
+                title="Status"
+                options={ALL_STATUSES.map((s) => ({ value: s, label: statusLabels[s] }))}
+                selected={filters.status}
+                onChange={(status) => patch({ status: status as QueueStatus[] })}
+                onDone={close}
+              />
+            )}
+          </ColumnFilter>
+        </ColumnHeader>
+      ),
+      width: 1.5,
+      cell: (item) => <StatusCell item={item} />,
     },
   ]
-  // Approved scans are done: nothing to pick or delegate, and no wait or assignment to show.
-  const columns = approved
-    ? allColumns.filter((c) => !['Select', 'Waiting since', 'Assigned'].includes(c.header))
-    : allColumns.filter((c) => c.header !== 'Approved by')
+
+  const count = `${items.length}${queue.hasNextPage ? '+' : ''} ${items.length === 1 ? 'scan' : 'scans'}`
+  const filtered = isFiltered(filters)
   const allScope = { key: 'all', label: `All scans in ${unitName}`, filters: { bu_id: buId } }
   const approvedScope = {
     key: 'approved',
@@ -143,7 +329,6 @@ function QueueOfUnit({ buId, unitName }: { buId: string; unitName: string }) {
     <>
       <PageHeader
         title="Review queue"
-        subtitle={`${unitName} · nobody can approve their own scan`}
         actions={
           <Button variant="secondary" onClick={() => setExporting(true)}>
             Export CSV
@@ -157,74 +342,51 @@ function QueueOfUnit({ buId, unitName }: { buId: string; unitName: string }) {
           </Alert>
         )}
         {exportJob && <ExportJobNotice key={exportJob.export_id} job={exportJob} />}
-        <Tabs<QueueFilter>
-          label="Review queue"
-          tabs={[
-            { key: 'waiting', label: 'Waiting', count: counts?.waiting },
-            { key: 'over_1d', label: 'Over 1 day', count: counts?.over_1d },
-            { key: 'over_1w', label: 'Over 1 week', count: counts?.over_1w },
-            {
-              // One tab for both: scans with a technician and what technicians decided.
-              key: 'delegated',
-              label: 'Delegated',
-              count:
-                counts === undefined ? undefined : counts.delegated + counts.decided_by_technicians,
-            },
-            {
-              key: 'approved_this_week',
-              label: 'Approved',
-              count: counts?.approved_this_week,
-            },
-          ]}
-          current={filter}
-          onChange={(key) => {
-            setFilter(key)
-            setSelected([])
-          }}
+        <SelectionBar
+          count={chosen.length}
+          hint={`Select up to ${MAX_BATCH} to delegate as one batch`}
+          onClear={() => setPicked([])}
+          onDelegate={() => setDelegating(true)}
         />
-
-        {filter === 'delegated' ? (
-          queue.isPending ? (
-            <Card>Loading the review queue…</Card>
-          ) : queue.isError ? (
-            <Card>We couldn't load the review queue. Please refresh.</Card>
-          ) : (
-            <DelegatedTable
-              waiting={queue.data.items}
-              buId={buId}
-              scanPath={(id) => `/review-queue/${id}`}
-            />
-          )
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <FilterChips chips={chips} onClearAll={clearAll} />
+          <p role="status" className="ml-auto text-small text-ink-muted">
+            {queue.isPending ? '' : count}
+          </p>
+        </div>
+        {queue.isPending ? (
+          <Card>Loading the review queue…</Card>
+        ) : queue.isError ? (
+          <Card>We couldn't load the review queue. Please refresh.</Card>
         ) : (
           <>
-            {!approved && selected.length === 0 && (
-              <div className="flex justify-end">
-                <Button variant="secondary" onClick={() => setDelegating(true)}>
-                  Delegate by bin
-                </Button>
-              </div>
-            )}
-            {!approved && (
-              <SelectionBar
-                count={selected.length}
-                hint={`Select up to ${MAX_BATCH} to delegate as one batch`}
-                onClear={() => setSelected([])}
-                onDelegate={() => setDelegating(true)}
-              />
-            )}
-            {queue.isPending ? (
-              <Card>Loading the review queue…</Card>
-            ) : queue.isError ? (
-              <Card>We couldn't load the review queue. Please refresh.</Card>
-            ) : (
-              <DataTable
-                label={approved ? 'Scans approved this week' : 'Scans waiting for review'}
-                columns={columns}
-                rows={approved ? queue.data.items : oldestWaitingFirst(queue.data.items)}
-                rowKey={(item) => item.scan_id}
-                empty={approved ? 'Nothing approved this week yet.' : 'Nothing waiting here.'}
-              />
-            )}
+            <DataTable
+              label="Review queue scans"
+              columns={columns}
+              rows={items}
+              rowKey={(item) => item.scan_id}
+              empty={
+                filtered ? (
+                  <>
+                    No scans match these filters.{' '}
+                    <button
+                      type="button"
+                      className={buttonClasses('link')}
+                      onClick={() => clearAll()}
+                    >
+                      Clear all filters
+                    </button>
+                  </>
+                ) : (
+                  'Nothing under review here.'
+                )
+              }
+            />
+            <LoadMore
+              hasNextPage={queue.hasNextPage}
+              isFetchingNextPage={queue.isFetchingNextPage}
+              fetchNextPage={queue.fetchNextPage}
+            />
           </>
         )}
       </div>
@@ -232,13 +394,11 @@ function QueueOfUnit({ buId, unitName }: { buId: string; unitName: string }) {
       {delegating && (
         <DelegateBatchDialog
           buId={buId}
-          scanIds={selected}
-          allowBins
+          scanIds={chosen}
           onClose={() => setDelegating(false)}
-          onDone={(message) => {
+          onDone={() => {
             setDelegating(false)
-            setSelected([])
-            setNotice(message)
+            setPicked([])
           }}
         />
       )}
@@ -246,21 +406,15 @@ function QueueOfUnit({ buId, unitName }: { buId: string; unitName: string }) {
         <ExportDialog
           kind="scans"
           title="Export scans to CSV"
-          scopes={
-            // Export filters date by capture, not decision, so "approved this week" can't be
-            // exported as such: the Approved tab offers approved scans first, and no waiting option.
-            approved
-              ? [approvedScope, allScope]
-              : [
-                  {
-                    key: 'view',
-                    label: `What you're looking at · ${counts?.waiting ?? 0} waiting scans`,
-                    filters: { bu_id: buId, review_status: 'waiting_for_approval' },
-                  },
-                  allScope,
-                  approvedScope,
-                ]
-          }
+          scopes={[
+            {
+              key: 'view',
+              label: `Scans under review · ${counts.data?.waiting ?? 0}`,
+              filters: { bu_id: buId, review_status: 'waiting_for_approval' },
+            },
+            allScope,
+            approvedScope,
+          ]}
           note="Only scans from your units are included. Up to 1,000 rows download straight away; bigger exports arrive as a dashboard notice and an email with a link valid for 1 hour. Recorded in the audit log."
           onClose={() => setExporting(false)}
           onDownloaded={() => {
@@ -274,5 +428,42 @@ function QueueOfUnit({ buId, unitName }: { buId: string; unitName: string }) {
         />
       )}
     </>
+  )
+}
+
+/** One status, with who is behind it: the technician holding a waiting scan, or who decided. */
+function StatusCell({ item }: { item: QueueItem }) {
+  if (item.status === 'waiting') {
+    const wait = waitingStatus(item.waiting_since)
+    return (
+      <span className="flex flex-col items-start gap-1">
+        <Badge
+          tone={wait.tone}
+          title={`Under review for ${wait.label === 'under 1 h' ? 'less than 1 h' : wait.label}`}
+        >
+          {statusLabels.waiting}
+        </Badge>
+        {item.batch_id && (
+          <span className="text-meta text-ink-subtle">
+            With {item.assigned_to_name} ·{' '}
+            <Link
+              to={`/delegations/${item.batch_id}`}
+              className="font-semibold text-brand-navy hover:underline"
+            >
+              {item.batch_no}
+            </Link>
+          </span>
+        )}
+      </span>
+    )
+  }
+  const approved = item.status === 'approved'
+  return (
+    <span className="flex flex-col items-start gap-1">
+      <Badge tone={approved ? 'success' : 'danger'}>{approved ? 'Approved' : 'Rejected'}</Badge>
+      {item.decided_by_name && (
+        <span className="text-meta text-ink-subtle">{item.decided_by_name}</span>
+      )}
+    </span>
   )
 }

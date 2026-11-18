@@ -116,7 +116,20 @@ describe('TechniciansPage lists', () => {
 })
 
 describe('TechniciansPage actions', () => {
-  it('GIVEN a technician WHEN removed and confirmed THEN contract 1.19 is called and a notice shows', async () => {
+  it('GIVEN the page THEN it has no subtitle, no card heading repeating the page title, and no side notes', () => {
+    renderPage()
+    expect(screen.getByRole('heading', { level: 1, name: 'Technicians' })).toBeInTheDocument()
+    expect(screen.queryByText('PPG Plant 04', { selector: 'p' })).toBeNull() // the unit is in the sidebar
+    expect(screen.queryByRole('heading', { name: 'Technicians', level: 2 })).toBeNull()
+    expect(screen.queryByText(/Field technicians use the mobile app only/)).toBeNull()
+    expect(screen.queryByText(/Invite links are valid 24 hours/)).toBeNull()
+    // The second card keeps its heading.
+    expect(
+      screen.getByRole('heading', { name: 'Invites and removed accounts' }),
+    ).toBeInTheDocument()
+  })
+
+  it('GIVEN a technician WHEN removed and confirmed THEN contract 1.19 is called, with no banner', async () => {
     remove.mockResolvedValue(undefined)
     renderPage()
     fireEvent.click(screen.getByRole('button', { name: 'Remove J. Martinez' }))
@@ -127,10 +140,10 @@ describe('TechniciansPage actions', () => {
     expect(dialog().getByText(/Their delegated batch \(B-13\)/)).toBeInTheDocument()
     fireEvent.click(dialog().getByRole('button', { name: 'Remove technician' }))
 
-    expect(
-      await screen.findByText('J. Martinez was removed from PPG Plant 04.'),
-    ).toBeInTheDocument()
-    expect(remove).toHaveBeenCalledWith('jm')
+    await waitFor(() => expect(remove).toHaveBeenCalledWith('jm'))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    // The technician moves to the removed accounts list, so no banner says so.
+    expect(screen.queryByText(/was removed from/)).toBeNull()
   })
 
   it('GIVEN the invite dialog WHEN sent empty THEN asks for an email and sends nothing', async () => {
@@ -169,5 +182,22 @@ describe('TechniciansPage actions', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Resend invite to n.kim@ppg.com' }))
     await waitFor(() => expect(resend).toHaveBeenCalledWith('inv-1'))
     expect(await screen.findByText('Invite sent again to n.kim@ppg.com.')).toBeInTheDocument()
+  })
+
+  it('GIVEN a pending invite WHEN cancelled THEN contract 1.11 is called and no banner is shown (it leaves the list)', async () => {
+    cancel.mockResolvedValue({})
+    renderPage()
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel invite to n.kim@ppg.com' }))
+    await waitFor(() => expect(cancel).toHaveBeenCalledWith('inv-1'))
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    expect(screen.queryByText('Invite to n.kim@ppg.com removed.')).toBeNull()
+    expect(screen.queryByRole('status')).toBeNull()
+  })
+
+  it('GIVEN cancelling fails THEN the reason is shown', async () => {
+    cancel.mockRejectedValue(new Error('boom'))
+    renderPage()
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel invite to n.kim@ppg.com' }))
+    expect(await screen.findByRole('alert')).toBeInTheDocument()
   })
 })

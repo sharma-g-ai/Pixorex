@@ -104,8 +104,12 @@ describe('Escalated scans (contracts 3.16, 3.17)', () => {
     const p04 = within(screen.getByRole('region', { name: 'Plant 04' }))
     expect(p04.getByText('2 scans')).toBeInTheDocument()
     expect(p04.getByText('9 days')).toBeInTheDocument()
-    expect(p04.getByText('Over 24 h with R. Kowalski')).toBeInTheDocument()
+    // The reason is the page subtitle and the BU Admin's name above: no "Why" tile for it.
+    expect(p04.queryByText('Why')).toBeNull()
+    expect(p04.queryByText(/Over 24 h with/)).toBeNull()
     const p11 = within(screen.getByRole('region', { name: 'Plant 11' }))
+    // With no BU Admin the reason is not obvious, so the tile stays.
+    expect(p11.getByText('Why')).toBeInTheDocument()
     expect(p11.getByRole('button', { name: 'Assign BU Admin' })).toBeInTheDocument()
     expect(screen.getByRole('tab', { name: /All units/ })).toHaveTextContent('· 3')
   })
@@ -176,5 +180,19 @@ describe('Escalated scans (contracts 3.16, 3.17)', () => {
     expect(
       screen.getByText('Every escalated scan in Plant 04 is already in a batch.'),
     ).toBeInTheDocument()
+  })
+})
+
+describe('Escalated scans: no repeated text', () => {
+  it('GIVEN the page THEN there is no explanation box and no sentence on the cards', () => {
+    page()
+    expect(screen.queryByText(/Whoever decides first wins/)).toBeNull()
+    expect(screen.queryByText(/comes here as well as staying with its BU/)).toBeNull()
+    expect(screen.queryByText(/also sees these/)).toBeNull()
+    expect(screen.queryByText(/Assign one with a magic link/)).toBeNull()
+    expect(screen.getByRole('region', { name: 'Plant 04' })).toBeInTheDocument()
+    expect(
+      screen.getAllByRole('button', { name: /Delegate to technicians/ }).length,
+    ).toBeGreaterThan(0)
   })
 })

@@ -77,10 +77,7 @@ export function RemoveBuAdminDialog({
       }
     >
       <form id="remove-bu-admin" noValidate onSubmit={onSubmit} className="flex flex-col gap-4">
-        <p className="text-small">
-          {admin.email} · tick the units to remove them from. Tick all to remove them from every
-          unit.
-        </p>
+        <p className="text-small">Choose the units to remove {admin.email} from.</p>
         <Controller
           control={control}
           name="bu_ids"

@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useState } from 'react'
 import { useDelegates, type Delegate } from '../../api/review'
 import { Alert } from '../../components/Alert'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
@@ -10,8 +10,6 @@ interface DelegateDialogProps {
   scanIds: string[]
   title: string
   intro: string
-  /** Optional block between the intro and the technician search, e.g. adding scans by bin. */
-  extra?: ReactNode
   /** Button text for the picked technician and how many scans they get. */
   confirmText: (name: string, count: number) => string
   /** Technician to leave out, e.g. the current holder of a batch. */
@@ -30,7 +28,6 @@ export function DelegateDialog({
   scanIds,
   title,
   intro,
-  extra,
   confirmText,
   exclude,
   onSubmit,
@@ -53,9 +50,8 @@ export function DelegateDialog({
     >
       <div className="flex flex-col gap-4">
         <p>{intro}</p>
-        {extra}
         {scanIds.length === 0 ? (
-          <p className="text-ink-muted">Add a bin above to choose who takes these scans.</p>
+          <p className="text-ink-muted">There are no scans to hand over.</p>
         ) : delegates.isPending ? (
           <p className="text-ink-muted">Loading technicians…</p>
         ) : list.length === 0 ? (

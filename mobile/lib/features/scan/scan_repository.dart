@@ -4,6 +4,7 @@ import 'package:crypto/crypto.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../core/api_client.dart';
+import '../../core/india_time.dart';
 import '../review/delegated_models.dart';
 import 'capture_models.dart';
 import 'scan_models.dart';
@@ -169,8 +170,8 @@ class ScanRepository {
       );
 }
 
-String _date(DateTime d) =>
-    '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+/// The Indian day of an instant, YYYY-MM-DD.
+String _date(DateTime d) => istDay(d);
 
 /// `sha-256=:<base64>:` (RFC 9530), checked by the API against the body.
 String contentDigest(List<int> bytes) => 'sha-256=:${base64.encode(sha256.convert(bytes).bytes)}:';

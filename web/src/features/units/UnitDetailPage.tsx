@@ -54,7 +54,7 @@ function UnitDetail({ unit, units }: { unit: BusinessUnit; units: BusinessUnit[]
 
   return (
     <>
-      <PageHeader title={unit.name} subtitle={`Overview › Unit · ${technicianCount(unit)}`} />
+      <PageHeader title={unit.name} subtitle={technicianCount(unit)} />
       <div className="flex grow flex-col gap-5 overflow-y-auto px-8 pt-6 pb-8 *:shrink-0">
         <Link to="/overview" className={`${buttonClasses('link')} self-start`}>
           ← Back to overview
@@ -203,11 +203,7 @@ function AdminCard({ unit, units, onDone }: AdminCardProps) {
               </p>
             )}
           </div>
-          <Alert tone="info">
-            {pending
-              ? `Invite sent to ${pending.email}. Until someone accepts, ${unit.name}'s scans that wait over 24 hours come to you.`
-              : "This unit's scans that wait over 24 hours come to you."}
-          </Alert>
+          {pending && <Alert tone="info">Invite sent to {pending.email}.</Alert>}
           <div className="flex flex-wrap gap-2">
             {pending && (
               <Button
@@ -266,7 +262,10 @@ function EscalatedCard({ unit, count: unitCount }: { unit: BusinessUnit; count: 
         >{`${count} ${count === 1 ? 'scan' : 'scans'}`}</Badge>
       }
     >
-      {first.length === 0 ? (
+      {escalations.isPending ? (
+        // Not "Nothing escalated" while the list is on its way: the badge may already say 12.
+        <p className="text-body text-ink-muted">Loading…</p>
+      ) : first.length === 0 ? (
         <p className="text-body text-ink-muted">
           Nothing escalated — every scan here was decided within 24 hours.
         </p>

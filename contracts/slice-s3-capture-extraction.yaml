@@ -741,12 +741,12 @@ paths:
                   description: 2 or more for dropdown
                 is_required:
                   type: boolean
-                is_critical:
-                  type: boolean
-                format_rule:
+                description:
                   type:
                   - string
                   - 'null'
+                  maxLength: 500
+                  description: What the field is and where it usually appears on the label. Sent to the AI with every scan. Blank means none.
                 is_unique_in_unit:
                   type: boolean
                 flag_below_confidence:
@@ -1491,12 +1491,12 @@ components:
           description: 2 or more for dropdown
         is_required:
           type: boolean
-        is_critical:
-          type: boolean
-        format_rule:
+        description:
           type:
           - string
           - 'null'
+          maxLength: 500
+          description: What the field is and where it usually appears on the label. Sent to the AI with every scan. Blank means none. Replaces format_rule (change request 18 Nov 2026).
         is_unique_in_unit:
           type: boolean
         flag_below_confidence:
@@ -1506,7 +1506,6 @@ components:
       - label
       - data_type
       - is_required
-      - is_critical
     Field:
       allOf:
       - $ref: '#/components/schemas/FieldInput'
@@ -1524,6 +1523,10 @@ components:
             enum:
             - manual
             - ai_suggested
+          is_critical:
+            type: boolean
+            deprecated: true
+            description: Always false. "Critical" was removed on 18 Nov 2026; still returned so app builds from before then keep working. Remove once every phone runs the new app.
         required:
         - field_id
         - field_key
@@ -1580,6 +1583,12 @@ components:
           type: string
         data_type:
           $ref: '#/components/schemas/DataType'
+        description:
+          type:
+          - string
+          - 'null'
+          maxLength: 500
+          description: Written by the AI from the photo, in general words (never the value read from the photo). The admin can change it before creating the type.
       required:
       - label
       - data_type
@@ -1660,8 +1669,15 @@ components:
           $ref: '#/components/schemas/DataType'
         is_required:
           type: boolean
+        description:
+          type:
+          - string
+          - 'null'
+          description: What the field is, as the BU Admin wrote it. Null when none.
         is_critical:
           type: boolean
+          deprecated: true
+          description: Always false (removed 18 Nov 2026). Older app builds still read it.
         ai_value:
           type:
           - string
@@ -1673,6 +1689,7 @@ components:
           description: Null = no score
         flag_reasons:
           type: array
+          description: low_confidence is confidence below the field's own flag_below_confidence (equal is not flagged). format_failed means the value does not fit the field's type. critical_not_found only appears on scans made before 18 Nov 2026.
           items:
             type: string
             enum:
@@ -1691,7 +1708,6 @@ components:
       - label
       - data_type
       - is_required
-      - is_critical
       - ai_value
       - confidence
       - flag_reasons

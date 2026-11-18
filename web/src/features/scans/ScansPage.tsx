@@ -97,13 +97,11 @@ export function ScansPage() {
     ...(delegated ? { delegated } : {}),
     ...(search ? { q: search } : {}),
   })
-  const unitName = units.data?.find((u) => u.bu_id === unit)?.name
 
   return (
     <>
       <PageHeader
         title="Scans"
-        subtitle={`${unitName ?? 'All units'} · ${datePresetLabels[period].toLowerCase()}`}
         actions={
           <Button variant="secondary" onClick={() => setExporting(true)}>
             Export CSV
@@ -181,10 +179,6 @@ export function ScansPage() {
           />
         )}
         <LoadMore {...scans} />
-        <p className="text-small text-ink-subtle">
-          Exports of up to 1,000 rows download straight away. Bigger exports are prepared in the
-          background and you get a dashboard notice and an email with a link valid for 1 hour.
-        </p>
       </div>
       {exporting && (
         <ExportDialog

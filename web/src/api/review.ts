@@ -1,11 +1,31 @@
 import { useQuery } from '@tanstack/react-query'
 import { api, unwrap } from './client'
 import type { components } from './generated/s4'
+import { usePagedList } from './paging'
 import { useRefreshingMutation } from './useRefreshingMutation'
 
-export type QueueFilter =
-  'waiting' | 'over_1d' | 'over_1w' | 'delegated' | 'decided_by_technicians' | 'approved_this_week'
 export type QueueItem = components['schemas']['QueueItem']
+/** What the Review queue's Status column and filter offer. */
+export type QueueStatus = 'waiting' | 'approved' | 'rejected'
+export type SortOrder = 'oldest_first' | 'newest_first'
+
+/** The Review queue's header filters. An empty list means no filter on that column. */
+export interface QueueFilters {
+  status: QueueStatus[]
+  /** Schema (equipment type) ids. */
+  schemas: string[]
+  /** Technician user ids. */
+  capturedBy: string[]
+  /** YYYY-MM-DD, Indian days, both ends included; '' = no limit. */
+  from: string
+  to: string
+  /** Scan ID typed in the column's search box; '' = no search. */
+  search: string
+  /** Decided from this day (YYYY-MM-DD); only Home's "approved this week" link sets it. */
+  decidedFrom: string
+  /** '' = the default: oldest first, scans a technician holds last. */
+  sort: SortOrder | ''
+}
 export type QueueCounts = components['schemas']['QueueCounts']
 export type ScanReview = components['schemas']['ScanReview']
 export type ReviewField = components['schemas']['ReviewField']
@@ -15,6 +35,7 @@ export type RejectCategory = components['schemas']['RejectCategory']
 export type TechnicianDecision = components['schemas']['TechnicianDecision']
 export type Delegate = components['schemas']['Delegate']
 export type Batch = components['schemas']['Batch']
+export type Assignment = components['schemas']['Assignment']
 export type Excluded = components['schemas']['Excluded']
 export type ScanHistory = components['schemas']['ScanHistory']
 export type HistoryEvent = components['schemas']['HistoryEvent']
@@ -31,21 +52,50 @@ const reviewKeys = [
   'business-units',
 ]
 
-/** Contract 3.3: the unit's review queue with the tab counts. */
 /** How often an open review queue asks again: new scans join, decided ones leave. */
 export const QUEUE_REFRESH_MS = 30_000
+const QUEUE_PAGE = 50
 
-export function useReviewQueue(buId: string, filter: QueueFilter) {
+/** Contract 3.3: the unit's review queue with the filters of its column headers, 50 at a time. */
+export function useReviewQueue(buId: string, filters: QueueFilters) {
+  return usePagedList(
+    ['review-queue', buId, 'list', filters],
+    async (cursor) =>
+      unwrap(
+        await api.GET('/business-units/{buId}/review-queue', {
+          params: {
+            path: { buId },
+            query: {
+              status: filters.status.length ? filters.status : undefined,
+              equipment_type_id: filters.schemas.length ? filters.schemas : undefined,
+              captured_by: filters.capturedBy.length ? filters.capturedBy : undefined,
+              from: filters.from || undefined,
+              to: filters.to || undefined,
+              decided_from: filters.decidedFrom || undefined,
+              q: filters.search || undefined,
+              sort: filters.sort || undefined,
+              cursor,
+              limit: QUEUE_PAGE,
+            },
+          },
+        }),
+      ),
+    { refetchMs: QUEUE_REFRESH_MS },
+  )
+}
+
+/** The numbers on BU Home's cards (contract 3.3 counts): no scans are listed. */
+export function useQueueCounts(buId: string) {
   return useQuery({
-    queryKey: ['review-queue', buId, filter],
+    queryKey: ['review-queue', buId, 'counts'],
     refetchInterval: QUEUE_REFRESH_MS,
-    refetchOnWindowFocus: true, // back on the tab: show what changed meanwhile
+    refetchOnWindowFocus: true,
     queryFn: async () =>
       unwrap(
         await api.GET('/business-units/{buId}/review-queue', {
-          params: { path: { buId }, query: { filter } },
+          params: { path: { buId }, query: { status: ['waiting'], limit: 1 } },
         }),
-      ),
+      ).counts,
   })
 }
 
@@ -81,7 +131,7 @@ export function useDecide(scanId: string) {
   )
 }
 
-/** Contract 3.6: decisions made by technicians in delegated batches. */
+/** Contract 3.6: the latest decisions made by technicians in delegated batches (BU Home). */
 export function useTechnicianDecisions(buId: string, decision?: 'approved' | 'rejected') {
   return useQuery({
     queryKey: ['technician-decisions', buId, decision ?? 'all'],
@@ -92,6 +142,38 @@ export function useTechnicianDecisions(buId: string, decision?: 'approved' | 're
         }),
       ).items,
   })
+}
+
+/** The "All decisions" table's header filters. */
+export interface DecisionFilters {
+  decision: 'approved' | 'rejected' | ''
+  /** Technician user ids. */
+  decidedBy: string[]
+  from: string
+  to: string
+  sort: SortOrder
+}
+
+/** Contract 3.6: every decision technicians made, filtered, 50 at a time. */
+export function useDecisionList(buId: string, filters: DecisionFilters) {
+  return usePagedList(['technician-decisions', buId, 'list', filters], async (cursor) =>
+    unwrap(
+      await api.GET('/business-units/{buId}/technician-decisions', {
+        params: {
+          path: { buId },
+          query: {
+            decision: filters.decision || undefined,
+            decided_by: filters.decidedBy.length ? filters.decidedBy : undefined,
+            from: filters.from || undefined,
+            to: filters.to || undefined,
+            sort: filters.sort,
+            cursor,
+            limit: 50,
+          },
+        },
+      }),
+    ),
+  )
 }
 
 /** Contract 3.7: replaces a technician's decision with the admin's. */
@@ -144,7 +226,7 @@ export function useCreateBatch(buId: string) {
   )
 }
 
-/** Contract 3.10: the unit's delegated batches. */
+/** Contract 3.10: the unit's delegated batches (BU Home reads them all for what needs attention). */
 export function useBatches(buId: string) {
   return useQuery({
     queryKey: ['review-batches', buId],
@@ -152,6 +234,36 @@ export function useBatches(buId: string) {
       unwrap(await api.GET('/business-units/{buId}/review-batches', { params: { path: { buId } } }))
         .items,
   })
+}
+
+/** The batch list's header filters. Status is read from each batch, see batchState. */
+export interface BatchFilters {
+  /** Technician user ids. */
+  assignedTo: string[]
+  from: string
+  to: string
+  sort: SortOrder
+}
+
+/** Contract 3.10: the unit's batches with the filters of the list's column headers. */
+export function useBatchList(buId: string, filters: BatchFilters) {
+  return usePagedList(['review-batches', buId, 'list', filters], async (cursor) =>
+    unwrap(
+      await api.GET('/business-units/{buId}/review-batches', {
+        params: {
+          path: { buId },
+          query: {
+            assigned_to: filters.assignedTo.length ? filters.assignedTo : undefined,
+            from: filters.from || undefined,
+            to: filters.to || undefined,
+            sort: filters.sort,
+            cursor,
+            limit: 100,
+          },
+        },
+      }),
+    ),
+  )
 }
 
 /** Contract 3.12: moves a batch's open scans to another technician. */
@@ -197,28 +309,5 @@ export function useBatch(batchId: string) {
     queryKey: ['review-batches', 'detail', batchId],
     queryFn: async () =>
       unwrap(await api.GET('/review-batches/{batchId}', { params: { path: { batchId } } })),
-  })
-}
-
-/** Every scan waiting with nobody yet: pages through contract 3.3 so bins list all of them. */
-export function useWaitingScans(buId: string, enabled: boolean) {
-  return useQuery({
-    queryKey: ['review-queue', buId, 'all-waiting'],
-    enabled,
-    queryFn: async () => {
-      const items: QueueItem[] = []
-      let cursor: string | undefined
-      for (let page = 0; page < 20; page++) {
-        const res = unwrap(
-          await api.GET('/business-units/{buId}/review-queue', {
-            params: { path: { buId }, query: { filter: 'waiting', limit: 100, cursor } },
-          }),
-        )
-        items.push(...res.items)
-        if (!res.page.next_cursor) break
-        cursor = res.page.next_cursor
-      }
-      return items
-    },
   })
 }

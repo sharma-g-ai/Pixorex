@@ -10,7 +10,7 @@ from app.repositories.scans import EXTRACTION_EVENT
 from app.services import ai_proxy
 from app.workers import outbox, runner
 from app.workers.settings import WorkerSettings
-from tests.integration.capture_setup import JPEG, _confirmed, _key, _problem
+from tests.integration.capture_setup import JPEG, SERIAL_DESCRIPTION, _confirmed, _key, _problem
 from tests.integration.conftest import Api
 from tests.integration.helpers import TARA
 
@@ -41,9 +41,10 @@ def ai(monkeypatch: pytest.MonkeyPatch) -> dict[str, Any]:
         if isinstance(outcome, Exception):
             raise outcome
         return ai_proxy.Extraction(
-            fields={
-                "serial": {"value": "SN-77", "confidence": 0.42, "format_ok": True},
-                "voltage": {"value": None, "confidence": None, "format_ok": True},
+            fields=seen.get("fields")
+            or {
+                "serial": {"value": "SN-77", "confidence": 0.42},
+                "voltage": {"value": None, "confidence": None},
             },
             detected_label="Motor nameplate",
             suggested_type="Motor",
@@ -125,6 +126,67 @@ async def test_an_upload_is_extracted_and_ready_to_review(
         "SELECT tokens_in, tokens_out FROM extraction_attempt WHERE scan_id = %s", (sid,)
     )
     assert tokens == [(1200, 80)]
+
+
+@pytest.mark.parametrize(
+    ("serial", "voltage", "serial_flags", "voltage_flags"),
+    [
+        # serial: threshold 85 %, required; voltage: threshold 50 %, optional
+        ((0.84, "SN-1"), (0.49, "480"), ["low_confidence"], ["low_confidence"]),
+        ((0.85, "SN-1"), (0.50, "480"), [], []),  # equal to the threshold: not flagged
+        ((0.99, "SN-1"), (0.60, "480"), [], []),  # 60 % passes voltage's own 50 %
+        ((None, "SN-1"), (0.90, None), ["no_confidence"], []),
+        ((0.90, None), (0.90, "480"), ["missing_required"], []),  # (all empty = failed read)
+    ],
+)
+async def test_flags_follow_each_fields_threshold_end_to_end(
+    api: Api,
+    owner_sql: Any,
+    unit: dict[str, str],
+    uploads: dict[str, bytes],
+    pool: Any,
+    database: dict[str, str],
+    ai: dict[str, Any],
+    serial: tuple[float | None, str | None],
+    voltage: tuple[float | None, str | None],
+    serial_flags: list[str],
+    voltage_flags: list[str],
+) -> None:
+    """GIVEN a type whose fields have their own thresholds and a description
+    WHEN a scan is extracted THEN the AI is asked with the descriptions, the flags follow each
+    field's threshold, the database holds exactly that, and the scan API returns the same."""
+    ai["fields"] = {
+        "serial": {"value": serial[1], "confidence": serial[0]},
+        "voltage": {"value": voltage[1], "confidence": voltage[0]},
+    }
+    sid = _confirmed(api, unit)["scan_id"]
+    await _run(pool, owner_sql, database)
+
+    asked = {f["field_key"]: f for f in ai["kwargs"]["fields"]}
+    assert asked["serial"]["description"] == SERIAL_DESCRIPTION
+    assert asked["voltage"]["description"] is None
+    assert (asked["serial"]["flag_below"], asked["voltage"]["flag_below"]) == (0.85, 0.5)
+    assert "format_rule" not in asked["serial"] and "is_critical" not in asked["serial"]
+
+    stored = owner_sql(
+        "SELECT fd.field_key, av.value, av.confidence::float, av.flag_reasons"
+        " FROM ai_field_value av JOIN extraction_attempt a ON a.id = av.attempt_id"
+        " JOIN field_definition fd ON fd.id = av.field_definition_id"
+        " WHERE a.scan_id = %s ORDER BY fd.sort_order",
+        (sid,),
+    )
+    assert stored == [
+        ("serial", serial[1], serial[0], serial_flags),
+        ("voltage", voltage[1], voltage[0], voltage_flags),
+    ]
+
+    scan = api.get(f"/scans/{sid}", TARA).json()
+    shown = {f["field_key"]: f for f in scan["fields"]}
+    assert (shown["serial"]["ai_value"], shown["serial"]["confidence"]) == serial[::-1]
+    assert shown["serial"]["flag_reasons"] == serial_flags
+    assert shown["voltage"]["flag_reasons"] == voltage_flags
+    assert shown["serial"]["description"] == SERIAL_DESCRIPTION
+    assert shown["serial"]["is_critical"] is False  # deprecated, for older app builds
 
 
 async def test_a_failed_extraction_allows_retries_then_a_retake(

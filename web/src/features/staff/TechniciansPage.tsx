@@ -45,7 +45,6 @@ function TechniciansOfUnit({
     <>
       <PageHeader
         title="Technicians"
-        subtitle={unitName}
         actions={<Button onClick={() => setOpen({ dialog: 'invite' })}>+ Invite technician</Button>}
       />
       <div className="flex grow flex-col gap-5 overflow-y-auto px-8 pt-6 pb-8 *:shrink-0">
@@ -55,14 +54,7 @@ function TechniciansOfUnit({
           </Alert>
         )}
 
-        <Card
-          title="Technicians"
-          action={
-            <span className="text-small text-ink-muted">
-              Field technicians use the mobile app only
-            </span>
-          }
-        >
+        <Card>
           {technicians.isPending ? (
             <p className="text-body text-ink-muted">Loading technicians…</p>
           ) : technicians.isError ? (
@@ -77,14 +69,7 @@ function TechniciansOfUnit({
           )}
         </Card>
 
-        <Card
-          title="Invites and removed accounts"
-          action={
-            <span className="text-small text-ink-muted">
-              Invite links are valid 24 hours · removed technicians need a new invite
-            </span>
-          }
-        >
+        <Card title="Invites and removed accounts">
           <InvitesTable
             label="Invites and removed accounts"
             invites={invites.data ?? []}
@@ -120,10 +105,8 @@ function TechniciansOfUnit({
           buId={buId}
           unitName={unitName}
           onClose={() => setOpen(null)}
-          onRemoved={(name) => {
-            setOpen(null)
-            setNotice({ text: `${name} was removed from ${unitName}.` })
-          }}
+          // No banner: the technician moves to the removed accounts list below.
+          onRemoved={() => setOpen(null)}
         />
       )}
     </>

@@ -9,9 +9,9 @@ from pydantic import SecretStr
 
 from app.core.storage import StorageConfig
 from tests.integration.conftest import Api
-from tests.integration.helpers import BO, DANA, ERIN, TARA, THEO
+from tests.integration.helpers import BO, DANA, ERIN, TARA, TENANT_A, THEO
 from tests.integration.scans import escalate, waiting_scan
-from tests.integration.test_s2_identity import P04
+from tests.integration.test_s2_identity import P04, P05
 
 
 def _key() -> dict[str, str]:
@@ -96,7 +96,8 @@ def test_the_approved_tab_lists_what_the_home_count_counts(api: Api, owner_sql: 
         " WHERE r.scan_id = s.id ORDER BY r.revision_no DESC LIMIT 1) cr ON true"
         " JOIN review_decision cd ON cd.revision_id = cr.id AND cd.is_current"
         " WHERE s.bu_id = %s AND cd.decision = 'approved'"
-        " AND cd.decided_at >= date_trunc('week', now() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC'",
+        " AND cd.decided_at >= date_trunc('week', now() AT TIME ZONE 'Asia/Kolkata')"
+        " AT TIME ZONE 'Asia/Kolkata'",
         (P04,),
     )[0][0]
     assert queue.json()["counts"]["approved_this_week"] == week
@@ -614,3 +615,322 @@ def test_review_photos_get_15_minute_links_only_for_reviewers(api: Api, owner_sq
     assert (photo["photo_no"], link.netloc, link.path) == (1, "localhost:9000", f"/pixorex/{key}")
     assert parse_qs(link.query)["X-Amz-Expires"] == ["900"]
     assert api.get(path, TARA).status_code == 403  # their own scan: no review, no link
+
+
+# --- the header filters of the review queue (web, 18 Nov 2026) -------------------------------
+
+
+def _ist_day(owner_sql: Any, scan_id: str) -> str:
+    """The Indian calendar day the scan was captured (YYYY-MM-DD): what the Date column shows."""
+    return str(
+        owner_sql(
+            "SELECT (captured_at AT TIME ZONE 'Asia/Kolkata')::date FROM scan WHERE id = %s",
+            (scan_id,),
+        )[0][0]
+    )
+
+
+def _queue(api: Api, query: str = "") -> list[dict[str, Any]]:
+    response = api.get(f"/business-units/{P04}/review-queue?limit=100&{query}", BO)
+    assert response.status_code == 200, response.text
+    return response.json()["items"]
+
+
+def test_queue_shows_waiting_approved_and_rejected_with_header_filters(
+    api: Api, owner_sql: Any
+) -> None:
+    """GIVEN waiting, approved and rejected scans from two technicians
+    WHEN the BU Admin filters by status, captured by, schema, date and sort
+    THEN only matching scans come back, each with the status and the date the column shows."""
+    old = waiting_scan(owner_sql, TARA, hours_waiting=50)
+    new = waiting_scan(owner_sql, THEO, hours_waiting=2)
+    approved = waiting_scan(owner_sql, TARA)
+    rejected = waiting_scan(owner_sql, THEO)
+    assert _decide(api, BO, approved["scan_id"]).status_code == 201
+    no = _decide(api, BO, rejected["scan_id"], "rejected", reject_category="image_unclear")
+    assert no.status_code == 201
+    mine = {old["scan_id"], new["scan_id"], approved["scan_id"], rejected["scan_id"]}
+    every = "status=waiting&status=approved&status=rejected"
+
+    def ids(query: str) -> list[str]:
+        return [i["scan_id"] for i in _queue(api, query) if i["scan_id"] in mine]
+
+    # No status filter means waiting, as the old queue did.
+    assert set(ids("")) == {old["scan_id"], new["scan_id"]}
+    waiting = {i["scan_id"]: i for i in _queue(api)}
+    assert waiting[old["scan_id"]]["status"] == "waiting"
+    # The Date column is when the scan was captured; waiting_since (when it was submitted) is
+    # what the Under Review pill shows on hover.
+    assert waiting[old["scan_id"]]["date"] < waiting[old["scan_id"]]["waiting_since"]
+    assert waiting[old["scan_id"]]["decided_by_name"] is None
+
+    assert ids("status=approved") == [approved["scan_id"]]
+    assert ids("status=rejected") == [rejected["scan_id"]]
+    shown = {i["scan_id"]: i for i in _queue(api, "status=approved&status=rejected")}
+    assert shown[approved["scan_id"]]["status"] == "approved"
+    assert shown[approved["scan_id"]]["decided_by_name"] == "Bo Plant04"
+    assert shown[rejected["scan_id"]]["status"] == "rejected"
+    assert shown[rejected["scan_id"]]["date"] < shown[rejected["scan_id"]]["waiting_since"]
+    assert set(ids(every)) == mine
+
+    # Captured by (several allowed) and schema.
+    assert set(ids(f"{every}&captured_by={THEO}")) == {new["scan_id"], rejected["scan_id"]}
+    type_id = owner_sql("SELECT equipment_type_id FROM scan WHERE id = %s", (old["scan_id"],))[0][0]
+    assert set(ids(f"equipment_type_id={type_id}")) == {old["scan_id"], new["scan_id"]}
+    assert ids(f"equipment_type_id={uuid.uuid4()}") == []
+
+    # Sort by the Date column, either way.
+    assert ids("sort=oldest_first") == [old["scan_id"], new["scan_id"]]
+    assert ids("sort=newest_first") == [new["scan_id"], old["scan_id"]]
+
+    # From and To are whole days of Indian time, both included.
+    old_day, new_day = _ist_day(owner_sql, old["scan_id"]), _ist_day(owner_sql, new["scan_id"])
+    assert old_day < new_day
+    assert ids(f"from={old_day}&to={old_day}") == [old["scan_id"]]
+    assert ids(f"from={new_day}") == [new["scan_id"]]
+    assert ids(f"to={old_day}") == [old["scan_id"]]
+    assert set(ids(f"from={old_day}&to={new_day}")) == {old["scan_id"], new["scan_id"]}
+    backwards = api.get(f"/business-units/{P04}/review-queue?from={new_day}&to={old_day}", BO)
+    _problem(backwards, 400, "validation")
+
+
+def test_queue_pages_follow_the_sort_in_both_directions(api: Api, owner_sql: Any) -> None:
+    made = [waiting_scan(owner_sql, TARA, hours_waiting=h)["scan_id"] for h in (70, 71, 72, 73)]
+    since = _ist_day(owner_sql, made[-1])
+
+    def walk(sort: str) -> list[str]:
+        seen: list[str] = []
+        cursor = ""
+        for _ in range(80):
+            page = api.get(
+                f"/business-units/{P04}/review-queue?limit=2&sort={sort}&from={since}{cursor}", BO
+            ).json()
+            seen += [i["scan_id"] for i in page["items"]]
+            if not page["page"]["next_cursor"]:
+                return seen
+            cursor = f"&cursor={page['page']['next_cursor']}"
+        raise AssertionError("never reached the last page")
+
+    oldest, newest = walk("oldest_first"), walk("newest_first")
+    assert len(oldest) == len(set(oldest)) and set(oldest) == set(newest)  # nothing lost or twice
+    assert oldest == list(reversed(newest))
+    assert [s for s in oldest if s in made] == list(reversed(made))  # 73 h ago is the oldest
+
+
+def test_queue_includes_scans_with_a_technician_as_waiting(api: Api, owner_sql: Any) -> None:
+    """A delegated scan with no decision is still waiting for a decision: same list, same count
+    as Home's waiting tile, with who has it."""
+    scan = waiting_scan(owner_sql, TARA)
+    batch = _delegate(api, scan)
+    row = next(i for i in _queue(api) if i["scan_id"] == scan["scan_id"])
+    assert (row["status"], row["assigned_to_name"], row["batch_no"]) == (
+        "waiting",
+        "Theo Invited",
+        batch["batch_no"],
+    )
+    assert row["batch_id"] == batch["batch_id"]
+    # Once the technician decides, it is Approved, decided by the technician.
+    assert _decide(api, THEO, scan["scan_id"]).status_code == 201
+    assert scan["scan_id"] not in [i["scan_id"] for i in _queue(api)]
+    approved = next(i for i in _queue(api, "status=approved") if i["scan_id"] == scan["scan_id"])
+    assert (approved["status"], approved["decided_by_name"]) == ("approved", "Theo Invited")
+
+
+def test_a_resubmitted_scan_is_waiting_again_not_rejected(api: Api, owner_sql: Any) -> None:
+    scan = waiting_scan(owner_sql, TARA)
+    no = _decide(api, BO, scan["scan_id"], "rejected", reject_category="image_unclear")
+    assert no.status_code == 201
+    assert scan["scan_id"] in [i["scan_id"] for i in _queue(api, "status=rejected")]
+    assert scan["scan_id"] not in [i["scan_id"] for i in _queue(api)]
+    owner_sql(
+        "UPDATE scan SET review_status = 'waiting_for_approval' WHERE id = %s", (scan["scan_id"],)
+    )
+    assert scan["scan_id"] not in [i["scan_id"] for i in _queue(api, "status=rejected")]
+
+
+# --- Delegations: filters, batch of a decision, outcome per scan -------------------------------
+
+
+def _delegate(api: Api, *scans: dict[str, str], to: str = THEO) -> dict[str, Any]:
+    made = api.post(
+        f"/business-units/{P04}/review-batches",
+        BO,
+        headers=_key(),
+        json={"assigned_to": to, "scan_ids": [s["scan_id"] for s in scans]},
+    )
+    assert made.status_code == 201, made.text
+    return made.json()
+
+
+def test_technician_decisions_name_their_batch_and_can_be_filtered(
+    api: Api, owner_sql: Any
+) -> None:
+    first, second = waiting_scan(owner_sql, TARA), waiting_scan(owner_sql, TARA)
+    batch = _delegate(api, first, second)
+    ok = _decide(api, THEO, first["scan_id"])
+    no = _decide(api, THEO, second["scan_id"], "rejected", reject_category="image_unclear")
+    assert ok.status_code == no.status_code == 201
+
+    def listed(query: str = "") -> dict[str, dict[str, Any]]:
+        got = api.get(f"/business-units/{P04}/technician-decisions?limit=100&{query}", BO)
+        assert got.status_code == 200, got.text
+        return {d["scan_id"]: d for d in got.json()["items"]}
+
+    both = listed()
+    assert {first["scan_id"], second["scan_id"]} <= set(both)
+    assert both[first["scan_id"]]["batch_id"] == batch["batch_id"]
+    assert both[first["scan_id"]]["batch_no"] == batch["batch_no"]
+    assert second["scan_id"] not in listed("decision=approved")
+    assert second["scan_id"] in listed("decision=rejected")
+    assert first["scan_id"] in listed(f"decided_by={THEO}")
+    assert first["scan_id"] not in listed(f"decided_by={TARA}")
+    today = str(owner_sql("SELECT (now() AT TIME ZONE 'Asia/Kolkata')::date")[0][0])
+    assert first["scan_id"] in listed(f"from={today}&to={today}")
+    assert first["scan_id"] not in listed("to=2000-01-01")
+    oldest = api.get(
+        f"/business-units/{P04}/technician-decisions?limit=100&sort=oldest_first", BO
+    ).json()["items"]
+    order = [d["scan_id"] for d in oldest if d["scan_id"] in (first["scan_id"], second["scan_id"])]
+    assert order == [first["scan_id"], second["scan_id"]]  # decided in that order
+
+
+def test_batch_list_filters_and_sort(api: Api, owner_sql: Any) -> None:
+    older = _delegate(api, waiting_scan(owner_sql, TARA))
+    newer = _delegate(api, waiting_scan(owner_sql, TARA))
+    owner_sql(
+        "UPDATE review_batch SET created_at = now() - interval '3 days' WHERE id = %s",
+        (older["batch_id"],),
+    )
+    pair = (older["batch_id"], newer["batch_id"])
+
+    def ids(query: str) -> list[str]:
+        got = api.get(f"/business-units/{P04}/review-batches?limit=100&{query}", BO)
+        assert got.status_code == 200, got.text
+        return [b["batch_id"] for b in got.json()["items"] if b["batch_id"] in pair]
+
+    assert ids("") == [newer["batch_id"], older["batch_id"]]  # newest first, as before
+    assert ids("sort=oldest_first") == [older["batch_id"], newer["batch_id"]]
+    assert set(ids(f"assigned_to={THEO}")) == set(pair)
+    assert ids(f"assigned_to={DANA}") == []
+    today = str(owner_sql("SELECT (now() AT TIME ZONE 'Asia/Kolkata')::date")[0][0])
+    assert ids(f"from={today}") == [newer["batch_id"]]
+    assert ids(f"to={today}&sort=oldest_first")[0] == older["batch_id"]
+    backwards = api.get(f"/business-units/{P04}/review-batches?from=2026-02-02&to=2026-01-01", BO)
+    _problem(backwards, 400, "validation")
+
+
+def test_batch_page_shows_each_scans_outcome_to_admins_only(api: Api, owner_sql: Any) -> None:
+    waiting, approved, rejected = (waiting_scan(owner_sql, TARA) for _ in range(3))
+    batch = _delegate(api, waiting, approved, rejected)
+    ok = _decide(api, THEO, approved["scan_id"])
+    no = _decide(api, THEO, rejected["scan_id"], "rejected", reject_category="image_unclear")
+    assert no.status_code == 201
+    url = f"/review-batches/{batch['batch_id']}"
+
+    rows = {a["scan_id"]: a for a in api.get(url, BO).json()["assignments"]}
+    assert rows[waiting["scan_id"]]["outcome"] is None
+    done = rows[approved["scan_id"]]["outcome"]
+    assert (done["decision"], done["decided_by_name"]) == ("approved", "Theo Invited")
+    assert done["overridden"] is False
+    refused = rows[rejected["scan_id"]]["outcome"]
+    assert (refused["decision"], refused["reject_category"]) == ("rejected", "image_unclear")
+
+    # The BU Admin changes Theo's approval: the outcome is now the admin's, marked as changed.
+    override = api.post(
+        f"/decisions/{ok.json()['decision_id']}/override",
+        BO,
+        headers=_key(),
+        json={"decision": "rejected", "reject_category": "other", "note": "Wrong plate"},
+    )
+    assert override.status_code == 201, override.text
+    after = {a["scan_id"]: a for a in api.get(url, BO).json()["assignments"]}
+    changed = after[approved["scan_id"]]["outcome"]
+    assert (changed["decision"], changed["overridden"]) == ("rejected", True)
+    assert changed["decided_by_name"] == "Bo Plant04"
+
+    # The technician sees only their own decision, never the outcome field.
+    assert all(a["outcome"] is None for a in api.get(url, THEO).json()["assignments"])
+
+
+# --- Scan ID search, delegated scans last, decided_from (web, 18 Nov 2026) -----------------------
+
+
+def _spaced(record_no: str) -> str:
+    return f"{record_no[:3]} {record_no[3:6]} {record_no[6:9]} {record_no[9:]}"
+
+
+def test_queue_finds_a_scan_by_its_id_with_or_without_spaces(api: Api, owner_sql: Any) -> None:
+    """GIVEN two waiting scans WHEN the BU Admin types the Scan ID of one of them, plain, spaced
+    as it is shown, or only a part THEN that scan is found; a number nobody has finds nothing."""
+    one, two = waiting_scan(owner_sql, TARA), waiting_scan(owner_sql, TARA)
+    no = owner_sql("SELECT record_no FROM scan WHERE id = %s", (one["scan_id"],))[0][0]
+
+    def found(text: str) -> set[str]:
+        return {i["scan_id"] for i in _queue(api, f"q={text}")}
+
+    assert found(no) == {one["scan_id"]}
+    assert found(_spaced(no).replace(" ", "%20")) == {one["scan_id"]}
+    assert one["scan_id"] in found(no[3:8])
+    assert two["scan_id"] not in found(no)
+    assert found("9999999999") == set()
+    assert found("abc") == set()  # no digits: nothing matches
+
+
+def test_with_no_sort_chosen_scans_a_technician_holds_come_last(api: Api, owner_sql: Any) -> None:
+    """GIVEN an old scan with a technician and a newer one nobody has
+    WHEN no sort is chosen THEN the one nobody has comes first, in pages too; an explicit sort
+    ignores who holds the scan."""
+    held = waiting_scan(owner_sql, TARA, hours_waiting=80)
+    free = waiting_scan(owner_sql, TARA, hours_waiting=79)
+    _delegate(api, held)
+    since = _ist_day(owner_sql, held["scan_id"])
+    mine = {held["scan_id"], free["scan_id"]}
+
+    def ids(query: str) -> list[str]:
+        return [i["scan_id"] for i in _queue(api, f"from={since}&{query}") if i["scan_id"] in mine]
+
+    assert ids("") == [free["scan_id"], held["scan_id"]]
+    assert ids("sort=oldest_first") == [held["scan_id"], free["scan_id"]]
+    assert ids("sort=newest_first") == [free["scan_id"], held["scan_id"]]
+
+    seen: list[str] = []
+    cursor = ""
+    for _ in range(80):
+        page = api.get(
+            f"/business-units/{P04}/review-queue?limit=2&from={since}{cursor}", BO
+        ).json()
+        seen += [i["scan_id"] for i in page["items"]]
+        if not page["page"]["next_cursor"]:
+            break
+        cursor = f"&cursor={page['page']['next_cursor']}"
+    else:
+        raise AssertionError("never reached the last page")
+    assert len(seen) == len(set(seen))
+    held_at = [n for n, i in enumerate(_queue(api, f"from={since}")) if i["batch_id"]]
+    assert held_at == list(range(len(_queue(api, f"from={since}")) - len(held_at), len(seen)))
+
+
+def test_decided_from_keeps_scans_decided_since_that_day(api: Api, owner_sql: Any) -> None:
+    """Home's 'approved this week' tile counts decisions, so its link filters on the decision day
+    and not on the day the scan was captured."""
+    scan = waiting_scan(owner_sql, TARA)
+    assert _decide(api, BO, scan["scan_id"]).status_code == 201
+    today = str(owner_sql("SELECT (now() AT TIME ZONE 'Asia/Kolkata')::date")[0][0])
+    got = {i["scan_id"] for i in _queue(api, f"status=approved&decided_from={today}")}
+    assert scan["scan_id"] in got
+    assert not {i["scan_id"] for i in _queue(api, "status=approved&decided_from=2999-01-01")}
+
+
+def test_a_batch_number_used_by_another_unit_is_skipped(api: Api, owner_sql: Any) -> None:
+    """GIVEN another unit already holds the batch number a BU Admin would get next (they only see
+    their own unit's batches) WHEN they delegate THEN the batch gets the next free number
+    instead of failing with a server error."""
+    first = _delegate(api, waiting_scan(owner_sql, TARA))
+    taken = int(first["batch_no"].removeprefix("B-")) + 1
+    owner_sql(
+        "INSERT INTO review_batch (tenant_id, bu_id, batch_no, assigned_to, created_by)"
+        " VALUES (%s, %s, %s, %s, %s)",
+        (TENANT_A, P05, f"B-{taken}", THEO, THEO),
+    )
+    second = _delegate(api, waiting_scan(owner_sql, TARA))
+    assert second["batch_no"] == f"B-{taken + 1}"

@@ -104,3 +104,30 @@ describe('Units without a BU Admin (EA "Needs you")', () => {
     expect(screen.getByText('Every unit has a BU Admin.')).toBeInTheDocument()
   })
 })
+
+describe('Units without a BU Admin: no repeated text', () => {
+  const page = () =>
+    render(
+      <MemoryRouter>
+        <VacantUnitsPage />
+      </MemoryRouter>,
+    )
+
+  it('GIVEN the page THEN there is no "Overview › Needs you" subtitle, only the back link', () => {
+    page()
+    expect(screen.queryByText(/Overview ›/)).toBeNull()
+    expect(screen.getByRole('link', { name: '← Back to overview' })).toBeInTheDocument()
+  })
+
+  it('GIVEN the page THEN the 24-hour rule is said once, at the top, not on every unit', () => {
+    page()
+    expect(screen.getAllByText(/scans that wait over 24 hours come to you/)).toHaveLength(1)
+  })
+
+  it('GIVEN a unit card THEN it has no line about where an expired invite shows up', () => {
+    page()
+    expect(screen.queryByText(/If the invite expires/)).toBeNull()
+    const card = within(screen.getByRole('region', { name: 'Plant 11' }))
+    expect(card.getByRole('button', { name: 'Invite someone else' })).toBeInTheDocument()
+  })
+})

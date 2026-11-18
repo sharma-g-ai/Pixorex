@@ -2,11 +2,12 @@ import type { Invite } from '../../api/invites'
 import type { Batch, QueueCounts } from '../../api/review'
 import type { NeedsYouItemProps } from '../../components/NeedsYouItem'
 import { inviteExpired } from '../invites/inviteStatus'
+import { istParts } from '../../lib/time'
 import { batchStatus } from '../review/reviewRules'
 
-/** "Good morning, Robert" by the viewer's local hour. */
+/** "Good morning, Robert" by the hour in India. */
 export function greeting(fullName: string, now: Date = new Date()): string {
-  const hour = now.getHours()
+  const hour = istParts(now).hour
   const part = hour < 12 ? 'morning' : hour < 18 ? 'afternoon' : 'evening'
   const first = fullName.split(' ')[0] ?? fullName
   return `Good ${part}, ${first}`

@@ -21,9 +21,19 @@ const tones: Record<BadgeTone, string> = {
  * rounded-xl is more than half its one-line height, so it still looks like a pill.
  * shrink-0: beside other text in a row it keeps its full width (the text gives way, as before).
  */
-export function Badge({ tone, children }: { tone: BadgeTone; children: ReactNode }) {
+export function Badge({
+  tone,
+  children,
+  title,
+}: {
+  tone: BadgeTone
+  children: ReactNode
+  /** Shown when the pill is hovered. */
+  title?: string
+}) {
   return (
     <span
+      title={title}
       className={`inline-block max-w-full shrink-0 rounded-xl px-2.5 py-0.5 text-meta font-bold ${tones[tone]}`}
     >
       {children}

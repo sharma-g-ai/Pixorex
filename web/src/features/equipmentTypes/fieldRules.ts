@@ -10,6 +10,12 @@ export const dataTypeLabels: Record<DataType, string> = {
   boolean: 'Yes / No',
 }
 
+/** Dropdown and Yes / No are no longer offered for a new field; fields saved with them keep working. */
+export const addableDataTypes = ['text', 'number', 'date'] as const satisfies readonly DataType[]
+
+/** Longest description a field can have (the database holds 500 characters). */
+export const MAX_DESCRIPTION = 500
+
 /** Default flag threshold for AI confidence (data model: flag_below_confidence 0.85). */
 export const DEFAULT_FLAG_BELOW = 0.85
 
@@ -20,10 +26,9 @@ export function typeStatus(type: Pick<EquipmentType, 'status'>): BadgeStatus {
     : { label: 'Not published', tone: 'warning' }
 }
 
-/** "4 fields · Published" under a type in the register. */
-export function typeSummary(type: Pick<EquipmentType, 'field_count' | 'status'>): string {
-  const fields = `${type.field_count} ${type.field_count === 1 ? 'field' : 'fields'}`
-  return type.status === 'published' ? `${fields} · Published` : `${fields} · Not published`
+/** "4 fields" under a type in the register (its badge already says Published or Draft). */
+export function typeSummary(type: Pick<EquipmentType, 'field_count'>): string {
+  return `${type.field_count} ${type.field_count === 1 ? 'field' : 'fields'}`
 }
 
 /** Confidence threshold as a percentage for display ("85%"). */
@@ -38,8 +43,10 @@ export const fieldFormSchema = z
     data_type: z.enum(['text', 'number', 'date', 'dropdown', 'boolean']),
     options: z.array(z.string()),
     is_required: z.boolean(),
-    is_critical: z.boolean(),
-    format_rule: z.string().trim(),
+    description: z
+      .string()
+      .trim()
+      .max(MAX_DESCRIPTION, `Use ${MAX_DESCRIPTION} characters or fewer.`),
     flag_percent: z.number().min(0, 'Use 0 to 100.').max(100, 'Use 0 to 100.'),
   })
   .superRefine((v, ctx) => {
@@ -57,8 +64,7 @@ export function fieldToForm(field?: Field): FieldFormValues {
     data_type: field?.data_type ?? 'text',
     options: field?.options ?? ['', ''],
     is_required: field?.is_required ?? true,
-    is_critical: field?.is_critical ?? false,
-    format_rule: field?.format_rule ?? '',
+    description: field?.description ?? '',
     flag_percent: Math.round((field?.flag_below_confidence ?? DEFAULT_FLAG_BELOW) * 100),
   }
 }
@@ -71,8 +77,7 @@ export function formToField(v: FieldFormValues): FieldInput {
     data_type: v.data_type,
     ...(v.data_type === 'dropdown' ? { options: choices } : {}),
     is_required: v.is_required,
-    is_critical: v.is_critical,
-    format_rule: v.format_rule.trim() || null,
+    description: v.description.trim() || null,
     flag_below_confidence: v.flag_percent / 100,
   }
 }

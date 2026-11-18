@@ -6,21 +6,25 @@ export interface Notice {
   error?: boolean
 }
 
-/** Resend and cancel for invite rows, reporting the result as a notice. */
+/**
+ * Resend and cancel for invite rows. Resending says so (an email went out, which the page does
+ * not show); cancelling says nothing, as the invite leaves the list. Errors are always shown.
+ */
 export function useInviteActions(onNotice: (notice: Notice) => void) {
   const resend = useResendInvite()
   const cancel = useCancelInvite()
 
-  const run = (action: Promise<unknown>, success: string) =>
+  const run = (action: Promise<unknown>, success?: string) =>
     action
-      .then(() => onNotice({ text: success }))
+      .then(() => {
+        if (success) onNotice({ text: success })
+      })
       .catch((err: unknown) => onNotice({ text: errorMessage(err), error: true }))
 
   return {
     busy: resend.isPending || cancel.isPending,
     resend: (invite: Invite) =>
       void run(resend.mutateAsync(invite.invite_id), `Invite sent again to ${invite.email}.`),
-    cancel: (invite: Invite) =>
-      void run(cancel.mutateAsync(invite.invite_id), `Invite to ${invite.email} removed.`),
+    cancel: (invite: Invite) => void run(cancel.mutateAsync(invite.invite_id)),
   }
 }

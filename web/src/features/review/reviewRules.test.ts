@@ -1,58 +1,17 @@
 import { describe, expect, it } from 'vitest'
 import type { Batch, ReviewField } from '../../api/review'
 import {
+  assignmentStatus,
+  batchState,
   batchStatus,
   decidedByText,
   decisionOutcome,
   decisionOutcomeStatus,
   flagText,
   technicianDecisionStatus,
-  oldestWaitingFirst,
   verificationStatus,
   waitingStatus,
 } from './reviewRules'
-
-describe('waiting queue order', () => {
-  const at = (scan_id: string, waiting_since: string) => ({ scan_id, waiting_since })
-  const ids = (list: { scan_id: string }[]) => list.map((i) => i.scan_id)
-
-  it('GIVEN different waiting times THEN the longest waiting comes first', () => {
-    const list = [
-      at('new', '2026-10-05T11:00:00Z'),
-      at('old', '2026-09-30T08:00:00Z'),
-      at('mid', '2026-10-03T10:00:00Z'),
-    ]
-    expect(ids(oldestWaitingFirst(list))).toEqual(['old', 'mid', 'new'])
-  })
-
-  it('GIVEN a newly submitted scan THEN it joins at the bottom', () => {
-    const list = [at('a', '2026-10-01T08:00:00Z'), at('b', '2026-10-02T08:00:00Z')]
-    const after = oldestWaitingFirst([at('just-in', '2026-10-05T11:59:59Z'), ...list])
-    expect(ids(after)).toEqual(['a', 'b', 'just-in'])
-  })
-
-  it('GIVEN the same second THEN the order is fixed by scan id, not random', () => {
-    const t = '2026-10-05T10:00:00Z'
-    expect(ids(oldestWaitingFirst([at('z', t), at('a', t)]))).toEqual(['a', 'z'])
-  })
-
-  it('GIVEN missing or unreadable times THEN those go last and the rest stay sorted', () => {
-    const list = [
-      at('bad', 'not a date'),
-      at('b', '2026-10-02T08:00:00Z'),
-      at('none', ''),
-      at('a', '2026-10-01T08:00:00Z'),
-    ]
-    expect(ids(oldestWaitingFirst(list))).toEqual(['a', 'b', 'bad', 'none'])
-    expect(waitingStatus('not a date', now)).toEqual({ label: 'Unknown', tone: 'neutral' })
-  })
-
-  it('does not change the list it was given', () => {
-    const list = [at('b', '2026-10-02T08:00:00Z'), at('a', '2026-10-01T08:00:00Z')]
-    oldestWaitingFirst(list)
-    expect(ids(list)).toEqual(['b', 'a'])
-  })
-})
 
 const now = new Date('2026-10-05T12:00:00Z')
 const field = (over: Partial<ReviewField>): ReviewField => ({
@@ -92,6 +51,9 @@ describe('review rules', () => {
 
   it('explains flags in words', () => {
     expect(flagText(field({ flag_reasons: ['low_confidence'] }))).toBe('Low confidence · 42%')
+    expect(flagText(field({ flag_reasons: ['format_failed'] }))).toBe(
+      "Doesn't match the field type",
+    )
     expect(flagText(field({ flag_reasons: ['critical_not_found'] }))).toBe(
       'Critical field · not found',
     )
@@ -119,6 +81,8 @@ describe('review rules', () => {
       equipment_type_name: 'Motor Nameplate',
       decided_by_name: 'T',
       decided_at: '',
+      batch_id: null,
+      batch_no: null,
     }
     expect(
       technicianDecisionStatus({
@@ -146,6 +110,8 @@ describe('review rules', () => {
       equipment_type_name: 'Motor Nameplate',
       decided_by_name: 'Amrutha',
       decided_at: '',
+      batch_id: null,
+      batch_no: null,
     }
     const rejected = { ...base, decision: 'rejected', reject_category: 'data_correction_needed' }
     expect(decisionOutcomeStatus({ ...rejected, overridden: false })).toEqual({
@@ -171,5 +137,90 @@ describe('review rules', () => {
     expect(batchStatus(batch({}), now)).toEqual({ label: 'No progress · 2 days', tone: 'warning' })
     expect(batchStatus(batch({ decided_count: 18 }), now).label).toBe('In progress')
     expect(batchStatus(batch({ decided_count: 30 }), now).label).toBe('Done')
+  })
+})
+
+describe('batch states for the list filter', () => {
+  it.each([
+    [{}, 'no_progress'],
+    [{ decided_count: 18 }, 'in_progress'],
+    [{ decided_count: 30 }, 'done'],
+    [{ status: 'taken_back' as const }, 'taken_back'],
+    [{ status: 'completed' as const }, 'done'],
+    [{ created_at: '2026-10-05T06:00:00Z' }, 'in_progress'], // nothing done yet, but under a day
+  ])('%j → %s', (over, expected) => {
+    expect(batchState(batch(over), now)).toBe(expected)
+  })
+})
+
+describe('status of one scan on the batch page', () => {
+  const outcome = (over: Record<string, unknown> = {}) => ({
+    decision: 'approved' as const,
+    reject_category: null,
+    decided_by_name: 'Meera Iyer',
+    decided_at: '2026-10-05T10:00:00Z',
+    overridden: false,
+    ...over,
+  })
+  const a = (over: Record<string, unknown> = {}) =>
+    assignmentStatus(
+      { status: 'assigned', removed_reason: null, outcome: null, ...over } as Parameters<
+        typeof assignmentStatus
+      >[0],
+      'Priya Nair',
+    )
+
+  it('GIVEN a scan still with the technician THEN it is Delegated', () => {
+    expect(a()).toEqual({ key: 'delegated', label: 'Delegated', tone: 'neutral', detail: null })
+  })
+
+  it('GIVEN an approval THEN Approved, nothing under it', () => {
+    expect(a({ status: 'decided', outcome: outcome() })).toEqual({
+      key: 'approved',
+      label: 'Approved',
+      tone: 'success',
+      detail: null,
+    })
+  })
+
+  it('GIVEN a rejection THEN Rejected with the reason', () => {
+    expect(
+      a({
+        status: 'decided',
+        outcome: outcome({ decision: 'rejected', reject_category: 'image_unclear' }),
+      }),
+    ).toMatchObject({ key: 'rejected', label: 'Rejected', tone: 'danger', detail: 'Image unclear' })
+  })
+
+  it('GIVEN an admin changed the technician’s decision THEN says who, "you" for the viewer', () => {
+    const changed = (by: string) =>
+      a({
+        status: 'decided',
+        outcome: outcome({ decision: 'rejected', overridden: true, decided_by_name: by }),
+      })
+    expect(changed('Priya Nair').detail).toBe('Changed by you')
+    expect(changed('Erin Admin').detail).toBe('Changed by Erin Admin')
+  })
+
+  it.each([
+    ['taken_back', 'Taken back'],
+    ['reassigned', 'Reassigned'],
+    ['user_removed', 'Removed'],
+  ])('GIVEN a scan that left undecided (%s) THEN says %s', (reason, label) => {
+    expect(a({ status: 'removed', removed_reason: reason })).toMatchObject({
+      key: 'removed',
+      label,
+      tone: 'neutral',
+    })
+  })
+
+  it('GIVEN an admin decided it themselves (left the batch) THEN shows the decision, not "Removed"', () => {
+    expect(
+      a({
+        status: 'removed',
+        removed_reason: 'admin_decided',
+        outcome: outcome({ decided_by_name: 'Priya Nair' }),
+      }),
+    ).toMatchObject({ key: 'approved', label: 'Approved' })
   })
 })

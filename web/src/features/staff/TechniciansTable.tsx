@@ -25,7 +25,6 @@ export function TechniciansTable({ technicians, onRemove }: TechniciansTableProp
     },
     { header: 'Units', width: 0.8, cell: (t) => t.units.map((u) => u.name).join(', ') || '—' },
     { header: 'Scans this month', width: 0.9, cell: (t) => t.scans_this_month },
-    { header: 'Review batches', width: 1, cell: (t) => t.active_batch_no ?? '—' },
     {
       header: 'Last active',
       width: 0.9,

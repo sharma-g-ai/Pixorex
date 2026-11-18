@@ -50,14 +50,7 @@ export function BuAdminsPage() {
           </Alert>
         )}
 
-        <Card
-          title="BU Admins"
-          action={
-            <span className="text-small text-ink-muted">
-              Each unit has exactly one BU Admin · one BU Admin can run several units
-            </span>
-          }
-        >
+        <Card>
           {admins.isPending ? (
             <p className="text-body text-ink-muted">Loading BU Admins…</p>
           ) : admins.isError ? (
@@ -73,10 +66,7 @@ export function BuAdminsPage() {
           )}
         </Card>
 
-        <Card
-          title="Pending invites"
-          action={<span className="text-small text-ink-muted">Magic links are valid 24 hours</span>}
-        >
+        <Card title="Pending invites">
           <InvitesTable
             label="Pending BU Admin invites"
             invites={buAdminInvites}
@@ -86,11 +76,6 @@ export function BuAdminsPage() {
             onCancel={inviteActions.cancel}
           />
         </Card>
-
-        <Alert tone="info">
-          Technicians are invited and managed by each unit's BU Admin, from their own Technicians
-          page.
-        </Alert>
       </div>
 
       {open?.dialog === 'invite' && (
@@ -105,7 +90,8 @@ export function BuAdminsPage() {
           admin={open.admin}
           options={editOptions(open.admin, unitList, buAdminInvites)}
           onClose={() => setOpen(null)}
-          onSaved={(name) => done(`Units of ${name} were updated.`)}
+          // No banner: the table shows the units that changed.
+          onSaved={() => setOpen(null)}
           onRemove={() => setOpen({ dialog: 'remove', admin: open.admin })}
         />
       )}
@@ -114,7 +100,7 @@ export function BuAdminsPage() {
           admin={open.admin}
           options={removeOptions(open.admin, unitList)}
           onClose={() => setOpen(null)}
-          onRemoved={done}
+          onRemoved={() => setOpen(null)}
         />
       )}
     </>

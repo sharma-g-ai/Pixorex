@@ -20,7 +20,9 @@ export function RecentActivityCard({ buId, title, hide, action }: RecentActivity
     <Card title={title} action={action}>
       <DataTable
         label={title}
-        columns={auditColumns.filter((c) => !hide.includes(c.header))}
+        columns={auditColumns.filter(
+          (c) => !(typeof c.header === 'string' && hide.includes(c.header)),
+        )}
         rows={log.items.slice(0, 5)}
         rowKey={(e) => String(log.items.indexOf(e))}
         empty={log.isPending ? 'Loading…' : 'No admin actions in the last 7 days.'}

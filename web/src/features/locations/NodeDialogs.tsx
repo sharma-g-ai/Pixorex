@@ -108,9 +108,7 @@ function MoveDialog({ buId, setup, rows, action, onClose, onDone }: NodeDialogsP
             New path: <b className="text-ink">{`${pathOf(target)} › ${node.name}`}</b>
           </p>
         )}
-        <p className="text-xs text-ink-subtle">
-          Locations move only to the same level. You can move things until the unit is published.
-        </p>
+        <p className="text-xs text-ink-subtle">Locations move only to the same level.</p>
         {error && <Alert tone="danger">{error}</Alert>}
       </div>
     </Dialog>

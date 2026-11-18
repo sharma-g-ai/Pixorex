@@ -121,3 +121,13 @@ describe('scan rows (contract 3.18 v0.3.1)', () => {
     expect(useAllScans).toHaveBeenLastCalledWith({ from: '2026-09-06', to: '2026-10-05' })
   })
 })
+
+describe('Scans page: no repeated text', () => {
+  it('GIVEN the page THEN there is no subtitle repeating the filters, and no export footer', () => {
+    page()
+    expect(screen.getByRole('heading', { level: 1, name: 'Scans' })).toBeInTheDocument()
+    expect(screen.queryByText(/last 30 days/i, { selector: 'p' })).toBeNull()
+    expect(screen.queryByText(/Exports of up to 1,000 rows/)).toBeNull()
+    expect(screen.getByRole('button', { name: 'Export CSV' })).toBeInTheDocument()
+  })
+})

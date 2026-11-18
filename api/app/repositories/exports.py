@@ -5,6 +5,7 @@ from typing import Any
 from uuid import UUID
 
 from app.core.db import Conn
+from app.core.timezone import from_day, to_day
 
 BUILD_EVENT = "export.build"  # the worker builds files over 1,000 rows
 
@@ -26,10 +27,10 @@ def _scan_where(
             where.append(sql)
             params.append(filters[key])
     if filters.get("from"):
-        where.append("s.captured_at >= %s::date")
+        where.append(from_day("s.captured_at"))
         params.append(filters["from"])
     if filters.get("to"):
-        where.append("s.captured_at < %s::date + 1")
+        where.append(to_day("s.captured_at"))
         params.append(filters["to"])
     return where, params
 
@@ -96,10 +97,10 @@ def _audit_where(
         where.append("a.category = %s")
         params.append(filters["category"])
     if filters.get("from"):
-        where.append("a.occurred_at >= %s::date")
+        where.append(from_day("a.occurred_at"))
         params.append(filters["from"])
     if filters.get("to"):
-        where.append("a.occurred_at < %s::date + 1")
+        where.append(to_day("a.occurred_at"))
         params.append(filters["to"])
     return where, params
 

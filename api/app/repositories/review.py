@@ -4,10 +4,12 @@ A scan's current revision is its highest revision_no; the current decision is th
 is_current on that revision (one per revision, unique index). An open assignment is a
 review_assignment with status 'assigned' (one per scan, unique index)."""
 
+from datetime import date
 from typing import Any
 from uuid import UUID
 
 from app.core.db import Conn
+from app.core.timezone import WEEK_START, from_day, to_day
 
 # The current revision, its current decision and the open assignment of each scan.
 _CURRENT = (
@@ -20,11 +22,8 @@ _CURRENT = (
 )
 
 
-# Current decision approved since Monday 00:00 UTC: the home card count and its queue tab.
-_APPROVED_THIS_WEEK = (
-    "cd.decision = 'approved'"
-    " AND cd.decided_at >= date_trunc('week', now() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC'"
-)
+# Current decision approved since Monday 00:00 IST: the home card count and its queue tab.
+_APPROVED_THIS_WEEK = f"cd.decision = 'approved' AND cd.decided_at >= {WEEK_START}"
 
 
 async def queue_counts(conn: Conn, bu_id: UUID) -> dict[str, int]:
@@ -58,31 +57,125 @@ _QUEUE_FILTERS = {
 }
 
 
+# One queue row. "status" is what the BU Admin sees: waiting (no decision yet, including scans
+# with a delegated technician), approved, or rejected (sent back, not resubmitted yet).
+# "date" is the date the Date column shows and filters: when the scan was captured. "waiting_since"
+# is when it entered the queue (the Under Review pill's hover time).
+_ITEM = (
+    "SELECT s.id AS scan_id, s.record_no, et.name AS equipment_type_name,"
+    " tech.full_name AS captured_by_name, s.location_path_snapshot AS location_path,"
+    " cr.submitted_at AS waiting_since, rb.id AS batch_id, rb.batch_no,"
+    " assignee.full_name AS assigned_to_name,"
+    " cr.revision_no, cr.origin = 'rejection_fix' AS resubmitted,"
+    " approver.full_name AS approved_by_name, decider.full_name AS decided_by_name,"
+    " CASE s.review_status WHEN 'waiting_for_approval' THEN 'waiting'"
+    "   WHEN 'approved' THEN 'approved' WHEN 'rejected' THEN 'rejected'"
+    "   ELSE 'closed' END AS status,"
+    " s.captured_at AS date,"
+    " (SELECT count(*) FROM revision_field rf JOIN ai_field_value av"
+    "    ON av.id = rf.ai_field_value_id"
+    "   WHERE rf.revision_id = cr.id AND cardinality(av.flag_reasons) > 0) AS flag_count,"
+    " (SELECT count(*) FROM revision_field rf WHERE rf.revision_id = cr.id"
+    "   AND rf.verification_state = 'corrected') AS corrected_count,"
+    " (SELECT count(*) FROM revision_field rf WHERE rf.revision_id = cr.id"
+    "   AND rf.verification_state = 'unreadable') AS unreadable_count"
+    f" FROM scan s {_CURRENT}"
+    " JOIN equipment_type et ON et.id = s.equipment_type_id"
+    " JOIN app_user tech ON tech.id = s.technician_id"
+    " LEFT JOIN app_user approver ON approver.id = cd.decided_by AND cd.decision = 'approved'"
+    " LEFT JOIN app_user decider ON decider.id = cd.decided_by"
+)
+
+
 async def queue_items(
     conn: Conn, *, bu_id: UUID, filter_: str, after: list[str] | None, limit: int
 ) -> list[dict[str, Any]]:
-    """Oldest waiting first."""
+    """The tab queues (deprecated, kept for older clients): oldest waiting first."""
     keyset = " AND (cr.submitted_at, s.id) > (%s::timestamptz, %s::uuid)" if after else ""
     cur = await conn.execute(
-        "SELECT s.id AS scan_id, s.record_no, et.name AS equipment_type_name,"
-        " tech.full_name AS captured_by_name, s.location_path_snapshot AS location_path,"
-        " cr.submitted_at AS waiting_since, rb.batch_no, assignee.full_name AS assigned_to_name,"
-        " cr.revision_no, cr.origin = 'rejection_fix' AS resubmitted,"
-        " approver.full_name AS approved_by_name,"
-        " (SELECT count(*) FROM revision_field rf JOIN ai_field_value av"
-        "    ON av.id = rf.ai_field_value_id"
-        "   WHERE rf.revision_id = cr.id AND cardinality(av.flag_reasons) > 0) AS flag_count,"
-        " (SELECT count(*) FROM revision_field rf WHERE rf.revision_id = cr.id"
-        "   AND rf.verification_state = 'corrected') AS corrected_count,"
-        " (SELECT count(*) FROM revision_field rf WHERE rf.revision_id = cr.id"
-        "   AND rf.verification_state = 'unreadable') AS unreadable_count"
-        f" FROM scan s {_CURRENT}"
-        " JOIN equipment_type et ON et.id = s.equipment_type_id"
-        " JOIN app_user tech ON tech.id = s.technician_id"
-        " LEFT JOIN app_user approver ON approver.id = cd.decided_by AND cd.decision = 'approved'"
+        f"{_ITEM}"
         f" WHERE s.bu_id = %s AND cr.id IS NOT NULL AND {_QUEUE_FILTERS[filter_]}{keyset}"
         " ORDER BY cr.submitted_at, s.id LIMIT %s",
         [bu_id, *(after or []), limit + 1],
+    )
+    return await cur.fetchall()
+
+
+# Scan review statuses behind each status the queue offers.
+_STATUS_SCANS = {
+    "waiting": "waiting_for_approval",
+    "approved": "approved",
+    "rejected": "rejected",
+}
+
+
+async def queue_page(
+    conn: Conn,
+    *,
+    bu_id: UUID,
+    statuses: list[str],
+    type_ids: list[UUID] | None,
+    captured_by: list[UUID] | None,
+    date_from: date | None,
+    date_to: date | None,
+    decided_from: date | None,
+    search: str | None,
+    newest_first: bool | None,
+    after: list[str] | None,
+    limit: int,
+) -> list[dict[str, Any]]:
+    """The review queue with its header filters: any mix of statuses, schemas and captured-by
+    people, and a From/To range on the Date column (whole days, Indian time, both included),
+    sorted by that date. With no sort chosen ([newest_first] is None) it is oldest first, with the
+    scans a technician holds after the others. [search] finds scans by Scan ID, spaces ignored;
+    [decided_from] keeps scans decided from that day (Home's "approved this week")."""
+    where = ["q.status = ANY(%s)"]
+    params: list[Any] = [statuses]
+    if type_ids:
+        where.append("q.equipment_type_id = ANY(%s::uuid[])")
+        params.append(type_ids)
+    if captured_by:
+        where.append("q.technician_id = ANY(%s::uuid[])")
+        params.append(captured_by)
+    if date_from:
+        where.append(from_day("q.date"))
+        params.append(date_from)
+    if date_to:
+        where.append(to_day("q.date"))
+        params.append(date_to)
+    if decided_from:
+        where.append(from_day("q.decided_at"))
+        params.append(decided_from)
+    if search is not None:
+        where.append("q.record_no LIKE %s")
+        params.append(f"%{''.join(c for c in search if c.isdigit()) or 'x'}%")
+    descending = bool(newest_first)
+    held_last = newest_first is None
+    cmp = "<" if descending else ">"
+    if after:
+        if held_last:
+            where.append(
+                f"(q.held, q.date, q.scan_id) {cmp} (%s::boolean, %s::timestamptz, %s::uuid)"
+            )
+        else:
+            where.append(f"(q.date, q.scan_id) {cmp} (%s::timestamptz, %s::uuid)")
+        params += after
+    order = "DESC" if descending else "ASC"
+    sort = f"q.date {order}, q.scan_id {order}"
+    if held_last:
+        sort = f"q.held, {sort}"
+    inner = _ITEM.replace(
+        "SELECT s.id AS scan_id,",
+        "SELECT s.id AS scan_id, s.equipment_type_id, s.technician_id, cd.decided_at,"
+        " (rb.id IS NOT NULL) AS held,",
+        1,
+    )
+    cur = await conn.execute(
+        f"SELECT * FROM ({inner}"
+        " WHERE s.bu_id = %s AND cr.id IS NOT NULL"
+        "   AND s.review_status IN ('waiting_for_approval', 'approved', 'rejected')) q"
+        f" WHERE {' AND '.join(where)} ORDER BY {sort} LIMIT %s",
+        [bu_id, *params, limit + 1],
     )
     return await cur.fetchall()
 
@@ -242,26 +335,50 @@ async def retire_decision(conn: Conn, decision_id: UUID) -> None:
 
 
 async def technician_decisions(
-    conn: Conn, *, bu_id: UUID, decision: str | None, after: list[str] | None, limit: int
+    conn: Conn,
+    *,
+    bu_id: UUID,
+    decision: str | None,
+    decided_by: list[UUID] | None = None,
+    date_from: date | None = None,
+    date_to: date | None = None,
+    newest_first: bool = True,
+    after: list[str] | None,
+    limit: int,
 ) -> list[dict[str, Any]]:
-    """Decisions made by delegated technicians in the unit, newest first."""
+    """Decisions made by delegated technicians in the unit, newest first unless
+    [newest_first] is false. [date_from]/[date_to]: whole days of Indian time, both included."""
     where: list[str] = ["s.bu_id = %s", "d.decider_role = 'delegated_technician'"]
     params: list[object] = [bu_id]
     if decision:
         where.append("d.decision = %s")
         params.append(decision)
+    if decided_by:
+        where.append("d.decided_by = ANY(%s::uuid[])")
+        params.append(decided_by)
+    if date_from:
+        where.append(from_day("d.decided_at"))
+        params.append(date_from)
+    if date_to:
+        where.append(to_day("d.decided_at"))
+        params.append(date_to)
     if after:
-        where.append("(d.decided_at, d.id) < (%s::timestamptz, %s::uuid)")
+        where.append(
+            f"(d.decided_at, d.id) {'<' if newest_first else '>'} (%s::timestamptz, %s::uuid)"
+        )
         params += after
+    order = "DESC" if newest_first else "ASC"
     cur = await conn.execute(
         "SELECT d.id AS decision_id, s.id AS scan_id, s.record_no, u.full_name AS decided_by_name,"
         " et.name AS equipment_type_name, d.decision, d.reject_category, d.decided_at,"
+        " d.batch_id, rb.batch_no,"
         " EXISTS (SELECT 1 FROM review_decision o WHERE o.overrides_decision_id = d.id)"
         "   AS overridden"
         " FROM review_decision d JOIN revision r ON r.id = d.revision_id"
         " JOIN scan s ON s.id = r.scan_id JOIN app_user u ON u.id = d.decided_by"
         " JOIN equipment_type et ON et.id = s.equipment_type_id"
-        f" WHERE {' AND '.join(where)} ORDER BY d.decided_at DESC, d.id DESC LIMIT %s",
+        " LEFT JOIN review_batch rb ON rb.id = d.batch_id"
+        f" WHERE {' AND '.join(where)} ORDER BY d.decided_at {order}, d.id {order} LIMIT %s",
         [*params, limit + 1],
     )
     return await cur.fetchall()

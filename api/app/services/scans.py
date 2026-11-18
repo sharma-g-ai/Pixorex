@@ -74,7 +74,9 @@ class AiField(BaseModel):
     label: str
     data_type: Literal["text", "number", "date", "dropdown", "boolean"]
     is_required: bool
-    is_critical: bool
+    description: str | None = None
+    # Deprecated, always false (critical was removed 18 Nov 2026); kept for older app builds.
+    is_critical: bool = False
     ai_value: str | None
     confidence: float | None  # None = the model gave no score
     flag_reasons: list[FlagReason]

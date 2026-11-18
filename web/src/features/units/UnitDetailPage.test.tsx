@@ -60,23 +60,27 @@ vi.mock('../../api/buAdmins', () => ({
     ],
   }),
 }))
+const escalationsState = vi.hoisted(() => ({ pending: false }))
 vi.mock('../../api/escalations', () => ({
   useEscalations: () => ({
-    items: [
-      {
-        escalation_id: 'e1',
-        scan_id: 's1',
-        record_no: 'REC-90098',
-        bu_id: 'p04',
-        bu_name: 'Plant 04',
-        equipment_type_name: 'Flowserve Pump Nameplate',
-        captured_by_name: 'J. Martinez',
-        reason: 'not_approved_24h',
-        escalated_at: '2026-09-26T12:00:00Z',
-        reminded_at: null,
-        batch_no: null,
-      },
-    ],
+    isPending: escalationsState.pending,
+    items: escalationsState.pending
+      ? []
+      : [
+          {
+            escalation_id: 'e1',
+            scan_id: 's1',
+            record_no: 'REC-90098',
+            bu_id: 'p04',
+            bu_name: 'Plant 04',
+            equipment_type_name: 'Flowserve Pump Nameplate',
+            captured_by_name: 'J. Martinez',
+            reason: 'not_approved_24h',
+            escalated_at: '2026-09-26T12:00:00Z',
+            reminded_at: null,
+            batch_no: null,
+          },
+        ],
   }),
 }))
 vi.mock('../../api/auditLog', () => ({ useAuditLog: () => ({ items: [], isPending: false }) }))
@@ -94,7 +98,8 @@ describe('EA unit page (canvas EA 25)', () => {
   it('GIVEN a unit THEN shows its BU Admin, numbers and links filtered to the unit', () => {
     page('/overview/units/p04')
     expect(screen.getByRole('heading', { name: 'PPG Plant 04 — Coatings' })).toBeInTheDocument()
-    expect(screen.getByText('Overview › Unit · 14 technicians')).toBeInTheDocument()
+    expect(screen.getByText('14 technicians')).toBeInTheDocument()
+    expect(screen.queryByText(/Overview ›/)).toBeNull()
     expect(screen.getByRole('link', { name: /212\s*scans this month/ })).toHaveAttribute(
       'href',
       '/scans?unit=p04',
@@ -172,5 +177,44 @@ describe('EA unit page: BU Admin card (canvas EA 25)', () => {
     const dialog = within(screen.getByRole('dialog'))
     expect(dialog.getByRole('checkbox', { name: /Plant 12/ })).toBeChecked()
     expect(dialog.getByRole('checkbox', { name: /Plant 04/ })).toBeDisabled()
+  })
+})
+
+describe('EA unit page: no repeated text', () => {
+  it('GIVEN a unit with no BU Admin and no invite THEN there is no 24-hour rule box', () => {
+    invites.list = []
+    page('/overview/units/p12')
+    expect(screen.queryByText(/scans that wait over 24 hours/)).toBeNull()
+    expect(screen.queryByText(/Overview ›/)).toBeNull()
+    expect(screen.getByRole('link', { name: '← Back to overview' })).toBeInTheDocument()
+  })
+
+  it('GIVEN a pending invite THEN the box says only who the invite went to', () => {
+    invites.list = [
+      {
+        invite_id: 'i2',
+        email: 'n.shah@ppg.com',
+        role: 'bu_admin',
+        status: 'pending',
+        units: [{ bu_id: 'p12', name: 'Plant 12' }],
+        invited_by_name: 'A. Mehta',
+        created_at: new Date(Date.now() - 3600_000).toISOString(),
+        expires_at: new Date(Date.now() + 23 * 3600_000).toISOString(),
+      },
+    ]
+    page('/overview/units/p12')
+    expect(screen.getByText('Invite sent to n.shah@ppg.com.')).toBeInTheDocument()
+    expect(screen.queryByText(/Until someone accepts/)).toBeNull()
+    invites.list = []
+  })
+})
+
+describe('EA unit page: escalated card while loading', () => {
+  it('GIVEN the escalated scans are still loading THEN it says Loading, never "Nothing escalated"', () => {
+    escalationsState.pending = true
+    page('/overview/units/p04')
+    expect(screen.queryByText(/Nothing escalated/)).toBeNull()
+    expect(screen.getAllByText('Loading…').length).toBeGreaterThan(0)
+    escalationsState.pending = false
   })
 })

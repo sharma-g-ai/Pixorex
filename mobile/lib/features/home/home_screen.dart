@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/api_exception.dart';
+import '../../core/india_time.dart';
 import '../../core/theme.dart';
 import '../../widgets/auth_widgets.dart';
 import '../auth/me.dart';
@@ -373,9 +374,9 @@ class _HomeTabState extends State<HomeTab> {
 }
 
 /// "Thu 1 Oct", as on design 14.
-String dayLabel(DateTime d) =>
-    '${const ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][d.weekday - 1]} ${d.day} '
-    '${const ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][d.month - 1]}';
+String dayLabel(DateTime instant) =>
+    '${const ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][toIst(instant).weekday - 1]} ${toIst(instant).day} '
+    '${const ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][toIst(instant).month - 1]}';
 
 /// "4 min ago", "1 hr ago", "3 days ago".
 String ago(DateTime t, DateTime now) {

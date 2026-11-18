@@ -8,8 +8,13 @@ from tests.integration.helpers import BO, DANA, ERIN, TARA
 from tests.integration.test_s2_identity import P04, P05
 
 PUMP_FIELDS = [
-    {"label": "Serial number", "data_type": "text", "is_required": True, "is_critical": True},
-    {"label": "Voltage", "data_type": "number", "is_required": False, "is_critical": False},
+    {
+        "label": "Serial number",
+        "data_type": "text",
+        "is_required": True,
+        "description": "The pump's serial number, printed after S/N.",
+    },
+    {"label": "Voltage", "data_type": "number", "is_required": False},
 ]
 
 
@@ -87,7 +92,6 @@ def test_fields_rules(api: Api) -> None:
         "data_type": "dropdown",
         "options": ["1"],
         "is_required": False,
-        "is_critical": False,
     }
     _problem(
         api.post(f"/equipment-types/{type_id}/fields", BO, headers=_key(), json=one_choice),
@@ -149,8 +153,78 @@ def test_copy_and_ai_assist(api: Api) -> None:
         400,
         "validation",
     )
+    # A copy keeps the descriptions.
+    assert [f["description"] for f in copy.json()["fields"]] == [
+        "The pump's serial number, printed after S/N.",
+        None,
+    ]
     assisted = _create(api, created_via="ai_assist", fields=PUMP_FIELDS)
     assert {f["origin"] for f in assisted.json()["fields"]} == {"ai_suggested"}
+    # AI assisted schema discovery saves the description the admin kept.
+    assert assisted.json()["fields"][0]["description"] == (
+        "The pump's serial number, printed after S/N."
+    )
+
+
+def test_field_descriptions(api: Api, owner_sql: Any) -> None:
+    """Change request 18 Nov 2026: optional plain text, at most 500 characters, trimmed;
+    format_rule and is_critical are gone (is_critical is returned as false for old apps)."""
+    type_id = _create(api).json()["type_id"]
+    url = f"/equipment-types/{type_id}/fields"
+    added = api.post(
+        url,
+        BO,
+        headers=_key(),
+        json={
+            "label": "Model",
+            "data_type": "text",
+            "is_required": False,
+            "description": "  The model code, after MOD.  ",
+            # Sent by clients from before the change request: ignored, not an error.
+            "is_critical": True,
+            "format_rule": "UN + 4 digits",
+        },
+    )
+    assert added.status_code == 201, added.text
+    field = added.json()
+    assert field["description"] == "The model code, after MOD."
+    assert field["is_critical"] is False
+    assert "format_rule" not in field
+    stored = owner_sql(
+        "SELECT description FROM field_definition WHERE id = %s", (field["field_id"],)
+    )
+    assert stored == [("The model code, after MOD.",)]
+    columns = owner_sql(
+        "SELECT column_name FROM information_schema.columns"
+        " WHERE table_name = 'field_definition' AND column_name IN"
+        " ('description', 'format_rule', 'is_critical')"
+    )
+    assert columns == [("description",)]
+
+    patch = f"{url}/{field['field_id']}"
+    blank = api.call("PATCH", patch, BO, json={"description": "   "})
+    assert blank.status_code == 200, blank.text
+    assert blank.json()["description"] is None  # blank means none
+    exact = api.call("PATCH", patch, BO, json={"description": "d" * 500})
+    assert exact.status_code == 200 and len(exact.json()["description"]) == 500
+    _problem(api.call("PATCH", patch, BO, json={"description": "d" * 501}), 400, "validation")
+    _problem(
+        api.post(
+            url,
+            BO,
+            headers=_key(),
+            json={
+                "label": "Long",
+                "data_type": "text",
+                "is_required": False,
+                "description": "x" * 501,
+            },
+        ),
+        400,
+        "validation",
+    )
+    listed = api.get(f"/equipment-types/{type_id}", BO).json()["fields"]
+    assert [(f["label"], len(f["description"] or "")) for f in listed] == [("Model", 500)]
 
 
 def test_publish_freezes_the_type(api: Api, owner_sql: Any) -> None:
@@ -254,7 +328,10 @@ def test_ai_assist_suggests_fields_from_a_photo(api: Api) -> None:
 
     def openai(request: httpx.Request) -> httpx.Response:
         sent.append(request)
-        content = '{"fields": [{"label": "Serial number", "data_type": "text"}]}'
+        content = (
+            '{"fields": [{"label": "Serial number", "data_type": "text",'
+            ' "description": "The serial number, printed after S/N."}]}'
+        )
         return httpx.Response(200, json={"choices": [{"message": {"content": content}}]})
 
     app.state.ai = AiConfig(
@@ -266,7 +343,13 @@ def test_ai_assist_suggests_fields_from_a_photo(api: Api) -> None:
         answer = _suggest(api, BO)
         assert answer.status_code == 200, answer.text
         assert answer.json() == {
-            "suggested_fields": [{"label": "Serial number", "data_type": "text"}]
+            "suggested_fields": [
+                {
+                    "label": "Serial number",
+                    "data_type": "text",
+                    "description": "The serial number, printed after S/N.",
+                }
+            ]
         }
         assert len(sent) == 1
         _problem(_suggest(api, TARA), 403, "forbidden")  # not a BU Admin of the unit

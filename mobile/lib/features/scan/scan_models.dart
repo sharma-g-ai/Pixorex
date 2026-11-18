@@ -9,7 +9,7 @@ class AiField {
     required this.label,
     required this.dataType,
     required this.isRequired,
-    required this.isCritical,
+    this.description,
     this.aiValue,
     this.confidence,
     this.flagReasons = const [],
@@ -19,11 +19,15 @@ class AiField {
   final String label;
   final String dataType;
   final bool isRequired;
-  final bool isCritical;
+
+  /// What the field is, as the BU Admin wrote it; may be absent. ("critical" was removed on
+  /// 18 Nov 2026: the API may still send it, it is ignored.)
+  final String? description;
   final String? aiValue;
   final double? confidence;
 
-  /// `low_confidence`, `format_failed`, `no_confidence`, `missing_required`, `critical_not_found`.
+  /// `low_confidence`, `format_failed` (the value does not fit the field's type), `no_confidence`,
+  /// `missing_required`, and `critical_not_found` (only on scans made before 18 Nov 2026).
   final List<String> flagReasons;
 
   /// Only on a rejected scan: what the technician sent for this field (design 69 "Was").
@@ -36,7 +40,7 @@ class AiField {
         label: j['label'] as String,
         dataType: j['data_type'] as String,
         isRequired: j['is_required'] as bool,
-        isCritical: j['is_critical'] as bool,
+        description: j['description'] as String?,
         aiValue: j['ai_value'] as String?,
         confidence: (j['confidence'] as num?)?.toDouble(),
         flagReasons: ((j['flag_reasons'] as List?) ?? const []).map((e) => e.toString()).toList(),

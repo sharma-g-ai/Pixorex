@@ -64,11 +64,18 @@ class ReviewDraft {
     };
   }
 
-  /// The order fields are shown in: those with a value (as read, or as corrected) first, empty
-  /// ones last. Within each group, flagged fields come first, then the type's own order.
-  /// Recomputed from the answers, so a saved fix moves its field up. Display order only.
-  List<AiField> get ordered =>
-      filledFirst([...flagged, ...scan.fields.where((f) => !f.isFlagged)], valueOf);
+  /// A red field nobody has answered yet: wrong or missing, so it needs the technician first.
+  bool needsAction(AiField f) =>
+      f.isFlagged && flagLevel(f) == FlagLevel.likelyWrong && answerFor(f).verdict == Verdict.pending;
+
+  /// The order fields are shown in: the red ones still needing an answer at the very top, then
+  /// the rest with a value (as read, or as corrected) first and empty ones last. Each group
+  /// keeps the type's own order. Recomputed from the answers, so an answered field leaves the top
+  /// and moves down among the others. Display order only; nothing is removed.
+  List<AiField> get ordered => [
+        ...scan.fields.where(needsAction),
+        ...filledFirst(scan.fields.where((f) => !needsAction(f)).toList(), valueOf),
+      ];
 
   /// Required fields that would be sent empty (marked unreadable doesn't count as empty).
   List<AiField> get emptyRequired => scan.fields
@@ -121,7 +128,7 @@ String flagText(AiField f) => flagReasonText(f.flagReasons.firstOrNull, f.confid
 String flagReasonText(String? r, double? confidence) {
   return switch (r) {
     'low_confidence' => confidence == null ? 'Low confidence' : 'Low confidence · ${(confidence * 100).round()}%',
-    'format_failed' => 'Format check failed',
+    'format_failed' => "Doesn't match the field type",
     'no_confidence' => 'No confidence score from the reader',
     'missing_required' => 'Missing · required for this type',
     'critical_not_found' => 'Critical field · not found on photo',

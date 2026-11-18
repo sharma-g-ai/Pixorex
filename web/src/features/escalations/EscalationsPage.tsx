@@ -108,11 +108,6 @@ export function EscalationsPage() {
           <Card>Nothing escalated. Every scan was decided within 24 hours.</Card>
         ) : (
           <>
-            <Alert tone="info">
-              A scan that isn't approved within 24 hours comes here as well as staying with its BU
-              Admin. Open a unit to review its scans, or use the buttons on its card. Whoever
-              decides first wins.
-            </Alert>
             <div className="grid gap-3.5 lg:grid-cols-3">
               {groups.map((g) => (
                 <EscalationCard
@@ -254,18 +249,13 @@ function EscalationCard({
           <dt className="text-meta text-ink-subtle">Oldest</dt>
           <dd className="text-body font-semibold text-warning">{waitedFor(group.oldest)}</dd>
         </div>
-        <div className="rounded-lg bg-page px-3 py-2.5">
-          <dt className="text-meta text-ink-subtle">Why</dt>
-          <dd className="text-body font-semibold">
-            {whyText(noAdmin ? 'no_bu_admin' : 'not_approved_24h', admin)}
-          </dd>
-        </div>
+        {noAdmin && (
+          <div className="rounded-lg bg-page px-3 py-2.5">
+            <dt className="text-meta text-ink-subtle">Why</dt>
+            <dd className="text-body font-semibold">{whyText('no_bu_admin', admin)}</dd>
+          </div>
+        )}
       </dl>
-      <p className="text-small text-ink-muted">
-        {noAdmin
-          ? 'No BU Admin. Assign one with a magic link, or review or delegate these yourself.'
-          : `${admin ?? 'The BU Admin'} also sees these. Remind them, or delegate. Whoever decides first wins.`}
-      </p>
       {/* The same three full-width buttons on every card, at the bottom, so cards side by side
           line up whatever their names. The BU Admin's name is already above, so the button says
           "Remind BU Admin"; screen readers still hear the name. */}

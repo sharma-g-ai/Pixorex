@@ -7,6 +7,7 @@ import { BuAdminsPage } from '../features/buAdmins/BuAdminsPage'
 import { EscalationsPage } from '../features/escalations/EscalationsPage'
 import { EquipmentTypesPage } from '../features/equipmentTypes/EquipmentTypesPage'
 import { LocationsPage } from '../features/locations/LocationsPage'
+import { BatchPage } from '../features/review/BatchPage'
 import { DelegationsPage } from '../features/review/DelegationsPage'
 import { ReviewQueuePage } from '../features/review/ReviewQueuePage'
 import { ScanReviewPage } from '../features/review/ScanReviewPage'
@@ -58,6 +59,7 @@ const subPages: Record<DashboardRole, { path: string; element: ReactNode }[]> = 
       path: '/review-queue/:scanId',
       element: <ScanReviewPage back={{ to: '/review-queue', label: 'Review queue' }} />,
     },
+    { path: '/delegations/:batchId', element: <BatchPage /> },
   ],
 }
 

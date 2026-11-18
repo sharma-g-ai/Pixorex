@@ -126,10 +126,7 @@ function ActivateForm({ token, invite }: { token: string; invite: InvitePreview 
           error={errors.full_name?.message}
           {...register('full_name')}
         />
-        <div>
-          <TextField label="Work email" value={invite.email} readOnly disabled />
-          <p className="mt-1.5 text-xs text-ink-subtle">From your invite — can't be changed</p>
-        </div>
+        <TextField label="Work email" value={invite.email} readOnly disabled />
         <section aria-label="Your business units">
           <h2 className="mb-1.5 text-small font-semibold text-ink-muted">
             {invite.units.length === 1 ? 'Your business unit' : 'Your business units'}

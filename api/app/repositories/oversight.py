@@ -5,6 +5,7 @@ from typing import Any
 from uuid import UUID
 
 from app.core.db import Conn
+from app.core.timezone import from_day, to_day
 
 
 async def escalations(
@@ -87,10 +88,10 @@ async def scans(
         # The scan ID is shown grouped (100 000 004 0): match it with or without the spaces.
         params += [like.replace(" ", ""), like, like, like]
     if since:
-        where.append("s.captured_at >= %s::date")
+        where.append(from_day("s.captured_at"))
         params.append(since)
     if until:
-        where.append("s.captured_at < %s::date + 1")
+        where.append(to_day("s.captured_at"))
         params.append(until)
     if after:
         where.append("(s.captured_at, s.id) < (%s::timestamptz, %s::uuid)")

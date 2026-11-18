@@ -15,8 +15,8 @@ _TYPE = (
     " FROM equipment_type t JOIN equipment_type_version v ON v.equipment_type_id = t.id"
 )
 _FIELD = (
-    "SELECT id AS field_id, field_key, label, data_type, options, is_required, is_critical,"
-    " sort_order, format_rule, is_unique_in_unit, flag_below_confidence::float AS"
+    "SELECT id AS field_id, field_key, label, data_type, options, is_required,"
+    " sort_order, description, is_unique_in_unit, flag_below_confidence::float AS"
     " flag_below_confidence, origin FROM field_definition"
 )
 
@@ -121,10 +121,10 @@ async def add_field(
 ) -> UUID:
     cur = await conn.execute(
         "INSERT INTO field_definition (tenant_id, type_version_id, field_key, label, data_type,"
-        " options, is_required, is_critical, sort_order, format_rule, is_unique_in_unit,"
+        " options, is_required, sort_order, description, is_unique_in_unit,"
         " flag_below_confidence, origin) VALUES (%(tenant)s, %(version)s, %(field_key)s,"
-        " %(label)s, %(data_type)s, %(options)s::jsonb, %(is_required)s, %(is_critical)s,"
-        " %(sort_order)s, %(format_rule)s, %(is_unique_in_unit)s, %(flag_below_confidence)s,"
+        " %(label)s, %(data_type)s, %(options)s::jsonb, %(is_required)s,"
+        " %(sort_order)s, %(description)s, %(is_unique_in_unit)s, %(flag_below_confidence)s,"
         " %(origin)s) RETURNING id",
         {**values, "options": _json(values["options"]), "tenant": tenant_id, "version": version_id},
     )
@@ -135,7 +135,7 @@ async def update_field(conn: Conn, field_id: UUID, values: dict[str, Any]) -> No
     await conn.execute(
         "UPDATE field_definition SET field_key = %(field_key)s, label = %(label)s,"
         " data_type = %(data_type)s, options = %(options)s::jsonb, is_required = %(is_required)s,"
-        " is_critical = %(is_critical)s, format_rule = %(format_rule)s,"
+        " description = %(description)s,"
         " is_unique_in_unit = %(is_unique_in_unit)s,"
         " flag_below_confidence = %(flag_below_confidence)s WHERE id = %(id)s",
         {**values, "options": _json(values["options"]), "id": field_id},

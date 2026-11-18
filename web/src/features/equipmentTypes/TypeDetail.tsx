@@ -9,7 +9,6 @@ import {
   useUpdateField,
   type Field,
 } from '../../api/equipmentTypes'
-import { Alert } from '../../components/Alert'
 import { Badge } from '../../components/Badge'
 import { Button } from '../../components/Button'
 import { buttonClasses } from '../../components/buttonClasses'
@@ -30,7 +29,7 @@ interface TypeDetailProps {
   buId: string
   unitName: string
   typeId: string
-  onDeleted: (name: string) => void
+  onDeleted: () => void
 }
 
 /** One equipment type with its fields (canvas BU 24, right side; contracts 2.12–2.19). */
@@ -44,7 +43,6 @@ export function TypeDetail({ buId, unitName, typeId, onDeleted }: TypeDetailProp
   const publish = usePublishType(buId, typeId)
   const [open, setOpen] = useState<Open>(null)
   const [newName, setNewName] = useState('')
-  const [notice, setNotice] = useState<string | null>(null)
 
   if (type.isPending) return <Card>Loading type…</Card>
   if (type.isError) return <Card>We couldn't load this type. Please refresh.</Card>
@@ -53,10 +51,8 @@ export function TypeDetail({ buId, unitName, typeId, onDeleted }: TypeDetailProp
   const fields = [...(t.fields ?? [])].sort((a, b) => a.sort_order - b.sort_order)
   const locked = t.status === 'published'
   const status = typeStatus(t)
-  const done = (text: string) => {
-    setOpen(null)
-    setNotice(text)
-  }
+  // No banner after a change: the field table already shows the result.
+  const done = () => setOpen(null)
 
   const toggle = (label: string, pressed: boolean, onClick: () => void) => (
     <button
@@ -98,17 +94,16 @@ export function TypeDetail({ buId, unitName, typeId, onDeleted }: TypeDetailProp
         ),
     },
     {
-      header: 'Critical',
-      width: 1,
+      header: 'Description',
+      width: 2,
       cell: (f) =>
-        toggle(f.is_critical ? 'Critical' : 'Not critical', f.is_critical, () =>
-          updateField.mutate({ fieldId: f.field_id, is_critical: !f.is_critical }),
+        f.description ? (
+          <span className="line-clamp-2 text-small" title={f.description}>
+            {f.description}
+          </span>
+        ) : (
+          <span className="text-ink-subtle">—</span>
         ),
-    },
-    {
-      header: 'Format check',
-      width: 1.2,
-      cell: (f) => f.format_rule ?? <span className="text-ink-subtle">—</span>,
     },
     { header: 'Flag', width: 0.6, cell: (f) => `< ${percent(f.flag_below_confidence)}` },
     ...(locked
@@ -173,14 +168,6 @@ export function TypeDetail({ buId, unitName, typeId, onDeleted }: TypeDetailProp
               <h2 className="truncate text-lg font-bold">{t.name}</h2>
               <Badge tone={status.tone}>{status.label}</Badge>
             </div>
-            <p className="text-small text-ink-muted">
-              {t.created_via === 'ai_assist'
-                ? 'Started with AI-assist'
-                : t.created_via === 'copy'
-                  ? 'Started as a copy'
-                  : 'Started blank'}{' '}
-              · version {t.version_no}
-            </p>
           </div>
           {!locked && (
             <>
@@ -202,27 +189,7 @@ export function TypeDetail({ buId, unitName, typeId, onDeleted }: TypeDetailProp
             </>
           )}
         </div>
-        <Alert tone="info" className="mt-3">
-          {locked ? (
-            <>
-              <b>Published and locked.</b> Technicians in {unitName} pick this type. Its fields
-              can't be edited and the type can't be deleted. Need something different? Create a new
-              type.
-            </>
-          ) : (
-            <>
-              <b>Not published yet.</b> Add, edit, reorder or delete anything, then publish. Once
-              published, this type can't be edited or deleted.
-            </>
-          )}
-        </Alert>
       </Card>
-
-      {notice && (
-        <Alert tone="info" role="status">
-          {notice}
-        </Alert>
-      )}
 
       <Card
         title={`Fields · ${fields.length}`}
@@ -233,11 +200,11 @@ export function TypeDetail({ buId, unitName, typeId, onDeleted }: TypeDetailProp
           columns={columns}
           rows={fields}
           rowKey={(f) => f.field_id}
-          empty="No fields yet. Add the fields technicians should capture from this label. Technicians can pick this type once it has at least one field."
+          empty="No fields yet. Add at least one field to publish."
         />
         <p className="mt-3 text-xs text-ink-subtle">
-          <b>Required</b> — the technician must fill it. <b>Critical</b> — always flagged for review
-          when the AI isn’t sure. <b>Flag</b> — AI confidence under this number is flagged.
+          <b>Required</b> — the technician must fill it. <b>Flag</b> — AI confidence under this
+          number is flagged.
         </p>
       </Card>
 
@@ -249,11 +216,7 @@ export function TypeDetail({ buId, unitName, typeId, onDeleted }: TypeDetailProp
           fields={fields}
           field={open.field}
           onClose={() => setOpen(null)}
-          onSaved={(label) =>
-            done(
-              open.field ? `${label} was updated.` : `${label} was added at the end of the list.`,
-            )
-          }
+          onSaved={done}
         />
       )}
       {open?.kind === 'delete-field' && (
@@ -264,10 +227,10 @@ export function TypeDetail({ buId, unitName, typeId, onDeleted }: TypeDetailProp
           onClose={() => setOpen(null)}
           onConfirm={async () => {
             await deleteField.mutateAsync(open.field.field_id)
-            done(`${open.field.label} was deleted.`)
+            done()
           }}
         >
-          The type isn't published yet, so no technician has used this field.
+          Are you sure? This can’t be undone.
         </ConfirmDialog>
       )}
       {open?.kind === 'rename' && (
@@ -278,17 +241,14 @@ export function TypeDetail({ buId, unitName, typeId, onDeleted }: TypeDetailProp
           onClose={() => setOpen(null)}
           onConfirm={async () => {
             await rename.mutateAsync(newName.trim())
-            done(`Renamed to ${newName.trim()}.`)
+            done()
           }}
         >
           <TextField
-            label="Name technicians see"
+            label="Equipment Name"
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
           />
-          <p className="mt-2 text-xs text-ink-subtle">
-            You can rename it until the type is published.
-          </p>
         </ConfirmDialog>
       )}
       {open?.kind === 'delete' && (
@@ -299,17 +259,10 @@ export function TypeDetail({ buId, unitName, typeId, onDeleted }: TypeDetailProp
           onClose={() => setOpen(null)}
           onConfirm={async () => {
             await deleteType.mutateAsync(undefined)
-            onDeleted(t.name)
+            onDeleted()
           }}
         >
-          <ul className="flex list-inside list-disc flex-col gap-2">
-            <li>
-              {t.name} and its {fields.length} {fields.length === 1 ? 'field' : 'fields'} are
-              removed.
-            </li>
-            <li>It was never published, so no technician has used it.</li>
-            <li>This can’t be undone.</li>
-          </ul>
+          Are you sure? This can’t be undone.
         </ConfirmDialog>
       )}
       {open?.kind === 'publish' && (
@@ -320,9 +273,7 @@ export function TypeDetail({ buId, unitName, typeId, onDeleted }: TypeDetailProp
           onClose={() => setOpen(null)}
           onConfirm={async () => {
             await publish.mutateAsync(undefined)
-            done(
-              `${t.name} is published. Technicians in ${unitName} can pick it after their next sync.`,
-            )
+            done()
           }}
         >
           <p className="mb-2">

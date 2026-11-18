@@ -7,13 +7,16 @@ import { buttonClasses } from '../../components/buttonClasses'
 import { ChoiceCard } from '../../components/ChoiceCard'
 import { Dialog } from '../../components/Dialog'
 import { SelectField } from '../../components/SelectField'
+import { TextAreaField } from '../../components/TextAreaField'
 import { TextField } from '../../components/TextField'
 import {
+  addableDataTypes,
   dataTypeLabels,
   fieldFormSchema,
   fieldToForm,
   formToField,
   labelTaken,
+  MAX_DESCRIPTION,
   type FieldFormValues,
 } from './fieldRules'
 
@@ -48,6 +51,15 @@ export function FieldDialog({
   const busy = add.isPending || update.isPending
   const set = <K extends keyof FieldFormValues>(key: K, value: FieldFormValues[K]) =>
     setValues((v) => ({ ...v, [key]: value }))
+
+  // A new field is Text, Number or Date. A field saved earlier as a Dropdown or Yes / No keeps
+  // that type (and a dropdown its choices) while it is edited, so nothing is lost.
+  const kept =
+    field && !addableDataTypes.some((t) => t === field.data_type) ? field.data_type : null
+  const typeOptions = [...addableDataTypes, ...(kept ? [kept] : [])].map((value) => ({
+    value,
+    label: dataTypeLabels[value],
+  }))
 
   const save = async () => {
     const parsed = fieldFormSchema.safeParse(values)
@@ -95,7 +107,7 @@ export function FieldDialog({
         />
         <SelectField
           label="Type of value"
-          options={Object.entries(dataTypeLabels).map(([value, label]) => ({ value, label }))}
+          options={typeOptions}
           value={values.data_type}
           onChange={(e) => set('data_type', e.target.value as DataType)}
         />
@@ -160,34 +172,24 @@ export function FieldDialog({
             onChange={() => set('is_required', false)}
           />
         </fieldset>
-        <ChoiceCard
-          type="checkbox"
-          title="Critical field"
-          description="Always flagged if the AI isn’t sure"
-          checked={values.is_critical}
-          onChange={(e) => set('is_critical', e.target.checked)}
+        <TextAreaField
+          label="Description (optional)"
+          placeholder="e.g. Purchase order number printed on the label"
+          rows={2}
+          maxLength={MAX_DESCRIPTION}
+          value={values.description}
+          onChange={(e) => set('description', e.target.value)}
+          error={errors.description}
         />
-        <div className="grid grid-cols-2 gap-3">
-          <TextField
-            label="Format check (optional)"
-            placeholder="e.g. UN + 4 digits"
-            value={values.format_rule}
-            onChange={(e) => set('format_rule', e.target.value)}
-          />
-          <TextField
-            label="Flag below confidence (%)"
-            type="number"
-            min={0}
-            max={100}
-            value={values.flag_percent}
-            onChange={(e) => set('flag_percent', Number(e.target.value))}
-            error={errors.flag_percent}
-          />
-        </div>
-        <p className="text-xs text-ink-subtle">
-          Saved straight away. The type isn't published yet, so technicians don't see it until you
-          publish.
-        </p>
+        <TextField
+          label="Flag below confidence (%)"
+          type="number"
+          min={0}
+          max={100}
+          value={values.flag_percent}
+          onChange={(e) => set('flag_percent', Number(e.target.value))}
+          error={errors.flag_percent}
+        />
         {errors.form && <Alert tone="danger">{errors.form}</Alert>}
       </div>
     </Dialog>

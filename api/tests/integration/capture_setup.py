@@ -15,6 +15,7 @@ if TYPE_CHECKING:
 from tests.integration.helpers import DANA, ERIN, TARA, TENANT_A
 
 JPEG = b"\xff\xd8\xff\xe0" + b"pixorex-test-photo" * 10
+SERIAL_DESCRIPTION = "The motor's serial number, printed after S/N."
 STORE = storage.StorageConfig(
     internal_url="http://minio:9000",
     public_url="http://localhost:9000",
@@ -103,14 +104,14 @@ def unit(api: "Api", owner_sql: Any) -> dict[str, str]:
     )
     owner_sql(
         "INSERT INTO field_definition (id, tenant_id, type_version_id, field_key, label,"
-        " data_type, is_required, sort_order) VALUES (%s, %s, %s, 'serial', 'Serial', 'text',"
-        " true, 1)",
-        (ids["fd"], TENANT_A, ids["tv"]),
+        " data_type, is_required, sort_order, description) VALUES (%s, %s, %s, 'serial',"
+        " 'Serial', 'text', true, 1, %s)",
+        (ids["fd"], TENANT_A, ids["tv"], SERIAL_DESCRIPTION),
     )
-    owner_sql(
+    owner_sql(  # its own threshold: flagged only below 50 %
         "INSERT INTO field_definition (id, tenant_id, type_version_id, field_key, label,"
-        " data_type, is_required, sort_order) VALUES (%s, %s, %s, 'voltage', 'Voltage', 'text',"
-        " false, 2)",
+        " data_type, is_required, sort_order, flag_below_confidence) VALUES (%s, %s, %s,"
+        " 'voltage', 'Voltage', 'text', false, 2, 0.5)",
         (ids["fd2"], TENANT_A, ids["tv"]),
     )
     owner_sql(  # published after its fields are added: fields lock on publish

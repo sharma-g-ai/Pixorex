@@ -57,7 +57,6 @@ Map<String, dynamic> scanJson({
           'label': 'Serial number',
           'data_type': 'text',
           'is_required': true,
-          'is_critical': true,
           'ai_value': 'SN-1O77',
           'confidence': 0.42,
           'flag_reasons': ['low_confidence'],

@@ -1,6 +1,6 @@
 import type {
+  Assignment,
   Batch,
-  QueueItem,
   RejectCategory,
   ReviewField,
   TechnicianDecision,
@@ -38,27 +38,6 @@ export function waitingStatus(since: string, now = new Date()): BadgeStatus {
 }
 
 /**
- * Longest waiting first: by when the scan entered the queue (its current revision's
- * submission, so a resubmitted scan counts from the resubmission), then by scan id so equal
- * times keep a fixed order. Items without a readable time go last instead of breaking the sort.
- * The API already returns this order; sorting here keeps it right whatever the data.
- */
-export function oldestWaitingFirst<T extends { waiting_since: string; scan_id: string }>(
-  items: readonly T[],
-): T[] {
-  return [...items].sort((a, b) => {
-    const ta = timeOf(a.waiting_since)
-    const tb = timeOf(b.waiting_since)
-    if (ta === null || tb === null) {
-      if (ta !== tb) return ta === null ? 1 : -1
-    } else if (ta !== tb) {
-      return ta - tb
-    }
-    return a.scan_id < b.scan_id ? -1 : a.scan_id > b.scan_id ? 1 : 0
-  })
-}
-
-/**
  * Where a technician's decision left the scan: their own decision, or the opposite when a BU
  * Admin overrode it (contract 3.7 only ever replaces approved with rejected or the other way).
  */
@@ -91,12 +70,15 @@ export function flagText(field: Pick<ReviewField, 'flag_reasons' | 'confidence'>
           ? 'Low confidence'
           : `Low confidence · ${Math.round(field.confidence * 100)}%`
       case 'format_failed':
-        return 'Format check failed'
+        // The value does not fit the field's type (a number, a date, ...). There is no
+        // format check feature any more, so the old wording would mislead.
+        return "Doesn't match the field type"
       case 'no_confidence':
         return 'No confidence score'
       case 'missing_required':
         return 'Missing · required'
       case 'critical_not_found':
+        // Only on scans made before "critical" was removed (18 Nov 2026).
         return 'Critical field · not found'
       default:
         return reason
@@ -160,6 +142,70 @@ export function batchStatus(batch: Batch, now = new Date()): BadgeStatus {
   return { label: 'In progress', tone: 'neutral' }
 }
 
+/** The four states a batch is told apart by in the list's Status filter. */
+export type BatchState = 'in_progress' | 'no_progress' | 'done' | 'taken_back'
+
+export const batchStateLabels: Record<BatchState, string> = {
+  in_progress: 'In progress',
+  no_progress: 'No progress',
+  done: 'Done',
+  taken_back: 'Taken back',
+}
+
+export function batchState(batch: Batch, now = new Date()): BatchState {
+  const label = batchStatus(batch, now).label
+  if (label === 'Taken back') return 'taken_back'
+  if (label === 'Done') return 'done'
+  return label.startsWith('No progress') ? 'no_progress' : 'in_progress'
+}
+
+/** Where one scan of a batch stands, for the batch page: a status and a line under it. */
+export interface AssignmentStatus {
+  key: 'delegated' | 'approved' | 'rejected' | 'removed'
+  label: string
+  tone: BadgeStatus['tone']
+  /** Reject reason, "Changed by you", or why it left the batch. */
+  detail: string | null
+}
+
+const removedLabels: Record<string, string> = {
+  taken_back: 'Taken back',
+  reassigned: 'Reassigned',
+  user_removed: 'Removed',
+}
+
+/**
+ * Delegated: still with the technician. Approved or rejected: the current decision, with the
+ * reason, or who changed the technician's decision. Removed: it left the batch undecided.
+ */
+export function assignmentStatus(
+  a: Pick<Assignment, 'status' | 'removed_reason' | 'outcome'>,
+  viewerName: string,
+): AssignmentStatus {
+  if (a.outcome) {
+    const approved = a.outcome.decision === 'approved'
+    const category = a.outcome.reject_category
+      ? rejectCategoryLabels[a.outcome.reject_category as RejectCategory]
+      : null
+    const changedBy = a.outcome.decided_by_name === viewerName ? 'you' : a.outcome.decided_by_name
+    return {
+      key: approved ? 'approved' : 'rejected',
+      label: approved ? 'Approved' : 'Rejected',
+      tone: approved ? 'success' : 'danger',
+      detail: a.outcome.overridden ? `Changed by ${changedBy}` : category,
+    }
+  }
+  if (a.status === 'removed') {
+    return {
+      key: 'removed',
+      label: removedLabels[a.removed_reason ?? ''] ?? 'Removed',
+      tone: 'neutral',
+      detail: null,
+    }
+  }
+  return { key: 'delegated', label: 'Delegated', tone: 'neutral', detail: null }
+}
+
 /** What the technician decided: "Approved by T. Nguyen", "Rejected by A. Patel · Image unclear", plus "· changed by you". */
 export function decidedByText(d: TechnicianDecision): string {
   const category = d.reject_category
@@ -172,25 +218,4 @@ export function decidedByText(d: TechnicianDecision): string {
         ? `Rejected by ${d.decided_by_name} · ${category}`
         : `Rejected by ${d.decided_by_name}`
   return d.overridden ? `${said} · changed by you` : said
-}
-
-/** A bin (the place a scan was captured at) and the waiting scans nobody has been given. */
-export interface Bin {
-  path: string
-  scanIds: string[]
-}
-
-/** Group the unassigned waiting scans by where they were captured, longest-waiting scans first. */
-export function binsOf(items: readonly QueueItem[]): Bin[] {
-  const byPath = new Map<string, QueueItem[]>()
-  for (const item of items) {
-    if (item.batch_no) continue // already with a technician
-    byPath.set(item.location_path, [...(byPath.get(item.location_path) ?? []), item])
-  }
-  return [...byPath.entries()]
-    .map(([path, scans]) => ({
-      path,
-      scanIds: oldestWaitingFirst(scans).map((s) => s.scan_id),
-    }))
-    .sort((a, b) => a.path.localeCompare(b.path))
 }

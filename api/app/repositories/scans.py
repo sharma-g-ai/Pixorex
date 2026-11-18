@@ -6,6 +6,7 @@ from typing import Any
 from uuid import UUID
 
 from app.core.db import Conn
+from app.core.timezone import MONTH_DATE, from_day, to_day
 
 EXTRACTION_EVENT = "extraction.run"  # the worker calls the AI proxy for one attempt
 PATH_SEPARATOR = " \u203a "  # names joined as on the screens: Plant 07 > Building A > Bin 14
@@ -168,7 +169,7 @@ async def count_quota(conn: Conn, tenant_id: UUID, bu_id: UUID) -> None:
     capture never reaches this, so it never counts twice."""
     await conn.execute(
         "INSERT INTO quota_usage (tenant_id, bu_id, period_month, scans_used)"
-        " VALUES (%s, %s, date_trunc('month', now())::date, 1)"
+        f" VALUES (%s, %s, {MONTH_DATE}, 1)"
         " ON CONFLICT (bu_id, period_month)"
         " DO UPDATE SET scans_used = quota_usage.scans_used + 1, updated_at = now()",
         (tenant_id, bu_id),
@@ -235,7 +236,7 @@ async def start_attempt(
 async def ai_fields(conn: Conn, contract_id: UUID, attempt_id: UUID) -> list[dict[str, Any]]:
     """Every field of the contract's type version, in order, with this attempt's AI answer."""
     cur = await conn.execute(
-        "SELECT fd.field_key, fd.label, fd.data_type, fd.is_required, fd.is_critical,"
+        "SELECT fd.field_key, fd.label, fd.data_type, fd.is_required, fd.description,"
         " av.id AS ai_field_value_id, av.value AS ai_value, av.confidence::float AS confidence,"
         " coalesce(av.flag_reasons, '{}') AS flag_reasons FROM extraction_contract c"
         " JOIN field_definition fd ON fd.type_version_id = c.type_version_id"
@@ -405,8 +406,8 @@ async def my_scans(
         ("bu_id", "s.bu_id = %s"),
         ("review_status", "s.review_status = %s"),
         ("equipment_type_id", "s.equipment_type_id = %s"),
-        ("from", "s.captured_at >= %s::date"),
-        ("to", "s.captured_at < %s::date + 1"),
+        ("from", from_day("s.captured_at")),
+        ("to", to_day("s.captured_at")),
     ):
         if filters.get(key):
             where.append(sql)
@@ -543,7 +544,7 @@ async def attempt_to_run(conn: Conn, attempt_id: UUID) -> dict[str, Any] | None:
 async def contract_fields(conn: Conn, contract_id: UUID) -> list[dict[str, Any]]:
     cur = await conn.execute(
         "SELECT fd.id, fd.field_key, fd.label, fd.data_type, fd.options, fd.is_required,"
-        " fd.is_critical, fd.format_rule, fd.flag_below_confidence::float AS flag_below"
+        " fd.description, fd.flag_below_confidence::float AS flag_below"
         " FROM extraction_contract c JOIN field_definition fd"
         " ON fd.type_version_id = c.type_version_id WHERE c.id = %s ORDER BY fd.sort_order",
         (contract_id,),

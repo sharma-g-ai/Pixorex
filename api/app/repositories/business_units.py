@@ -4,6 +4,7 @@ from typing import Any
 from uuid import UUID
 
 from app.core.db import Conn
+from app.core.timezone import MONTH_START
 from app.repositories.rows import returned_id
 
 _UNIT = (
@@ -18,7 +19,7 @@ _UNIT = (
     " (SELECT count(*) FROM user_unit_role t WHERE t.bu_id = bu.id"
     "   AND t.role = 'field_technician' AND t.removed_at IS NULL) AS technician_count,"
     " (SELECT count(*) FROM scan s WHERE s.bu_id = bu.id"
-    "   AND s.created_at >= date_trunc('month', now())) AS scans_this_month,"
+    f"   AND s.created_at >= {MONTH_START}) AS scans_this_month,"
     # Vacant: since the last BU Admin left, or since the unit was created (canvas EA 28).
     " CASE WHEN bu.bu_admin_user_id IS NULL"
     "   THEN coalesce(prev.removed_at, bu.created_at) END AS vacant_since,"

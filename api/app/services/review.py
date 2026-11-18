@@ -1,6 +1,6 @@
 """Review queue, scan review, decisions and override (contracts 3.3-3.7, PRD FR-5.3-5.5)."""
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any, Literal
 from uuid import UUID
 
@@ -15,6 +15,7 @@ from app.core.storage import StorageConfig
 from app.repositories import audit, notifications
 from app.repositories import review as repo
 
+QueueStatus = Literal["waiting", "approved", "rejected"]
 QueueFilter = Literal[
     "waiting", "over_1d", "over_1w", "delegated", "decided_by_technicians", "approved_this_week"
 ]
@@ -41,11 +42,17 @@ class QueueItem(BaseModel):
     corrected_count: int
     unreadable_count: int
     waiting_since: datetime
+    batch_id: UUID | None  # the open batch this scan is with, if delegated
     batch_no: str | None
     assigned_to_name: str | None
     revision_no: int
     resubmitted: bool  # fixed by the technician after a rejection
     approved_by_name: str | None  # who approved it; set only once approved
+    # waiting: no decision yet (also while a technician has it); approved; rejected: sent back
+    # and not resubmitted yet. "closed" only on the deprecated tab queues.
+    status: Literal["waiting", "approved", "rejected", "closed"]
+    date: datetime  # waiting since, or when it was decided: what the Date column shows
+    decided_by_name: str | None  # who approved or rejected it
 
 
 class ReviewQueue(BaseModel):
@@ -126,6 +133,8 @@ class TechnicianDecision(BaseModel):
     reject_category: str | None
     decided_at: datetime
     overridden: bool
+    batch_id: UUID | None  # the batch the technician decided it in
+    batch_no: str | None
 
 
 class TechnicianDecisionPage(BaseModel):
@@ -162,20 +171,70 @@ def _check_input(body: DecisionInput) -> str | None:
 # ---- 3.3 / 3.6 queue and lists ------------------------------------------------------------
 
 
+def _check_dates(date_from: date | None, date_to: date | None) -> None:
+    if date_from and date_to and date_from > date_to:
+        raise ProblemError(400, "validation", "The From date is after the To date.")
+
+
+def _next_cursor(row: dict[str, Any], key: str, *, held_last: bool) -> str:
+    when = row[key].isoformat()
+    if held_last:
+        return encode_cursor(str(bool(row["held"])).lower(), when, row["scan_id"])
+    return encode_cursor(when, row["scan_id"])
+
+
 async def queue(
-    session: Session, bu_id: UUID, *, filter_: QueueFilter, cursor: str | None, limit: int
+    session: Session,
+    bu_id: UUID,
+    *,
+    filter_: QueueFilter | None = None,
+    statuses: list[QueueStatus] | None = None,
+    type_ids: list[UUID] | None = None,
+    captured_by: list[UUID] | None = None,
+    date_from: date | None = None,
+    date_to: date | None = None,
+    decided_from: date | None = None,
+    search: str | None = None,
+    newest_first: bool | None = None,
+    cursor: str | None,
+    limit: int,
 ) -> ReviewQueue:
+    """Contract 3.3. With the deprecated [filter_] the old tab queues; otherwise the header
+    filters (statuses default to waiting; days are Indian time)."""
     require_unit_admin(session, bu_id)
-    rows = await repo.queue_items(
-        session.conn, bu_id=bu_id, filter_=filter_, after=decode_cursor(cursor, 2), limit=limit
-    )
+    _check_dates(date_from, date_to)
+    if filter_ is not None:
+        rows = await repo.queue_items(
+            session.conn, bu_id=bu_id, filter_=filter_, after=decode_cursor(cursor, 2), limit=limit
+        )
+        key = "waiting_since"
+    else:
+        rows = await repo.queue_page(
+            session.conn,
+            bu_id=bu_id,
+            statuses=list(statuses or ["waiting"]),
+            type_ids=type_ids,
+            captured_by=captured_by,
+            date_from=date_from,
+            date_to=date_to,
+            decided_from=decided_from,
+            search=search,
+            newest_first=newest_first,
+            after=decode_cursor(cursor, 3 if newest_first is None else 2),
+            limit=limit,
+        )
+        key = "date"
     more = len(rows) > limit
     rows = rows[:limit]
     return ReviewQueue(
         counts=QueueCounts(**await repo.queue_counts(session.conn, bu_id)),
-        items=[QueueItem(**r) for r in rows],
+        items=[
+            QueueItem(**{k: v for k, v in r.items() if k in QueueItem.model_fields}) for r in rows
+        ],
         page=PageInfo(
-            next_cursor=encode_cursor(rows[-1]["waiting_since"].isoformat(), rows[-1]["scan_id"])
+            next_cursor=_next_cursor(
+                rows[-1], key, held_last=filter_ is None and newest_first is None
+            )
             if more
             else None
         ),
@@ -183,11 +242,29 @@ async def queue(
 
 
 async def technician_decisions(
-    session: Session, bu_id: UUID, *, decision: str | None, cursor: str | None, limit: int
+    session: Session,
+    bu_id: UUID,
+    *,
+    decision: str | None,
+    decided_by: list[UUID] | None = None,
+    date_from: date | None = None,
+    date_to: date | None = None,
+    newest_first: bool = True,
+    cursor: str | None,
+    limit: int,
 ) -> TechnicianDecisionPage:
     session.caller.require_bu_admin_of(bu_id)
+    _check_dates(date_from, date_to)
     rows = await repo.technician_decisions(
-        session.conn, bu_id=bu_id, decision=decision, after=decode_cursor(cursor, 2), limit=limit
+        session.conn,
+        bu_id=bu_id,
+        decision=decision,
+        decided_by=decided_by,
+        date_from=date_from,
+        date_to=date_to,
+        newest_first=newest_first,
+        after=decode_cursor(cursor, 2),
+        limit=limit,
     )
     more = len(rows) > limit
     rows = rows[:limit]

@@ -174,3 +174,11 @@ describe('accept sends no token in a URL', () => {
     expect(window.location.href).not.toContain('t9')
   })
 })
+
+describe('Activate your account: no repeated text', () => {
+  it('GIVEN a valid invite THEN the greyed-out email has no explanation under it', () => {
+    openLink('/activate#token=t1')
+    expect(screen.getByLabelText('Work email')).toBeDisabled()
+    expect(screen.queryByText(/can't be changed/)).toBeNull()
+  })
+})

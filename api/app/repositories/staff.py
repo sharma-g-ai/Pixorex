@@ -4,6 +4,7 @@ from typing import Any
 from uuid import UUID
 
 from app.core.db import Conn
+from app.core.timezone import MONTH_START
 
 
 async def technicians_page(
@@ -18,7 +19,7 @@ async def technicians_page(
         "   WHERE o.user_id = u.id AND o.role = 'field_technician' AND o.removed_at IS NULL"
         " ) AS units,"
         " (SELECT count(*) FROM scan s WHERE s.technician_id = u.id AND s.bu_id = %(bu)s"
-        "    AND s.created_at >= date_trunc('month', now())) AS scans_this_month,"
+        f"    AND s.created_at >= {MONTH_START}) AS scans_this_month,"
         " (SELECT rb.batch_no FROM review_batch rb WHERE rb.assigned_to = u.id"
         "    AND rb.bu_id = %(bu)s AND rb.status = 'active'"
         "   ORDER BY rb.created_at DESC LIMIT 1) AS active_batch_no"

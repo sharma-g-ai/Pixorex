@@ -5,7 +5,7 @@ import type { Invite } from '../../api/invites'
 import type { Me } from '../../api/me'
 import type { Batch, QueueCounts } from '../../api/review'
 import { DashboardContext } from '../../app/DashboardContext'
-import { dateTime } from '../../lib/time'
+import { dateTime, istMonday } from '../../lib/time'
 import { BuHomePage } from './BuHomePage'
 import { buNeedsYou, calmSummary, greeting } from './homeRules'
 
@@ -13,7 +13,7 @@ let counts: QueueCounts
 let batches: Batch[] = []
 let invites: Invite[] = []
 vi.mock('../../api/review', () => ({
-  useReviewQueue: () => ({ data: { counts, items: [] }, isPending: false }),
+  useQueueCounts: () => ({ data: counts, isPending: false }),
   useBatches: () => ({ data: batches }),
   useTechnicianDecisions: () => ({ data: decisions, isPending: false }),
 }))
@@ -96,8 +96,17 @@ const page = () =>
 
 describe('home rules', () => {
   it('greets by first name and time of day', () => {
-    expect(greeting('Robert Kowalski', new Date(2026, 9, 5, 9))).toBe('Good morning, Robert')
-    expect(greeting('Robert Kowalski', new Date(2026, 9, 5, 15))).toBe('Good afternoon, Robert')
+    // By the hour in India: 03:30 UTC is 09:00 IST, 09:30 UTC is 15:00 IST.
+    expect(greeting('Robert Kowalski', new Date('2026-10-05T03:30:00Z'))).toBe(
+      'Good morning, Robert',
+    )
+    expect(greeting('Robert Kowalski', new Date('2026-10-05T09:30:00Z'))).toBe(
+      'Good afternoon, Robert',
+    )
+    // 20:00 UTC is already the next morning (01:30) in India.
+    expect(greeting('Robert Kowalski', new Date('2026-10-05T20:00:00Z'))).toBe(
+      'Good morning, Robert',
+    )
   })
 
   it('lists only what needs attention', () => {
@@ -120,9 +129,11 @@ describe('BU Home (canvas BU 03)', () => {
       'href',
       '/review-queue',
     )
+    // The Approved tab is gone: the tile opens the queue filtered to Approved, from this
+    // week's Monday (Indian time).
     expect(screen.getByRole('link', { name: /112\s*approved this week/ })).toHaveAttribute(
       'href',
-      '/review-queue?tab=approved',
+      `/review-queue?status=approved&decided=${istMonday(now)}`,
     )
     const batch = within(screen.getByRole('region', { name: 'Batch with no progress' }))
     expect(batch.getByText('B-14 · T. Nguyen · 0 of 30')).toBeInTheDocument()

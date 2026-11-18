@@ -23,6 +23,7 @@ from app.auth.context import Session
 from app.core.db import Conn
 from app.core.problems import ProblemError
 from app.core.storage import StorageConfig
+from app.core.timezone import as_ist
 from app.repositories import audit
 from app.repositories import exports as repo
 from app.services.dlp import Masker
@@ -78,7 +79,12 @@ def _cell(value: Any) -> str:
     """Spreadsheet-safe text: a leading = + - @ (or tab/CR) would run as a formula."""
     if value is None:
         return ""
-    text = value.isoformat() if isinstance(value, datetime | date) else str(value)
+    if isinstance(value, datetime):
+        text = as_ist(value).isoformat(timespec="seconds")
+    elif isinstance(value, date):
+        text = value.isoformat()
+    else:
+        text = str(value)
     return "'" + text if text[:1] in ("=", "+", "-", "@", "\t", "\r") else text
 
 

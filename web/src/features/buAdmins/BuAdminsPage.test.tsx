@@ -142,11 +142,54 @@ describe('BuAdminsPage', () => {
     fireEvent.change(dialog().getByLabelText('Email'), { target: { value: 'p.rao@ppg.com' } })
     fireEvent.click(dialog().getByRole('button', { name: 'Remove from Plant 04' }))
 
-    expect(await screen.findByText('R. Kowalski was removed from Plant 04.')).toBeInTheDocument()
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    // No banner: the table already shows the change.
+    expect(screen.queryByText(/was removed from/)).toBeNull()
     expect(removeAdmin).toHaveBeenCalledWith({
       userId: 'rk',
       buIds: ['p04'],
       replacementEmail: 'p.rao@ppg.com',
     })
+  })
+})
+
+describe('BuAdminsPage: no repeated text', () => {
+  it('GIVEN the page THEN the first card has no heading repeating the page title, and there are no side notes', () => {
+    expect(screen.getByRole('heading', { level: 1, name: 'BU Admins' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { level: 2, name: 'BU Admins' })).toBeNull()
+    expect(screen.queryByText(/Each unit has exactly one BU Admin/)).toBeNull()
+    expect(screen.queryByText(/Magic links are valid 24 hours/)).toBeNull()
+    expect(screen.queryByText(/Technicians are invited and managed/)).toBeNull()
+    expect(screen.getByRole('heading', { name: 'Pending invites' })).toBeInTheDocument()
+  })
+
+  it('GIVEN the invite popup THEN its note is one short line', () => {
+    fireEvent.click(screen.getByRole('button', { name: '+ Invite BU Admin' }))
+    expect(dialog().getByText('The invite link is valid for 24 hours.')).toBeInTheDocument()
+    expect(dialog().queryByText(/magic link/i)).toBeNull()
+  })
+
+  it('GIVEN Edit units THEN there is no note about the sidebar and the audit log', () => {
+    fireEvent.click(screen.getByRole('button', { name: 'Edit units of R. Kowalski' }))
+    expect(dialog().queryByText(/dashboard sidebar/)).toBeNull()
+    expect(dialog().queryByText(/audit log/)).toBeNull()
+  })
+
+  it('GIVEN Remove THEN the first line just says which units to choose', () => {
+    fireEvent.click(screen.getByRole('button', { name: 'Remove R. Kowalski' }))
+    expect(
+      dialog().getByText('Choose the units to remove r.kowalski@ppg.com from.'),
+    ).toBeInTheDocument()
+    expect(dialog().queryByText(/Tick all to remove/)).toBeNull()
+  })
+
+  it('GIVEN Edit units is saved THEN no banner says so (the table shows it)', async () => {
+    setUnits.mockResolvedValue({})
+    fireEvent.click(screen.getByRole('button', { name: 'Edit units of R. Kowalski' }))
+    fireEvent.click(dialog().getByRole('checkbox', { name: /Plant 11/ }))
+    fireEvent.click(dialog().getByRole('button', { name: 'Save changes' }))
+    await waitFor(() => expect(setUnits).toHaveBeenCalled())
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(screen.queryByText(/were updated/)).toBeNull()
   })
 })

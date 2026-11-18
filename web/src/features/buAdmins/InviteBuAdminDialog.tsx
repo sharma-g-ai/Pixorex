@@ -94,11 +94,7 @@ export function InviteBuAdminDialog({
             />
           )}
         />
-        <Alert tone="info">
-          They get a magic link by email, valid 24 hours, to confirm their name and verify their
-          email with a code — no password. Until they accept, they show under <b>Pending invites</b>
-          .
-        </Alert>
+        <Alert tone="info">The invite link is valid for 24 hours.</Alert>
         {formError && <Alert tone="danger">{formError}</Alert>}
       </form>
     </Dialog>

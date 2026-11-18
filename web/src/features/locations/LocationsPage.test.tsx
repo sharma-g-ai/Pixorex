@@ -463,3 +463,12 @@ describe('Review & publish', () => {
     expect(calls.publish).toHaveBeenCalled()
   })
 })
+
+describe('Move popup', () => {
+  it('GIVEN Move THEN the note only says locations move to the same level', () => {
+    renderPage()
+    pick('Bin 01', 'Move')
+    expect(dialog().getByText('Locations move only to the same level.')).toBeInTheDocument()
+    expect(dialog().queryByText(/until the unit is published/)).toBeNull()
+  })
+})

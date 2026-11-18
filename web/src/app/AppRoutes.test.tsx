@@ -13,7 +13,8 @@ vi.mock('../api/me', () => ({
   useSwitchUnit: () => ({ mutate, isPending: false }),
 }))
 vi.mock('../api/review', () => ({
-  useReviewQueue: () => ({ data: undefined, isPending: true }),
+  useQueueCounts: () => ({ data: undefined, isPending: true }),
+  useReviewQueue: () => ({ items: [], isPending: true, hasNextPage: false }),
   useBatches: () => ({ data: [] }),
   useTechnicianDecisions: () => ({ data: [], isPending: false }),
 }))

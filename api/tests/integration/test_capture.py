@@ -214,6 +214,7 @@ def test_scan_detail_and_who_may_see_it(
             "label": "Serial",
             "data_type": "text",
             "is_required": True,
+            "description": "The motor's serial number, printed after S/N.",
             "is_critical": False,
             "ai_value": "SN-77",
             "confidence": 0.42,

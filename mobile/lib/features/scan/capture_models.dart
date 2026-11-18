@@ -11,14 +11,17 @@ class TypeField {
     required this.label,
     required this.dataType,
     required this.isRequired,
-    required this.isCritical,
+    this.description,
     this.options,
   });
   final String fieldKey;
   final String label;
   final String dataType;
   final bool isRequired;
-  final bool isCritical;
+
+  /// What the field is and where it usually appears on the label; may be absent.
+  /// ("critical" was removed on 18 Nov 2026: the API may still send it, it is ignored.)
+  final String? description;
   final List<String>? options;
 
   factory TypeField.fromJson(Map<String, dynamic> j) => TypeField(
@@ -26,7 +29,7 @@ class TypeField {
         label: j['label'] as String,
         dataType: j['data_type'] as String,
         isRequired: j['is_required'] as bool,
-        isCritical: j['is_critical'] as bool,
+        description: j['description'] as String?,
         options: (j['options'] as List?)?.map((e) => e.toString()).toList(),
       );
 }

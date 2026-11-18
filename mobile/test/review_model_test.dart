@@ -3,13 +3,12 @@ import 'package:pixorex_mobile/features/scan/review_model.dart';
 import 'package:pixorex_mobile/features/scan/scan_models.dart';
 
 AiField field(String key, String? value,
-        {List<String> flags = const [], double? confidence, bool required = false, bool critical = false}) =>
+        {List<String> flags = const [], double? confidence, bool required = false}) =>
     AiField(
       fieldKey: key,
       label: key,
       dataType: 'text',
       isRequired: required,
-      isCritical: critical,
       aiValue: value,
       confidence: confidence,
       flagReasons: flags,
@@ -31,7 +30,7 @@ Scan valveScan() => Scan(
         field('voltage', '4I5 V', flags: ['format_failed']),
         field('serial', '98274-A3', flags: ['no_confidence']),
         field('barcode', null, flags: ['missing_required'], required: true),
-        field('primary_id', null, flags: ['critical_not_found'], required: true, critical: true),
+        field('primary_id', null, flags: ['critical_not_found'], required: true),
         field('manufacturer', 'Grundfos', confidence: 0.97),
         field('flow', '32 m³/h · 41 m', confidence: 0.91),
       ],
@@ -53,14 +52,16 @@ Scan scanOf(List<AiField> fields) => Scan(
 List<String> keys(List<AiField> fields) => [for (final f in fields) f.fieldKey];
 
 void main() {
-  group('display order: filled fields first, empty ones last', () {
-    test('GIVEN some fields empty THEN filled ones come first, nothing is dropped', () {
+  group('display order: red fields that need an answer first, then filled, then empty', () {
+    test('GIVEN red, amber, filled and empty fields THEN red ones needing an answer come first (also empty ones), nothing is dropped', () {
       final d = ReviewDraft(valveScan());
-      expect(keys(d.ordered), ['model', 'voltage', 'serial', 'manufacturer', 'flow', 'barcode', 'primary_id']);
+      // Red: model, voltage, and the two required fields that are empty. Then the amber one
+      // (serial, no score) with the fine ones, in the type's order.
+      expect(keys(d.ordered), ['model', 'voltage', 'barcode', 'primary_id', 'serial', 'manufacturer', 'flow']);
       expect(d.ordered, hasLength(valveScan().fields.length));
     });
 
-    test('GIVEN all fields filled THEN the order is the usual one (flagged first)', () {
+    test('GIVEN all fields filled THEN a red one comes first, then the usual order', () {
       final d = ReviewDraft(scanOf([
         field('a', 'x'),
         field('b', 'y', flags: ['low_confidence'], confidence: 0.3),
@@ -78,18 +79,29 @@ void main() {
       expect(keys(d.ordered), ['b', 'a', 'c']);
     });
 
-    test('GIVEN an empty field WHEN corrected THEN it moves up among the filled ones', () {
+    test('GIVEN fields the AI left empty but that are not red THEN they follow the filled ones, in the type order', () {
+      final d = ReviewDraft(scanOf([
+        field('a', null),
+        field('b', 'x'),
+        field('c', null),
+        field('d', 'y', flags: ['no_confidence']), // amber: not at the top
+        field('e', 'z', flags: ['low_confidence'], confidence: 0.2), // red: top
+      ]));
+      expect(keys(d.ordered), ['e', 'b', 'd', 'a', 'c']);
+    });
+
+    test('GIVEN a red field WHEN corrected THEN it leaves the top and joins the filled ones', () {
       final d = ReviewDraft(valveScan());
       final barcode = d.scan.fields.firstWhere((f) => f.fieldKey == 'barcode');
       d.answer(barcode, const FieldAnswer.corrected('4006381333931'));
-      expect(keys(d.ordered), ['model', 'voltage', 'serial', 'barcode', 'manufacturer', 'flow', 'primary_id']);
+      expect(keys(d.ordered), ['model', 'voltage', 'primary_id', 'serial', 'barcode', 'manufacturer', 'flow']);
     });
 
-    test('GIVEN a filled field WHEN marked unreadable THEN it joins the empty ones (it will be sent empty)', () {
+    test('GIVEN a filled field WHEN marked unreadable THEN it leaves the top and joins the empty ones (it will be sent empty)', () {
       final d = ReviewDraft(valveScan());
       final model = d.scan.fields.first;
       d.answer(model, const FieldAnswer.unreadable(UnreadableReason.labelWorn));
-      expect(keys(d.ordered), ['voltage', 'serial', 'manufacturer', 'flow', 'model', 'barcode', 'primary_id']);
+      expect(keys(d.ordered), ['voltage', 'barcode', 'primary_id', 'serial', 'manufacturer', 'flow', 'model']);
     });
   });
 
@@ -97,7 +109,7 @@ void main() {
     final f = valveScan().fields;
     expect(flagText(f[0]), 'Low confidence · 42%');
     expect(flagLevel(f[0]), FlagLevel.likelyWrong);
-    expect(flagText(f[1]), 'Format check failed');
+    expect(flagText(f[1]), "Doesn't match the field type");
     expect(flagText(f[2]), 'No confidence score from the reader');
     expect(flagLevel(f[2]), FlagLevel.checkThis);
     expect(flagText(f[3]), 'Missing · required for this type');

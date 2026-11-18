@@ -14,6 +14,7 @@ export type IconName =
   | 'chevron-down'
   | 'check'
   | 'bell'
+  | 'filter'
   | 'sign-out'
 
 const paths: Record<IconName, ReactNode> = {
@@ -75,6 +76,7 @@ const paths: Record<IconName, ReactNode> = {
   ),
   'chevron-down': <polyline points="6 9 12 15 18 9" />,
   check: <polyline points="20 6 9 17 4 12" />,
+  filter: <path d="M3 4h18l-7 8.5V19l-4 2v-8.5z" />,
   'sign-out': (
     <>
       <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" />

@@ -583,8 +583,8 @@ export interface components {
             /** @description 2 or more for dropdown */
             options?: string[];
             is_required: boolean;
-            is_critical: boolean;
-            format_rule?: string | null;
+            /** @description What the field is and where it usually appears on the label. Sent to the AI with every scan. Blank means none. Replaces format_rule (change request 18 Nov 2026). */
+            description?: string | null;
             is_unique_in_unit?: boolean;
             /** @description 0 to 1, default 0.85 */
             flag_below_confidence?: number;
@@ -596,6 +596,11 @@ export interface components {
             sort_order: number;
             /** @enum {string} */
             origin: "manual" | "ai_suggested";
+            /**
+             * @deprecated
+             * @description Always false. "Critical" was removed on 18 Nov 2026; still returned so app builds from before then keep working. Remove once every phone runs the new app.
+             */
+            is_critical?: boolean;
         };
         EquipmentType: {
             type_id: components["schemas"]["Uuid"];
@@ -616,6 +621,8 @@ export interface components {
         SuggestedField: {
             label: string;
             data_type: components["schemas"]["DataType"];
+            /** @description Written by the AI from the photo, in general words (never the value read from the photo). The admin can change it before creating the type. */
+            description?: string | null;
         };
         /**
          * @description Server states. queued_on_phone exists only on the phone.
@@ -648,10 +655,17 @@ export interface components {
             label: string;
             data_type: components["schemas"]["DataType"];
             is_required: boolean;
-            is_critical: boolean;
+            /** @description What the field is, as the BU Admin wrote it. Null when none. */
+            description?: string | null;
+            /**
+             * @deprecated
+             * @description Always false (removed 18 Nov 2026). Older app builds still read it.
+             */
+            is_critical?: boolean;
             ai_value: string | null;
             /** @description Null = no score */
             confidence: number | null;
+            /** @description low_confidence is confidence below the field's own flag_below_confidence (equal is not flagged). format_failed means the value does not fit the field's type. critical_not_found only appears on scans made before 18 Nov 2026. */
             flag_reasons: ("low_confidence" | "format_failed" | "no_confidence" | "missing_required" | "critical_not_found")[];
             /** @description Only while the scan is rejected - what the technician sent for this field in the rejected revision (Was, screen T 69). Null otherwise. */
             submitted?: components["schemas"]["SubmittedField"] | null;
@@ -1431,8 +1445,8 @@ export interface operations {
                     /** @description 2 or more for dropdown */
                     options?: string[];
                     is_required?: boolean;
-                    is_critical?: boolean;
-                    format_rule?: string | null;
+                    /** @description What the field is and where it usually appears on the label. Sent to the AI with every scan. Blank means none. */
+                    description?: string | null;
                     is_unique_in_unit?: boolean;
                     /** @description 0 to 1, default 0.85 */
                     flag_below_confidence?: number;

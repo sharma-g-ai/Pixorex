@@ -1,7 +1,7 @@
 """Delegation console (contracts 3.8-3.14, PRD FR-5.6, FR-5.7)."""
 
-from datetime import datetime
-from typing import Literal
+from datetime import date, datetime
+from typing import Any, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -91,6 +91,16 @@ class BatchDecision(BaseModel):
     override: DecisionOverride | None
 
 
+class Outcome(BaseModel):
+    """Where the scan stands now (its current decision): what the batch page shows an admin."""
+
+    decision: Literal["approved", "rejected"]
+    reject_category: RejectCategory | None
+    decided_by_name: str
+    decided_at: datetime
+    overridden: bool  # a BU Admin or EA replaced the technician's decision
+
+
 class Assignment(BaseModel):
     scan_id: UUID
     record_no: str
@@ -103,9 +113,12 @@ class Assignment(BaseModel):
     submitted_at: datetime
     thumbnail_url: str | None  # signed, 15 minutes; only after the access check
     my_decision: BatchDecision | None  # only for the assigned technician
+    outcome: Outcome | None = None  # only for the unit's admins; null while undecided
 
 
-def _assignment(row: dict, storage: StorageConfig | None) -> Assignment:  # type: ignore[type-arg]
+def _assignment(
+    row: dict[str, Any], storage: StorageConfig | None, *, admin: bool = False
+) -> Assignment:
     mine = None
     if row["my_decision"] is not None:
         override = None
@@ -139,6 +152,15 @@ def _assignment(row: dict, storage: StorageConfig | None) -> Assignment:  # type
         if storage is not None and row["photo_key"]
         else None,
         my_decision=mine,
+        outcome=Outcome(
+            decision=row["dec_decision"],
+            reject_category=row["dec_category"],
+            decided_by_name=row["dec_by"],
+            decided_at=row["dec_at"],
+            overridden=bool(row["dec_overridden"]),
+        )
+        if admin and row["dec_decision"] is not None
+        else None,
     )
 
 
@@ -241,12 +263,11 @@ async def create_batch(session: Session, bu_id: UUID, body: NewBatch) -> Created
     assigned = [s for s in wanted if s not in excluded]
     if not assigned:
         raise ProblemError(400, "validation", "Every scan was captured by that technician.")
-    batch_no = await repo.next_batch_no(conn, caller.tenant_id)
-    batch_id = await repo.create_batch(
+    batch_id, batch_no = await repo.create_batch(
         conn,
         tenant_id=caller.tenant_id,
         bu_id=bu_id,
-        batch_no=batch_no,
+        batch_no=await repo.next_batch_no(conn, caller.tenant_id),
         assigned_to=body.assigned_to,
         created_by=caller.user_id,
     )
@@ -287,11 +308,30 @@ async def create_batch(session: Session, bu_id: UUID, body: NewBatch) -> Created
 
 
 async def list_batches(
-    session: Session, bu_id: UUID, *, status: str | None, cursor: str | None, limit: int
+    session: Session,
+    bu_id: UUID,
+    *,
+    status: str | None,
+    assigned_to: list[UUID] | None = None,
+    date_from: date | None = None,
+    date_to: date | None = None,
+    newest_first: bool = True,
+    cursor: str | None,
+    limit: int,
 ) -> BatchPage:
     require_unit_admin(session, bu_id)
+    if date_from and date_to and date_from > date_to:
+        raise ProblemError(400, "validation", "The From date is after the To date.")
     rows = await repo.batches(
-        session.conn, bu_id=bu_id, status=status, after=decode_cursor(cursor, 2), limit=limit
+        session.conn,
+        bu_id=bu_id,
+        status=status,
+        assigned_to_any=assigned_to,
+        date_from=date_from,
+        date_to=date_to,
+        newest_first=newest_first,
+        after=decode_cursor(cursor, 2),
+        limit=limit,
     )
     more = len(rows) > limit
     rows = rows[:limit]
@@ -345,7 +385,10 @@ async def get_batch(
     rows = await repo.assignments(
         session.conn, batch_id, technician=caller.user_id if technician else None
     )
-    return BatchDetail(batch=Batch(**row), assignments=[_assignment(a, storage) for a in rows])
+    return BatchDetail(
+        batch=Batch(**row),
+        assignments=[_assignment(a, storage, admin=not technician) for a in rows],
+    )
 
 
 async def _active(session: Session, batch_id: UUID) -> dict:  # type: ignore[type-arg]

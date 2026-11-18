@@ -300,7 +300,7 @@ void main() {
       expect(find.text('4I5 V'), findsOneWidget); // AI read, struck through
       expect(find.text('415 V'), findsOneWidget); // Technician
       expect(find.text('Technician'), findsOneWidget); // only on the corrected field
-      expect(find.text('Flagged: format check failed'), findsOneWidget);
+      expect(find.text("Flagged: doesn't match the field type"), findsOneWidget);
       expect(find.text('Flagged: missing · marked unreadable by Tara Tech (label worn)'), findsOneWidget);
       expect(find.text('Looks right'), findsOneWidget);
       expect(find.text('Unreadable'), findsOneWidget);

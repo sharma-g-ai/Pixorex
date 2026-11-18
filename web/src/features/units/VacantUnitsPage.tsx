@@ -29,7 +29,6 @@ export function VacantUnitsPage() {
     <>
       <PageHeader
         title="Units without a BU Admin"
-        subtitle="Overview › Needs you"
         actions={
           <Link to="/overview" className={buttonClasses('link')}>
             ← Back to overview
@@ -108,9 +107,7 @@ function VacantUnitCard({ row, busy, onResend, onInvite }: VacantUnitCardProps) 
         <Fact label="Escalated to you" value={String(unit.escalated_count ?? 0)} />
       </dl>
       <div className="flex flex-wrap items-center gap-2">
-        <p className="grow text-small text-ink-muted">
-          If the invite expires, you'll see it here and under BU Admins → Pending invites.
-        </p>
+        <div className="grow" />
         <Button variant="secondary" onClick={onInvite}>
           Invite someone else
         </Button>

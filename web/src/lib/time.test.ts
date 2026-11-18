@@ -1,19 +1,64 @@
 import { describe, expect, it } from 'vitest'
-import { dateTime, timeAgo, timeLeft, waitedFor } from './time'
+import {
+  addDays,
+  dateTime,
+  dayLabel,
+  istDay,
+  istMonday,
+  istParts,
+  timeAgo,
+  timeLeft,
+  waitedFor,
+} from './time'
 
 const now = new Date('2026-10-05T12:00:00Z')
 
 describe('dateTime', () => {
-  it('shows date, hours, minutes and seconds in the viewer’s time zone', () => {
-    // Built from a local time, so the expected text holds in any time zone.
-    expect(dateTime(new Date(2026, 9, 5, 9, 7, 3).toISOString())).toBe('5 Oct 09:07:03')
-    expect(dateTime(new Date(2026, 10, 12, 18, 6, 42).toISOString())).toBe('12 Nov 18:06:42')
+  it('shows date, hours, minutes and seconds in Indian time, whatever the viewer’s zone', () => {
+    // IST is UTC+5:30.
+    expect(dateTime('2026-10-05T03:37:03Z')).toBe('5 Oct 09:07:03')
+    expect(dateTime('2026-11-12T12:36:42Z')).toBe('12 Nov 18:06:42')
+  })
+
+  it('moves to the next day after 18:30 UTC', () => {
+    expect(dateTime('2026-11-12T18:29:59Z')).toBe('12 Nov 23:59:59')
+    expect(dateTime('2026-11-12T18:30:00Z')).toBe('13 Nov 00:00:00')
   })
 
   it('keeps consecutive scans apart by the second', () => {
-    const first = dateTime(new Date(2026, 10, 12, 10, 30, 0).toISOString())
-    const second = dateTime(new Date(2026, 10, 12, 10, 30, 5).toISOString())
+    const first = dateTime('2026-11-12T05:00:00Z')
+    const second = dateTime('2026-11-12T05:00:05Z')
     expect([first, second]).toEqual(['12 Nov 10:30:00', '12 Nov 10:30:05'])
+  })
+})
+
+describe('Indian calendar days', () => {
+  it('istDay is the day in India, not in UTC', () => {
+    expect(istDay(new Date('2026-11-17T18:29:00Z'))).toBe('2026-11-17')
+    expect(istDay(new Date('2026-11-17T18:30:00Z'))).toBe('2026-11-18')
+  })
+
+  it('istParts gives the hour and the weekday in India', () => {
+    expect(istParts(new Date('2026-11-18T03:30:00Z'))).toMatchObject({ hour: 9, weekday: 2 })
+    expect(istParts(new Date('2026-11-22T18:30:00Z'))).toMatchObject({ hour: 0, weekday: 0 })
+  })
+
+  it('a week starts on Monday 00:00 IST', () => {
+    expect(istMonday(new Date('2026-11-18T10:00:00Z'))).toBe('2026-11-16') // a Wednesday
+    expect(istMonday(new Date('2026-11-16T00:00:00Z'))).toBe('2026-11-16') // Monday 05:30 IST
+    // Sunday 22 Nov 19:00 UTC is already Monday 23 Nov 00:30 in India.
+    expect(istMonday(new Date('2026-11-22T19:00:00Z'))).toBe('2026-11-23')
+    // Sunday 22 Nov 18:00 UTC is still Sunday 23:30 in India: the week began on the 16th.
+    expect(istMonday(new Date('2026-11-22T18:00:00Z'))).toBe('2026-11-16')
+  })
+
+  it('addDays crosses months and years', () => {
+    expect(addDays('2026-11-30', 1)).toBe('2026-12-01')
+    expect(addDays('2026-01-01', -1)).toBe('2025-12-31')
+  })
+
+  it('dayLabel writes a picked day as "18 Nov"', () => {
+    expect(dayLabel('2026-11-18')).toBe('18 Nov')
   })
 })
 

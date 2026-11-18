@@ -1,9 +1,10 @@
 import type { ReactNode } from 'react'
 
 export interface Column<Row> {
-  header: string
-  /** Relative width, as a CSS grid fraction (default 1). */
-  width?: number
+  /** The column name, or a name with its filter and sort controls (see ColumnFilter). */
+  header: ReactNode
+  /** Relative width, as a CSS grid fraction (default 1), or a fixed size such as '5.25rem'. */
+  width?: number | string
   align?: 'left' | 'right'
   cell: (row: Row) => ReactNode
 }
@@ -20,7 +21,9 @@ interface DataTableProps<Row> {
 
 /** Bordered table with a grey header row (canvas list style). */
 export function DataTable<Row>({ label, columns, rows, rowKey, empty }: DataTableProps<Row>) {
-  const template = columns.map((c) => `minmax(0,${c.width ?? 1}fr)`).join(' ')
+  const template = columns
+    .map((c) => (typeof c.width === 'string' ? c.width : `minmax(0,${c.width ?? 1}fr)`))
+    .join(' ')
   const align = (c: Column<Row>) => (c.align === 'right' ? 'text-right' : '')
 
   return (
