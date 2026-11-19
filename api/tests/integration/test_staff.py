@@ -43,7 +43,7 @@ def _new_admin(api: Api) -> tuple[str, str]:
     return str(accepted.json()["user_id"]), unit
 
 
-def _new_technician(api: Api, phone: str) -> str:
+def _new_technician(api: Api) -> str:
     email = f"{uuid.uuid4().hex[:6]}@example.com"
     api.post(
         "/invites",
@@ -53,7 +53,7 @@ def _new_technician(api: Api, phone: str) -> str:
     )
     accepted = api.post(
         "/invites/accept",
-        json={"token": api.sent[-1]["token"], "full_name": "Tom Tech", "phone_number": phone},
+        json={"token": api.sent[-1]["token"], "full_name": "Tom Tech"},
     )
     return str(accepted.json()["user_id"])
 
@@ -228,7 +228,7 @@ def test_a_locked_technician_shows_when_the_lock_ends(api: Api, owner_sql: Any) 
 
 
 def test_removing_a_technician(api: Api) -> None:
-    tech = _new_technician(api, f"+1555012{uuid.uuid4().int % 10000:04d}")
+    tech = _new_technician(api)
     assert api.get("/me", token=make_token(tech)).status_code == 200
     assert tech not in api.keycloak.disabled
     _problem(api.post(f"/business-units/{P05}/technicians/{tech}/remove", BO), 403, "forbidden")

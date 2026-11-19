@@ -95,23 +95,23 @@ def _user(**kw: Any) -> KeycloakUser:
     return KeycloakUser(**{**base, **kw})
 
 
-async def test_an_admin_invite_keeps_a_verified_phone_and_email() -> None:
-    fake = FakeKeycloak([_dana(phone_number=["+15550100003"], phone_verified=["true"])])
+async def test_an_invite_keeps_a_verified_email_and_other_attributes() -> None:
+    fake = FakeKeycloak([_dana(locale=["en"])])
     assert await _admin(fake).ensure_user(_user(email_verified=False)) == "kc-dana"
     sent = fake.puts[-1]
-    assert sent["attributes"]["phone_number"] == ["+15550100003"]
-    assert sent["attributes"]["phone_verified"] == ["true"]
     assert sent["emailVerified"] is True
+    assert sent["attributes"]["locale"] == ["en"]
     assert "username" not in sent  # never renamed
 
 
-async def test_the_same_number_stays_verified_a_new_one_does_not() -> None:
+async def test_phone_attributes_left_from_before_are_removed() -> None:
+    """Sign-in is by email only (19 Nov 2026): an update drops the old phone attributes, which
+    the realm's user profile no longer declares."""
     fake = FakeKeycloak([_dana(phone_number=["+15550100003"], phone_verified=["true"])])
-    admin = _admin(fake)
-    await admin.ensure_user(_user(realm_role="pixorex-mobile", phone_number="+15550100003"))
-    assert fake.puts[-1]["attributes"]["phone_verified"] == ["true"]
-    await admin.ensure_user(_user(realm_role="pixorex-mobile", phone_number="+15550100077"))
-    assert fake.puts[-1]["attributes"]["phone_verified"] == ["false"]
+    await _admin(fake).ensure_user(_user(realm_role="pixorex-mobile"))
+    attributes = fake.puts[-1]["attributes"]
+    assert "phone_number" not in attributes and "phone_verified" not in attributes
+    assert attributes["app_user_id"] == [DANA]
 
 
 async def test_a_login_of_another_tenant_is_never_taken_over() -> None:

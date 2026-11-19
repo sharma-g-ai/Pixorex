@@ -20,7 +20,7 @@ class InviteExpiredScreen extends StatelessWidget {
       };
 
   String get _body => switch (problem) {
-        'invite-used' => 'Your account may already be active. Try signing in with your mobile number or email.',
+        'invite-used' => 'Your account may already be active. Try signing in with your email.',
         'invite-cancelled' => "Your administrator cancelled this invite, so you can't activate your account with it.",
         'invite-invalid' => "The link couldn't be read. Open the newest invite email on this phone and tap the link again.",
         _ => "Invite links work for 24 hours. Your account isn't active yet, so you can't sign in or receive a code.",
@@ -56,7 +56,7 @@ class InviteExpiredScreen extends StatelessWidget {
                       onPressed: () => Navigator.of(context).popUntil((r) => r.isFirst),
                     )
                   else ...[
-                  // The design names the inviter here ("R. Kowalski · Process Manager", unit).
+                  // The design names the inviter here ("R. Kowalski Â· Process Manager", unit).
                   // The 409 problem from /invites/preview carries no inviter, so this stays generic
                   // until the API returns it.
                   Container(

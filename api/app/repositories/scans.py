@@ -528,7 +528,7 @@ async def attempt_to_run(conn: Conn, attempt_id: UUID) -> dict[str, Any] | None:
     """A queued attempt with its scan, locked; None if it already ran."""
     cur = await conn.execute(
         "SELECT a.id AS attempt_id, a.attempt_no, a.contract_id, s.id AS scan_id, s.bu_id,"
-        " s.review_status, s.processing_status, et.name AS type_name,"
+        " s.review_status, s.processing_status, et.id AS equipment_type_id, et.name AS type_name,"
         " pv.instructions AS prompt_instructions"
         " FROM extraction_attempt a JOIN scan s ON s.id = a.scan_id"
         " JOIN extraction_contract c ON c.id = a.contract_id"

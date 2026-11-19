@@ -24,15 +24,11 @@ import org.keycloak.models.UserModel;
 import org.keycloak.models.credential.OTPCredentialModel;
 import org.keycloak.sessions.AuthenticationSessionModel;
 
-import com.amzur.pixorex.keycloak.otp.Channel;
 import com.amzur.pixorex.keycloak.otp.Masking;
 import com.amzur.pixorex.keycloak.otp.OtpCodes;
 import com.amzur.pixorex.keycloak.otp.OtpSettings;
 import com.amzur.pixorex.keycloak.otp.SingleUseCounterStore;
 import com.amzur.pixorex.keycloak.otp.Throttle;
-import com.amzur.pixorex.keycloak.sms.SmsException;
-import com.amzur.pixorex.keycloak.sms.SmsSender;
-import com.amzur.pixorex.keycloak.sms.SmsText;
 
 public class PixorexOtpAuthenticator implements Authenticator {
 
@@ -97,12 +93,11 @@ public class PixorexOtpAuthenticator implements Authenticator {
             return;
         }
 
-        Channel channel = channel(authSession);
         AuthNotes.clearAll(authSession);
         // Brute-force detection only resets the failure count when an otp/password credential was used.
         AuthenticatorUtil.addAuthCredential(authSession, OTPCredentialModel.TYPE);
-        boolean activated = activate(user, channel);
-        context.getEvent().detail("otp_channel", channel.id());
+        boolean activated = activate(user);
+        context.getEvent().detail("otp_channel", "email");
         if (activated) {
             context.getEvent().detail("activation", "true");
         }
@@ -121,8 +116,7 @@ public class PixorexOtpAuthenticator implements Authenticator {
             return;
         }
 
-        Channel channel = channel(authSession);
-        String destination = destination(user, channel);
+        String destination = user.getEmail();
         if (destination == null || destination.isBlank()) {
             context.challenge(FlowSupport.messagePage(context, "pixorexErrorTitle", "pixorexNoDestination"));
             return;
@@ -140,9 +134,9 @@ public class PixorexOtpAuthenticator implements Authenticator {
 
         String code = OtpCodes.generate(RANDOM, settings.codeLength());
         try {
-            send(context, user, channel, destination, code, settings);
-        } catch (EmailException | SmsException e) {
-            LOG.warnf(e, "Could not send a %s code to %s: %s", channel.id(), Masking.destination(channel, destination), e.getMessage());
+            send(context, user, code, settings);
+        } catch (EmailException e) {
+            LOG.warnf(e, "Could not send a code to %s: %s", Masking.email(destination), e.getMessage());
             context.challenge(codeForm(context, settings).setError("pixorexSendFailed").createForm(TEMPLATE));
             return;
         }
@@ -171,17 +165,9 @@ public class PixorexOtpAuthenticator implements Authenticator {
         context.failureChallenge(AuthenticationFlowError.INVALID_CREDENTIALS, page);
     }
 
-    private static void send(AuthenticationFlowContext context, UserModel user, Channel channel, String destination,
-                             String code, OtpSettings settings) throws EmailException {
+    private static void send(AuthenticationFlowContext context, UserModel user, String code, OtpSettings settings)
+            throws EmailException {
         KeycloakSession session = context.getSession();
-        if (channel == Channel.SMS) {
-            SmsSender sms = session.getProvider(SmsSender.class);
-            if (sms == null) {
-                throw new SmsException("No pixorex-sms provider is configured");
-            }
-            sms.send(destination, SmsText.signInCode(code, settings.ttlMinutes(), context.getUriInfo().getBaseUri().getHost()));
-            return;
-        }
         // Keycloak adds locale and theme entries to this map, so it must be mutable.
         Map<String, Object> attributes = new HashMap<>();
         attributes.put("code", code);
@@ -193,14 +179,10 @@ public class PixorexOtpAuthenticator implements Authenticator {
                 .send("pixorexCodeSubject", List.of(), EMAIL_TEMPLATE, attributes);
     }
 
-    /** First successful code on the channel being verified completes activation (docs/keycloak.md §6.4, O-12). */
-    static boolean activate(UserModel user, Channel channel) {
-        if (channel == Channel.EMAIL && !user.isEmailVerified()) {
+    /** The first correct email code verifies the email, which completes activation (docs/keycloak.md §6.4, O-12). */
+    static boolean activate(UserModel user) {
+        if (!user.isEmailVerified()) {
             user.setEmailVerified(true);
-            return true;
-        }
-        if (channel == Channel.SMS && !FlowSupport.phoneVerified(user)) {
-            user.setSingleAttribute(FlowSupport.PHONE_VERIFIED, "true");
             return true;
         }
         return false;
@@ -208,12 +190,10 @@ public class PixorexOtpAuthenticator implements Authenticator {
 
     private static LoginFormsProvider codeForm(AuthenticationFlowContext context, OtpSettings settings) {
         AuthenticationSessionModel authSession = context.getAuthenticationSession();
-        Channel channel = channel(authSession);
         UserModel user = context.getUser();
-        String destination = user == null ? authSession.getAuthNote(AuthNotes.IDENTIFIER) : destination(user, channel);
+        String destination = user == null ? authSession.getAuthNote(AuthNotes.IDENTIFIER) : user.getEmail();
         return context.form()
-                .setAttribute("pxChannel", channel.id())
-                .setAttribute("pxDestination", Masking.destination(channel, destination))
+                .setAttribute("pxDestination", Masking.email(destination))
                 .setAttribute("pxCodeLength", settings.codeLength())
                 .setAttribute("pxTtlMinutes", settings.ttlMinutes())
                 .setAttribute("pxResendIn", resendWait(authSession, settings));
@@ -222,15 +202,6 @@ public class PixorexOtpAuthenticator implements Authenticator {
     private static long resendWait(AuthenticationSessionModel authSession, OtpSettings settings) {
         long sentAt = AuthNotes.longNote(authSession, AuthNotes.OTP_SENT_AT);
         return sentAt == 0 ? 0 : Math.max(0, sentAt + settings.resendCooldownSeconds() - Time.currentTime());
-    }
-
-    private static Channel channel(AuthenticationSessionModel authSession) {
-        Channel channel = Channel.fromId(authSession.getAuthNote(AuthNotes.CHANNEL));
-        return channel == null ? Channel.EMAIL : channel;
-    }
-
-    private static String destination(UserModel user, Channel channel) {
-        return channel == Channel.SMS ? user.getFirstAttribute(FlowSupport.PHONE_NUMBER) : user.getEmail();
     }
 
     @Override

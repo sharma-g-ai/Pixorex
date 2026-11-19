@@ -148,7 +148,7 @@ export function ExportDialog(props: ExportDialogProps) {
             ))}
             <ChoiceCard
               type="checkbox"
-              title="Photo links (valid 1 hour)"
+              title="Image links (valid 1 hour)"
               checked={photoLinks}
               onChange={(e) => setPhotoLinks(e.target.checked)}
             />

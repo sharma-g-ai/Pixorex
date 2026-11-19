@@ -147,7 +147,7 @@ function Photos({ photos }: { photos: { no: number; url: string }[] }) {
   if (!photo) {
     return (
       <div className="flex h-75 items-center justify-center rounded-xl bg-ink text-small text-white/70">
-        No photo available
+        No image available
       </div>
     )
   }
@@ -156,17 +156,17 @@ function Photos({ photos }: { photos: { no: number; url: string }[] }) {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        aria-label={`Open photo ${photo.no} of ${photos.length}`}
+        aria-label={`Open image ${photo.no} of ${photos.length}`}
         className="relative block w-full cursor-zoom-in overflow-hidden rounded-xl bg-ink"
       >
         <PhotoImage
           key={photo.url}
           src={photo.url}
-          alt={`Photo ${photo.no} of ${photos.length}`}
+          alt={`Image ${photo.no} of ${photos.length}`}
           className="h-75 w-full object-contain"
         />
         <span className="absolute right-2.5 bottom-2.5 rounded-full bg-ink/60 px-2.5 py-1 text-meta font-semibold text-white">
-          Photo {photo.no} of {photos.length} · click to zoom
+          Image {photo.no} of {photos.length} · click to zoom
         </span>
       </button>
       {open && <PhotoViewer photos={photos} start={shown} onClose={() => setOpen(false)} />}
@@ -176,7 +176,7 @@ function Photos({ photos }: { photos: { no: number; url: string }[] }) {
             <button
               key={p.no}
               type="button"
-              aria-label={`Show photo ${p.no}`}
+              aria-label={`Show image ${p.no}`}
               aria-pressed={i === shown}
               onClick={() => setShown(i)}
               className={`size-16 overflow-hidden rounded-lg border-2 ${i === shown ? 'border-brand-navy' : 'border-transparent'}`}
@@ -204,7 +204,7 @@ function PhotoImage({ src, alt, className }: { src: string; alt: string; classNa
           role="status"
           className="absolute inset-0 flex items-center justify-center text-small text-white/70"
         >
-          Loading photo…
+          Loading image…
         </div>
       )}
       {state === 'failed' ? (
@@ -212,7 +212,7 @@ function PhotoImage({ src, alt, className }: { src: string; alt: string; classNa
           role="alert"
           className="flex h-75 items-center justify-center px-4 text-center text-small text-white/70"
         >
-          We couldn't load this photo. Refresh the page to get a new link.
+          We couldn't load this image. Refresh the page to get a new link.
         </div>
       ) : (
         <img

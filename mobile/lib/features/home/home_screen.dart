@@ -553,19 +553,73 @@ class _Step extends StatelessWidget {
       );
 }
 
-/// Design 15, the parts that work today: who you are, your unit, sign out.
-class _Profile extends StatelessWidget {
+/// Design 15, the parts that work today: who you are, your unit (switch when in more than
+/// one, contract 1.2), sign out.
+class _Profile extends StatefulWidget {
   const _Profile(this.me);
   final Me? me;
 
   @override
-  Widget build(BuildContext context) => ListView(padding: const EdgeInsets.all(20), children: [
-        Text(me?.fullName ?? '', style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
-        Text(me?.email ?? '', style: const TextStyle(fontSize: 12.5, color: Brand.muted)),
-        const SizedBox(height: 16),
+  State<_Profile> createState() => _ProfileState();
+}
+
+class _ProfileState extends State<_Profile> {
+  String? _switching;
+
+  Future<void> _switchTo(UnitRole unit) async {
+    final me = widget.me;
+    if (me == null || unit.buId == null || unit.buId == activeUnit(me)?.buId || _switching != null) return;
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() => _switching = unit.buId);
+    try {
+      await context.read<SessionController>().switchUnit(unit.buId!);
+      messenger.showSnackBar(SnackBar(content: Text('Switched to ${unit.name ?? 'the unit'}')));
+    } on ApiException catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text(e.message)));
+    } finally {
+      if (mounted) setState(() => _switching = null);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final me = widget.me;
+    final units = me?.technicianUnits.toList() ?? const <UnitRole>[];
+    final active = me == null ? null : activeUnit(me);
+    return ListView(padding: const EdgeInsets.all(20), children: [
+      Text(me?.fullName ?? '', style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+      Text(me?.email ?? '', style: const TextStyle(fontSize: 12.5, color: Brand.muted)),
+      const SizedBox(height: 16),
+      if (units.length > 1) ...[
+        const Text('YOUR UNITS', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Brand.muted)),
+        const Text('Tap a unit to work in it.', style: TextStyle(fontSize: 12, color: Brand.hint)),
+        const SizedBox(height: 6),
+        for (final u in units)
+          Card(
+            elevation: 0,
+            margin: const EdgeInsets.only(bottom: 8),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+              side: BorderSide(color: u.buId == active?.buId ? Brand.navy : const Color(0xFFE2E6EC), width: 1.5),
+            ),
+            child: ListTile(
+              minTileHeight: 56, // big enough for gloved hands
+              title: Text(u.name ?? '', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+              subtitle: u.buId == active?.buId ? const Text('Working in this unit') : null,
+              trailing: _switching == u.buId
+                  ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2.5))
+                  : u.buId == active?.buId
+                      ? const Icon(Icons.check_circle, color: Brand.navy)
+                      : const Icon(Icons.chevron_right, color: Brand.hint),
+              onTap: _switching == null ? () => _switchTo(u) : null,
+            ),
+          ),
+      ] else ...[
         const Text('SIGNED IN TO', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Brand.muted)),
-        Text(me == null ? '' : unitName(me!), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-        const SizedBox(height: 24),
-        PillButton(label: 'Sign out', outlined: true, onPressed: () => context.read<SessionController>().signOut()),
-      ]);
+        Text(me == null ? '' : unitName(me), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+      ],
+      const SizedBox(height: 24),
+      PillButton(label: 'Sign out', outlined: true, onPressed: () => context.read<SessionController>().signOut()),
+    ]);
+  }
 }

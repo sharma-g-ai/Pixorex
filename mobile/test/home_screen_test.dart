@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -188,6 +190,87 @@ void main() {
       await t.pumpAndSettle();
       expect(rig.calls, contains('POST /api/v1/me/sign-out'));
       expect(rig.session.status, SessionStatus.signedOut);
+    });
+
+    /// A technician in two units; PUT /me/active-unit moves the active one (contract 1.2).
+    Future<Rig> twoUnits(WidgetTester t, {List<Map<String, dynamic>>? sent, bool refuse = false}) async {
+      var active = 'b1';
+      Map<String, dynamic> me() => {
+            ...meJson(),
+            'active_bu_id': active,
+            'units': [
+              {'bu_id': 'b1', 'name': 'Plant-01', 'role': 'field_technician', 'is_primary': true},
+              {'bu_id': 'b2', 'name': 'chemical-Plant', 'role': 'field_technician', 'is_primary': false},
+            ],
+          };
+      final rig = Rig((r) async {
+        if (r.method == 'PUT' && r.url.path.endsWith('/me/active-unit')) {
+          if (refuse) return problem(403, 'forbidden');
+          final body = jsonDecode((r as http.Request).body) as Map<String, dynamic>;
+          sent?.add(body);
+          active = body['bu_id'] as String;
+          return json(me());
+        }
+        if (r.url.path.endsWith('/me')) return json(me());
+        return homeApi()(r);
+      });
+      await rig.session.signIn(loginHint: 'a@b.co');
+      await t.pumpWidget(ChangeNotifierProvider<SessionController>.value(
+        value: rig.session,
+        child: MaterialApp(home: HomeShell(scans: ScanRepository(rig.api), onNewScan: () async {})),
+      ));
+      await t.pumpAndSettle();
+      await t.tap(find.text('Profile'));
+      await t.pumpAndSettle();
+      return rig;
+    }
+
+    testWidgets('GIVEN a technician in two units WHEN another unit is tapped in Profile '
+        'THEN the app switches to it', (t) async {
+      final sent = <Map<String, dynamic>>[];
+      final rig = await twoUnits(t, sent: sent);
+      expect(find.text('YOUR UNITS'), findsOneWidget);
+      expect(find.widgetWithText(ListTile, 'Plant-01'), findsOneWidget);
+      expect(find.widgetWithText(ListTile, 'chemical-Plant'), findsOneWidget);
+      expect(find.text('Field Technician · Plant-01'), findsOneWidget);
+
+      await t.tap(find.widgetWithText(ListTile, 'chemical-Plant'));
+      await t.pumpAndSettle();
+      expect(sent, [
+        {'bu_id': 'b2'}
+      ]);
+      expect(rig.session.me?.activeBuId, 'b2');
+      expect(find.text('Field Technician · chemical-Plant'), findsOneWidget);
+      expect(find.text('Switched to chemical-Plant'), findsOneWidget);
+    });
+
+    testWidgets('GIVEN the unit already active WHEN it is tapped THEN nothing is sent', (t) async {
+      final rig = await twoUnits(t);
+      await t.tap(find.widgetWithText(ListTile, 'Plant-01'));
+      await t.pumpAndSettle();
+      expect(rig.calls.where((c) => c.startsWith('PUT')), isEmpty);
+    });
+
+    testWidgets('GIVEN the switch is refused WHEN a unit is tapped THEN a message and no change', (t) async {
+      final rig = await twoUnits(t, refuse: true);
+      await t.tap(find.widgetWithText(ListTile, 'chemical-Plant'));
+      await t.pumpAndSettle();
+      expect(find.text('detail for forbidden'), findsOneWidget);
+      expect(rig.session.me?.activeBuId, 'b1');
+    });
+
+    testWidgets('GIVEN one unit WHEN Profile opens THEN no unit list', (t) async {
+      final rig = Rig(homeApi());
+      await rig.session.signIn(loginHint: 'a@b.co');
+      await t.pumpWidget(ChangeNotifierProvider<SessionController>.value(
+        value: rig.session,
+        child: MaterialApp(home: HomeShell(scans: ScanRepository(rig.api))),
+      ));
+      await t.pumpAndSettle();
+      await t.tap(find.text('Profile'));
+      await t.pumpAndSettle();
+      expect(find.text('YOUR UNITS'), findsNothing);
+      expect(find.text('PPG Plant 04 — Coatings'), findsOneWidget);
     });
   });
 }

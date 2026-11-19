@@ -78,6 +78,20 @@ void main() {
       expect(seen.queryParameters, {'tab': 'needs_action'});
     });
 
+    test('GIVEN a repository for a unit WHEN My Scans are asked for THEN only that unit is asked', () async {
+      final seen = <Map<String, String>>[];
+      final m = MockClient((r) async {
+        seen.add(r.url.queryParameters);
+        return json({'items': [], 'page': {'next_cursor': null}});
+      });
+      await ScanRepository(clientFor(m), buId: 'b2').myScans(tab: 'needs_action');
+      await repoFor(m).myScans(); // no unit: every unit, as before
+      expect(seen, [
+        {'tab': 'needs_action', 'bu_id': 'b2', 'limit': '25'},
+        {'limit': '25'},
+      ]);
+    });
+
     test('GIVEN a 409 with fields WHEN parsed THEN the labels are kept', () {
       final e = ApiException.fromProblem(409, {
         'type': '/problems/required-fields-empty',

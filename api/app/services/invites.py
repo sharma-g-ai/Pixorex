@@ -1,7 +1,6 @@
 """Invites (contracts 1.6-1.11). A link's token is never stored, only its SHA-256."""
 
 import hashlib
-import re
 import secrets
 from datetime import UTC, datetime, timedelta
 from typing import Any, Literal
@@ -20,7 +19,6 @@ from app.repositories import audit, invites, users
 
 LIFETIME = timedelta(hours=24)
 InviteRole = Literal["bu_admin", "field_technician"]
-_E164 = re.compile(r"^\+[1-9][0-9]{1,14}$")
 _ROLE_TEXT = {"bu_admin": "BU Admin", "field_technician": "technician"}
 
 
@@ -39,7 +37,7 @@ class InvitePreview(BaseModel):
 
 class Accepted(BaseModel):
     user_id: UUID
-    next_step: Literal["verify_phone", "verify_email"]
+    next_step: Literal["verify_email"]
 
 
 class Created(BaseModel):
@@ -124,22 +122,12 @@ async def preview(conn: Conn, token: str) -> InvitePreview:
     )
 
 
-async def accept(
-    conn: Conn, keycloak: KeycloakAdmin, *, token: str, full_name: str, phone: str | None
-) -> Accepted:
+async def accept(conn: Conn, keycloak: KeycloakAdmin, *, token: str, full_name: str) -> Accepted:
+    """Everyone, admin or technician, then signs in with a code sent to the invited email
+    (sign-in by email only since 19 Nov 2026, D-12); the first code verifies the email."""
     rows = await _rows_for_link(conn, token, lock=True)
     first = rows[0]
     tenant_id, role, email = first["tenant_id"], first["role"], first["email"]
-    if role == "field_technician":
-        if not phone or not _E164.match(phone):
-            raise ProblemError(
-                400,
-                "validation",
-                "Some fields are not valid.",
-                errors=[{"field": "phone_number", "message": "Enter the number as +15551234567."}],
-            )
-    else:
-        phone = None  # admins sign in by email only
 
     # Accepting takes every other live invite of this person for this role (D-09);
     # the primary unit is the oldest invite's unit.
@@ -147,7 +135,7 @@ async def accept(
         rows + await invites.other_pending(conn, email, role, first["token_hash"]),
         key=lambda r: r["created_at"],
     )
-    user_id = await _upsert_person(conn, tenant_id, email, full_name, phone)
+    user_id = await _upsert_person(conn, tenant_id, email, full_name)
     await _grant_units(conn, user_id, all_rows)
     await invites.set_status(conn, [r["id"] for r in all_rows], "accepted")
 
@@ -159,8 +147,6 @@ async def accept(
                 tenant_id=str(tenant_id),
                 email=email,
                 realm_role="pixorex-mobile" if role == "field_technician" else "pixorex-web",
-                email_verified=role == "field_technician",  # technicians verify the phone
-                phone_number=phone,
                 first_name=first_name or None,
                 last_name=last_name or None,
             )
@@ -168,25 +154,15 @@ async def accept(
     except CrossTenantUserError:
         raise ProblemError(409, "email-in-use", "This email already signs in elsewhere.") from None
     await users.set_keycloak_id(conn, user_id, kc_id)
-    return Accepted(
-        user_id=user_id,
-        next_step="verify_phone" if role == "field_technician" else "verify_email",
-    )
+    return Accepted(user_id=user_id, next_step="verify_email")
 
 
-async def _upsert_person(
-    conn: Conn, tenant_id: UUID, email: str, full_name: str, phone: str | None
-) -> UUID:
-    try:
-        existing = await users.by_email(conn, email)
-        if existing:
-            await users.reinvite(conn, existing["id"], full_name, phone)
-            return UUID(str(existing["id"]))
-        return await users.create_invited(
-            conn, tenant_id=tenant_id, email=email, full_name=full_name, phone=phone
-        )
-    except UniqueViolation:
-        raise ProblemError(409, "phone-in-use", "This phone number is already used.") from None
+async def _upsert_person(conn: Conn, tenant_id: UUID, email: str, full_name: str) -> UUID:
+    existing = await users.by_email(conn, email)
+    if existing:
+        await users.reinvite(conn, existing["id"], full_name)
+        return UUID(str(existing["id"]))
+    return await users.create_invited(conn, tenant_id=tenant_id, email=email, full_name=full_name)
 
 
 async def _grant_units(conn: Conn, user_id: UUID, rows: list[dict[str, Any]]) -> None:

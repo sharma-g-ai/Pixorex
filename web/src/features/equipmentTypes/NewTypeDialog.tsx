@@ -74,7 +74,7 @@ export function NewTypeDialog({ buId, types, onClose, onCreated }: NewTypeDialog
 
   const readPhoto = async () => {
     if (nameError) return setError(nameError)
-    if (!photo) return setError('Choose a photo of the label.')
+    if (!photo) return setError('Choose an image of the label.')
     setError(null)
     try {
       const fields = await suggest.mutateAsync({ name: name.trim(), image: photo })
@@ -143,7 +143,7 @@ export function NewTypeDialog({ buId, types, onClose, onCreated }: NewTypeDialog
         </Button>
       ) : (
         <Button disabled={suggest.isPending} onClick={() => void readPhoto()}>
-          {suggest.isPending ? 'Reading the photo…' : 'Read from photo'}
+          {suggest.isPending ? 'Reading the image…' : 'Read from image'}
         </Button>
       )}
     </>
@@ -179,7 +179,8 @@ export function NewTypeDialog({ buId, types, onClose, onCreated }: NewTypeDialog
             </fieldset>
             {source === 'ai' && (
               <PhotoPicker
-                label="Photo of the label"
+                label="Image of the label"
+                hideLabel
                 file={photo}
                 onChange={setPhoto}
                 disabled={busy}
@@ -232,7 +233,7 @@ function ReadingPhoto() {
         className="size-5 shrink-0 animate-spin rounded-full border-[2.5px] border-brand-navy border-t-transparent"
       />
       <span>
-        <span className="block text-body font-bold text-brand-navy">Reading your photo…</span>
+        <span className="block text-body font-bold text-brand-navy">Reading your image…</span>
         <span className="text-small text-ink-muted">
           This can take up to a minute. Please keep this window open.
         </span>

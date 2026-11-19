@@ -238,35 +238,29 @@ void main() {
       expect(c.status, ActivationStatus.loadFailed);
     });
 
-    test('empty name or incomplete phone blocks submit without calling the API', () async {
+    test('an empty name blocks submit without calling the API', () async {
       final rig = Rig((_) async => json(preview));
       final c = ActivationController(repository: rig.invites, token: 't');
       await c.load();
-      final errors = await c.submit(fullName: ' ', phoneE164: null);
+      final errors = await c.submit(fullName: ' ');
       expect(errors?.name, isNotNull);
-      expect(errors?.phone, isNotNull);
       expect(rig.calls.where((c) => c.contains('accept')), isEmpty);
     });
 
-    test('accept for a technician signs in with the phone number', () async {
-      final rig = Rig((r) async => r.url.path.endsWith('/accept')
-          ? json({'user_id': 'u1', 'next_step': 'verify_phone'}, 201)
-          : json(preview));
+    test('accept sends the name only, then signs in with the invited email', () async {
+      // Sign-in is by email only (19 Nov 2026): no phone number is asked for or sent.
+      Map<String, dynamic>? sent;
+      final rig = Rig((r) async {
+        if (!r.url.path.endsWith('/accept')) return json(preview);
+        sent = jsonDecode((r as http.Request).body) as Map<String, dynamic>;
+        return json({'user_id': 'u1', 'next_step': 'verify_email'}, 201);
+      });
       final c = ActivationController(repository: rig.invites, token: 't');
       await c.load();
-      final errors = await c.submit(fullName: 'Jorge Martinez', phoneE164: '+12165550148');
+      final errors = await c.submit(fullName: ' Jorge Martinez ');
       expect(errors, isNull);
       expect(c.status, ActivationStatus.accepted);
-      expect(c.signInHint, '+12165550148');
-    });
-
-    test('accept falling to verify_email signs in with the email', () async {
-      final rig = Rig((r) async => r.url.path.endsWith('/accept')
-          ? json({'user_id': 'u1', 'next_step': 'verify_email'}, 201)
-          : json(preview));
-      final c = ActivationController(repository: rig.invites, token: 't');
-      await c.load();
-      await c.submit(fullName: 'Jorge', phoneE164: '+12165550148');
+      expect(sent, {'token': 't', 'full_name': 'Jorge Martinez'});
       expect(c.signInHint, 'j.martinez@ppg-plant04.com');
     });
 
@@ -274,22 +268,9 @@ void main() {
       final rig = Rig((r) async => r.url.path.endsWith('/accept') ? problem(409, 'invite-used') : json(preview));
       final c = ActivationController(repository: rig.invites, token: 't');
       await c.load();
-      await c.submit(fullName: 'Jorge', phoneE164: '+12165550148');
+      await c.submit(fullName: 'Jorge');
       expect(c.status, ActivationStatus.linkInvalid);
       expect(c.linkProblem, 'invite-used');
-    });
-
-    test('a 409 phone-in-use on accept keeps the form and marks the phone field', () async {
-      // GIVEN the number already belongs to another account
-      final rig = Rig((r) async => r.url.path.endsWith('/accept') ? problem(409, 'phone-in-use') : json(preview));
-      final c = ActivationController(repository: rig.invites, token: 't');
-      await c.load();
-      // WHEN the technician activates
-      final errors = await c.submit(fullName: 'Jorge', phoneE164: '+12165550148');
-      // THEN the form stays, with the error on the phone field (not the expired screen)
-      expect(c.status, ActivationStatus.ready);
-      expect(c.linkProblem, isNull);
-      expect(errors?.phone, contains('already used'));
     });
 
     for (final code in ['email-in-use', 'unit-has-bu-admin']) {
@@ -297,7 +278,7 @@ void main() {
         final rig = Rig((r) async => r.url.path.endsWith('/accept') ? problem(409, code) : json(preview));
         final c = ActivationController(repository: rig.invites, token: 't');
         await c.load();
-        await c.submit(fullName: 'Jorge', phoneE164: '+12165550148');
+        await c.submit(fullName: 'Jorge');
         expect(c.status, ActivationStatus.ready);
         expect(c.linkProblem, isNull);
         expect(c.message, isNotNull);
@@ -311,48 +292,38 @@ void main() {
               'title': 'Invalid',
               'status': 400,
               'errors': [
-                {'field': 'phone_number', 'message': 'Not a valid number'}
+                {'field': 'full_name', 'message': 'Enter a name'}
               ],
             }, 400)
           : json(preview));
       final c = ActivationController(repository: rig.invites, token: 't');
       await c.load();
-      final errors = await c.submit(fullName: 'Jorge', phoneE164: '+12165550148');
+      final errors = await c.submit(fullName: 'Jorge');
       expect(c.status, ActivationStatus.ready);
-      expect(errors?.phone, 'Not a valid number');
+      expect(errors?.name, 'Enter a name');
     });
   });
 
   group('screens', () {
-    testWidgets('signed out shows Sign in; bad phone shows an error and never opens the browser', (t) async {
+    testWidgets('signed out shows Sign in with an email field only; no phone option', (t) async {
       final rig = Rig((_) async => json({}));
       await pumpApp(t, rig);
       expect(find.text('Sign in'), findsOneWidget);
+      expect(find.text('Work email'), findsOneWidget);
+      expect(find.text('Phone number'), findsNothing);
+      expect(find.text('Mobile number'), findsNothing);
+      expect(find.byType(TextField), findsOneWidget);
       await t.tap(find.text('Send code'));
       await t.pumpAndSettle();
-      expect(find.text('Enter your full mobile number'), findsOneWidget);
+      expect(find.text('Enter a valid email address'), findsOneWidget);
       expect(rig.oidc.signIns, 0);
     });
 
-    testWidgets('a valid phone starts sign-in with an E.164 hint and lands on Home', (t) async {
+    testWidgets('a valid email starts sign-in with it as the hint and lands on Home', (t) async {
       final rig = Rig((r) async => json(r.url.path.endsWith('/me/scans')
           ? {'items': [], 'page': {'next_cursor': null}}
           : meJson()));
       await pumpApp(t, rig);
-      await t.enterText(find.byType(TextField), '2165550148');
-      await t.tap(find.text('Send code'));
-      await t.pumpAndSettle();
-      expect(rig.oidc.lastHint, '+12165550148');
-      expect(find.text('Welcome, Jorge'), findsOneWidget);
-    });
-
-    testWidgets('Email tab validates and signs in with the email', (t) async {
-      final rig = Rig((r) async => json(r.url.path.endsWith('/me/scans')
-          ? {'items': [], 'page': {'next_cursor': null}}
-          : meJson()));
-      await pumpApp(t, rig);
-      await t.tap(find.text('Email'));
-      await t.pumpAndSettle();
       await t.enterText(find.byType(TextField), 'nope');
       await t.tap(find.text('Send code'));
       await t.pumpAndSettle();
@@ -361,6 +332,7 @@ void main() {
       await t.tap(find.text('Send code'));
       await t.pumpAndSettle();
       expect(rig.oidc.lastHint, 'j.martinez@ppg-plant04.com');
+      expect(find.text('Welcome, Jorge'), findsOneWidget);
     });
 
     testWidgets('an invite link delivered again after activating is not reopened', (t) async {
@@ -379,7 +351,7 @@ void main() {
             ],
           });
         }
-        if (p.endsWith('/invites/accept')) return json({'user_id': 'u1', 'next_step': 'verify_phone'}, 201);
+        if (p.endsWith('/invites/accept')) return json({'user_id': 'u1', 'next_step': 'verify_email'}, 201);
         if (p.endsWith('/me/scans')) return json({'items': [], 'page': {'next_cursor': null}});
         return json(meJson());
       });
@@ -387,8 +359,8 @@ void main() {
       await pumpApp(t, rig, links: links);
       await openLink(t, links, link);
       expect(find.text('Activate your account'), findsOneWidget);
-      await t.enterText(find.byType(TextField).first, 'Jorge Martinez');
-      await t.enterText(find.byType(TextField).last, '2165550148');
+      expect(find.text('Mobile number'), findsNothing); // the name is the only thing to fill in
+      await t.enterText(find.byType(TextField), 'Jorge Martinez');
       await t.tap(find.text('Activate account'));
       await t.pumpAndSettle();
       expect(find.text('Welcome, Jorge'), findsOneWidget);

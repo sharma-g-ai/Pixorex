@@ -23,10 +23,6 @@ foreach ($u in $seed.users) {
     }
 
     $attributes = @{ app_user_id = @($u.username); tenant_id = @($seed.tenantId) }
-    if ($u.phone) {
-        $attributes.phone_number = @($u.phone)
-        $attributes.phone_verified = @(([string]$u.phoneVerified).ToLower())
-    }
     $body = @{
         username = $u.username; email = $u.email; firstName = $u.firstName; lastName = $u.lastName
         enabled = [bool]$u.enabled; emailVerified = [bool]$u.emailVerified; attributes = $attributes

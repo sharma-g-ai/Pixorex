@@ -60,7 +60,7 @@ try {
     [pscustomobject]@{
         iss = $access.iss; aud = (@($access.aud) -join ', '); azp = $access.azp; sub = $access.sub; sid = $access.sid
         tenant_id = $access.tenant_id; app_user_id = $access.app_user_id
-        email_verified = $access.email_verified; phone_verified = $access.phone_verified
+        email_verified = $access.email_verified
         expires_in = $tokens.expires_in; refresh_type = $(if ($tokens.refresh_token) { (ConvertFrom-Jwt $tokens.refresh_token).typ } else { '' })
     } | Format-List
     Write-Host 'ID token:' -ForegroundColor Green

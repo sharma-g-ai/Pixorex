@@ -11,7 +11,7 @@
 The Sprint Deliverables plan says "BU Admin via SSO" and "Reviewer role". PRD V3 removed both: admins sign in by email code, and there is no Reviewer role. Update the plan to:
 1. EA signs in with an email code → sees units; creates unit "Plant 04" and invites its BU Admin.
 2. BU Admin accepts the invite, signs in with an email code → sees only Plant 04; invites a technician.
-3. Technician accepts on the phone, signs in by **SMS** (and once by email) → lands on Home with the unit, can switch units.
+3. Technician accepts on the phone with their name, signs in with an **email** code → lands on Home with the unit, can switch units (D-12: no phone numbers).
 4. Role-gating: same seeded data shown as EA vs BU Admin vs technician.
 5. Proof: run the isolation test suite live; 5 wrong codes → 30-minute lock + audit row.
 
@@ -38,7 +38,7 @@ Lanes: **FSD-A** Foundation · **FSD-B** API & Security · **Divya** web · **Fl
 | PX-07-T03 | Outbox worker + SMTP adapter (Mailpit) | A2 | FSD-A | todo | | D · invite emails |
 | PX-01-T01 | Keycloak realm as code: clients, PKCE, no passwords, claim mappers, brute-force 5/30 | A0 | FSD-B + architect | todo | | D · **G2 baseline** |
 | PX-01-T02 | OTP authenticator: email code | A0 | FSD-B | todo | | D · largest risk with T03 |
-| PX-01-T03 | OTP authenticator: SMS code + request throttling | A0 | FSD-B | todo | | D · needs P-3 answer |
+| PX-01-T03 | OTP authenticator: SMS code + request throttling | A0 | FSD-B | cancelled | | D-12: email codes only; the SMS path was removed from the SPI on 19 Nov 2026 |
 | PX-01-T04 | Keycloak event listener → internal audit endpoint | A0 | FSD-B | todo | | D · lockout audit |
 | PX-01-T05 | Request-context middleware: JWT, app_user, session, revocation ≤60 s, SET LOCAL | A0 | FSD-B + architect | todo | | D · needs PX-04-T02 |
 | PX-04-T04 | Authorization helper require_role + role-boundary test generator from x-roles | A0 | FSD-B | todo | | D |
@@ -50,7 +50,7 @@ Lanes: **FSD-A** Foundation · **FSD-B** API & Security · **Divya** web · **Fl
 | PX-01-T08 | Invite preview + accept, Keycloak user creation (1.6–1.7) | A1 | FSD-B | todo | | D · unblocked: D-08, D-09 |
 | PX-04-T08 | BU Admin list/assign/remove (1.15–1.17) | A1 | FSD-A | todo | | S |
 | PX-04-T09 | Technician list/remove + lock state from Keycloak (1.18–1.19) | A1 | FSD-A | todo | | S · needs O-13 |
-| PX-01-T09 | Phone change (1.4–1.5) | A0 | FSD-B | todo | | S · unblocked by D-08: Keycloak application-initiated action + event listener |
+| PX-01-T09 | Phone change (1.4–1.5) | A0 | FSD-B | cancelled | | D-12: no phone numbers; contracts 1.4–1.5 removed |
 | PX-01-T10 | Keycloak login theme matching MOB-01 / admin sign-in screens | A2 | Divya | todo | | D |
 | PX-01-T11 | Web: Vite + TS scaffold, typed client + mock server from OpenAPI | A2 | Divya | in_review | | D · day 1 · TS pinned 5.9 (openapi-typescript needs TS 5); Prism run via npx (its deps fail npm audit) |
 | PX-01-T12 | Web: OIDC PKCE sign-in, token refresh, sign-out | A0 | Divya + architect | in_review | | D · D-11; tested against a certified OIDC server, re-test on the Keycloak realm (PX-01-T01) |
@@ -84,7 +84,7 @@ Lanes: **FSD-A** Foundation · **FSD-B** API & Security · **Divya** web · **Fl
 | O-13 | Lock state in BU-01 | Keycloak attack-detection admin API | Manager / TA | Built 2026-11-02 as proposed in docs/keycloak.md 5.3 (Vishnu); **needs Manager / TA confirmation** |
 | O-23 | Multi-unit activation, primary unit | Accept all pending invites for the email; primary = oldest invite's unit | You + Divya | **D-09** (16 Oct): as proposed, same role only |
 | P-10 | bu_admin_user_id vs user_unit_role | Role row authoritative; checked by constraint trigger | TA | |
-| P-3 | SMS provider | Existing account — confirm DLT sender + OTP template approved | You | |
+| P-3 | SMS provider | Existing account — confirm DLT sender + OTP template approved | You | Closed by D-12 (19 Nov 2026): no SMS |
 | — | Email provider | SMTP adapter now (Mailpit); choose SES or SendGrid before a shared environment | TA | |
 | — | Sprint Deliverables S2 demo text | Replace "SSO" and "Reviewer role" per the demo script above | You + Suchith | |
 
@@ -121,12 +121,13 @@ Lanes: **FSD-A** Foundation · **FSD-B** API & Security · **Divya** web · **Fl
 | D-08 | O-12: who sends and checks codes | Keycloak only (sign-in, activation, phone change); one brute-force counter, 5 wrong = 30 min temporary lock; API never stores codes; 1.4–1.5 deprecated in favour of a Keycloak application-initiated action | PX-01-T02/T03 prove wrong codes hit the counter; PX-01-T04 applies phone-change side effects |
 | D-09 | O-23: multi-unit activation | Accepting one invite accepts every pending invite for that email and role in the tenant; primary unit = oldest invite's unit | PX-01-T08 |
 | D-11 | Web session | OIDC code + PKCE via oidc-client-ts, tokens in sessionStorage, refresh tokens (no iframe), sign-out calls 1.3 then Keycloak; invite token in the URL fragment | Realm client `pixorex-web` in PX-01-T01 |
+| D-12 | Phone numbers and SMS codes (change request from the lead, 19 Nov 2026) | Removed. Everyone, technicians included, signs in with a one-time code sent to their email; activation asks for the name only. `app_user.phone_number` and `phone_verified_at` dropped (migration 0009); contracts 1.4–1.5 removed, `phone_number` gone from 1.1 `Me` and 1.7 accept; Keycloak SPI email-only (identifier, lock check, code; no channel step); `phone_verified` claim and phone profile attributes removed from the realm. Supersedes the SMS parts of D-08, FR-1.5, FR-1.8 and CONSTITUTION v1.1 ("email + SMS OTP") | CONSTITUTION amendment to record; PRD FR-1.5/1.8, J02, MOB-01, AT-03 to reword. Existing technicians were removed for a fresh start |
 
 ## Open questions (not blocking S2)
 - P-4 admin MFA · P-13 WAL-based RPO · P-14 OpenAI US/ZDR evidence · environment procurement (needed by S3–S4).
 
 ## Known issues / risks
-- **SMS by Oct 20** depends on DLT registration on the existing account. Fallback: email live, SMS to a whitelisted test number.
+- ~~**SMS by Oct 20**~~ no longer applies: sign-in is by email only (D-12).
 - **Four working days** (Oct 15, 16, 19, 20) for 37 tasks across 5 people. S-tagged tasks move to S3 first if Friday's check is behind.
 - Architect review time on Thu Oct 15 for the three G2 baselines.
 

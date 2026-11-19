@@ -72,7 +72,7 @@ function ConvertFrom-Jwt([string]$Jwt) {
     [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($part)) | ConvertFrom-Json
 }
 
-# ---- Mailpit (local inbox for email and SMS codes) ----
+# ---- Mailpit (local inbox for sign-in codes) ----
 
 function Clear-Mailpit { Invoke-RestMethod -Method Delete "$script:MailpitUrl/api/v1/messages" | Out-Null }
 
@@ -97,4 +97,3 @@ function Get-LatestCode {
     throw "No code arrived in Mailpit for $To within $TimeoutSeconds s"
 }
 
-function Get-SmsAddress([string]$Phone) { 'sms+' + ($Phone -replace '\D', '') + '@pixorex.local' }

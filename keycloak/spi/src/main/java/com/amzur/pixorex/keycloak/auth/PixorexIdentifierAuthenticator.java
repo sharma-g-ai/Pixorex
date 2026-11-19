@@ -1,6 +1,5 @@
 package com.amzur.pixorex.keycloak.auth;
 
-import java.util.List;
 import java.util.Optional;
 
 import jakarta.ws.rs.core.Response;
@@ -14,10 +13,9 @@ import org.keycloak.protocol.oidc.OIDCLoginProtocol;
 import org.keycloak.sessions.AuthenticationSessionModel;
 
 import com.amzur.pixorex.keycloak.otp.Identifiers;
-import com.amzur.pixorex.keycloak.otp.Identifiers.Identifier;
 
 /**
- * First step of the code sign-in. An unknown, ambiguous or disabled identifier continues as a "ghost": the following
+ * First step of the code sign-in: the user's email (web and mobile; phone sign-in was removed on 19 Nov 2026). An unknown, ambiguous or disabled identifier continues as a "ghost": the following
  * screens look the same, but no user is set and nothing is ever sent (no account enumeration, REQ-01.02).
  */
 public class PixorexIdentifierAuthenticator implements Authenticator {
@@ -32,9 +30,9 @@ public class PixorexIdentifierAuthenticator implements Authenticator {
         if (hint != null && !hint.isBlank()) {
             // Consumed once: "start over" must show the empty form instead of looping on the same hint.
             authSession.removeClientNote(OIDCLoginProtocol.LOGIN_HINT_PARAM);
-            Optional<Identifier> identifier = Identifiers.parse(hint, allowPhone(context));
-            if (identifier.isPresent()) {
-                resolve(context, identifier.get());
+            Optional<String> email = Identifiers.email(hint);
+            if (email.isPresent()) {
+                resolve(context, email.get());
                 return;
             }
         }
@@ -44,23 +42,20 @@ public class PixorexIdentifierAuthenticator implements Authenticator {
     @Override
     public void action(AuthenticationFlowContext context) {
         String raw = context.getHttpRequest().getDecodedFormParameters().getFirst(FIELD);
-        boolean allowPhone = allowPhone(context);
-        Optional<Identifier> identifier = Identifiers.parse(raw, allowPhone);
-        if (identifier.isEmpty()) {
-            String error = allowPhone ? "pixorexIdentifierInvalidMobile" : "pixorexIdentifierInvalidEmail";
-            context.challenge(form(context, raw, error));
+        Optional<String> email = Identifiers.email(raw);
+        if (email.isEmpty()) {
+            context.challenge(form(context, raw, "pixorexIdentifierInvalidEmail"));
             return;
         }
-        resolve(context, identifier.get());
+        resolve(context, email.get());
     }
 
-    private void resolve(AuthenticationFlowContext context, Identifier identifier) {
+    private void resolve(AuthenticationFlowContext context, String email) {
         AuthenticationSessionModel authSession = context.getAuthenticationSession();
         AuthNotes.clearAll(authSession);
-        authSession.setAuthNote(AuthNotes.IDENTIFIER, identifier.value());
-        authSession.setAuthNote(AuthNotes.IDENTIFIER_TYPE, identifier.type().name());
+        authSession.setAuthNote(AuthNotes.IDENTIFIER, email);
 
-        UserModel user = findUser(context.getSession(), context.getRealm(), identifier);
+        UserModel user = context.getSession().users().getUserByEmail(context.getRealm(), email);
         if (user == null || !user.isEnabled()) {
             authSession.setAuthNote(AuthNotes.GHOST, "true");
             context.clearUser();
@@ -72,30 +67,8 @@ public class PixorexIdentifierAuthenticator implements Authenticator {
         context.success();
     }
 
-    static UserModel findUser(KeycloakSession session, RealmModel realm, Identifier identifier) {
-        if (identifier.type() == Identifiers.Type.EMAIL) {
-            return session.users().getUserByEmail(realm, identifier.value());
-        }
-        List<UserModel> holders = session.users()
-                .searchForUserByUserAttributeStream(realm, FlowSupport.PHONE_NUMBER, identifier.value())
-                .filter(UserModel::isEnabled)
-                .toList();
-        List<UserModel> verified = holders.stream().filter(FlowSupport::phoneVerified).toList();
-        if (verified.size() == 1) {
-            return verified.get(0);
-        }
-        // An invited technician signs in with the pending number; only an unambiguous single holder qualifies.
-        return verified.isEmpty() && holders.size() == 1 ? holders.get(0) : null;
-    }
-
-    private static boolean allowPhone(AuthenticationFlowContext context) {
-        return FlowSupport.csv(FlowSupport.config(context), PixorexIdentifierAuthenticatorFactory.PHONE_CLIENTS,
-                PixorexIdentifierAuthenticatorFactory.DEFAULT_PHONE_CLIENTS).contains(FlowSupport.clientId(context));
-    }
-
     private static Response form(AuthenticationFlowContext context, String value, String error) {
         var form = context.form()
-                .setAttribute("pxAllowPhone", allowPhone(context))
                 .setAttribute("pxIdentifier", value == null ? "" : value);
         if (error != null) {
             form.setError(error);

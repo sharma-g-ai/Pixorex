@@ -24,10 +24,9 @@ enum ActivationStatus {
 }
 
 class ActivationFormErrors {
-  const ActivationFormErrors({this.name, this.phone});
+  const ActivationFormErrors({this.name});
   final String? name;
-  final String? phone;
-  bool get hasAny => name != null || phone != null;
+  bool get hasAny => name != null;
 }
 
 const _deadLinkCodes = {'invite-expired', 'invite-used', 'invite-cancelled'};
@@ -54,7 +53,7 @@ class ActivationController extends ChangeNotifier {
   /// `invite-expired`, `invite-used`, `invite-cancelled` or `invite-invalid`.
   String? get linkProblem => _linkProblem;
 
-  /// login_hint for Keycloak: the phone for technicians (verify_phone), else the email.
+  /// login_hint for Keycloak: the invited email (everyone signs in by email).
   String? get signInHint => _signInHint;
 
   Future<void> load() async {
@@ -83,31 +82,22 @@ class ActivationController extends ChangeNotifier {
 
   /// Validates and submits. Returns field errors, or null when it went through
   /// (check [status] for the outcome).
-  ///
-  /// [phoneE164] is the number already formatted by `toE164`; null means incomplete.
-  Future<ActivationFormErrors?> submit({required String fullName, required String? phoneE164}) async {
-    final errors = ActivationFormErrors(
-      name: fullName.trim().isEmpty ? 'Enter your full name' : null,
-      phone: phoneE164 == null ? 'Enter a complete mobile number' : null,
-    );
+  Future<ActivationFormErrors?> submit({required String fullName}) async {
+    final errors = ActivationFormErrors(name: fullName.trim().isEmpty ? 'Enter your full name' : null);
     if (errors.hasAny) return errors;
 
     _status = ActivationStatus.submitting;
     _message = null;
     notifyListeners();
     try {
-      final accepted = await _repo.accept(
-        token: token,
-        fullName: fullName.trim(),
-        phoneNumber: phoneE164!,
-      );
-      _signInHint = accepted.nextStep == NextStep.verifyPhone ? phoneE164 : _preview!.email;
+      await _repo.accept(token: token, fullName: fullName.trim());
+      _signInHint = _preview!.email;
       _status = ActivationStatus.accepted;
       notifyListeners();
       return null;
     } on ApiException catch (e) {
-      // Only a dead link replaces the form. Other 409s (phone-in-use, email-in-use,
-      // unit-has-bu-admin; contract 1.7) are fixable or need the admin, so the form stays.
+      // Only a dead link replaces the form. Other 409s (email-in-use, unit-has-bu-admin;
+      // contract 1.7) need the admin, so the form stays with the server's message.
       if (e.status == 409 && _deadLinkCodes.contains(e.code)) {
         _linkProblem = e.code;
         _status = ActivationStatus.linkInvalid;
@@ -115,13 +105,6 @@ class ActivationController extends ChangeNotifier {
         return null;
       }
       _status = ActivationStatus.ready;
-      if (e.code == 'phone-in-use') {
-        _message = null;
-        notifyListeners();
-        return const ActivationFormErrors(
-          phone: 'This number is already used by another account. Enter a different number.',
-        );
-      }
       _message = e.message;
       String? firstFor(String key) {
         for (final f in e.fieldErrors) {
@@ -131,7 +114,7 @@ class ActivationController extends ChangeNotifier {
       }
 
       notifyListeners();
-      return ActivationFormErrors(name: firstFor('name'), phone: firstFor('phone'));
+      return ActivationFormErrors(name: firstFor('name'));
     }
   }
 }

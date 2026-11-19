@@ -106,6 +106,13 @@ class SessionController extends ChangeNotifier {
     }
   }
 
+  /// Contract 1.2: make [buId] the unit this device works in. No new sign-in and no token
+  /// change: the API keeps the active unit on this device's session. Throws [ApiException].
+  Future<void> switchUnit(String buId) async {
+    _me = Me.fromJson(await api.put('/me/active-unit', body: {'bu_id': buId}));
+    notifyListeners();
+  }
+
   /// Token for API calls; refreshes it first when it is about to lapse.
   Future<String?> accessToken() async {
     final t = _current;

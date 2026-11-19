@@ -9,6 +9,8 @@ interface PhotoPickerProps {
   disabled?: boolean
   /** File types taken, as in the input's accept. */
   accept?: string
+  /** Keep the label for screen readers only, with no heading shown above the box. */
+  hideLabel?: boolean
 }
 
 const sizeOf = (bytes: number) =>
@@ -17,7 +19,7 @@ const sizeOf = (bytes: number) =>
     : `${Math.max(1, Math.round(bytes / 1000))} KB`
 
 /**
- * A photo chooser: a clear box with a "Choose photo" button (or drop a photo on it), and the
+ * A photo chooser: a clear box with a "Choose image" button (or drop an image on it), and the
  * chosen file's name and size with Change / Remove, in place of the browser's plain
  * "Choose file / No file chosen" input. The real input stays in the page, hidden, so screen
  * readers and tests still reach it by the label.
@@ -28,6 +30,7 @@ export function PhotoPicker({
   onChange,
   disabled = false,
   accept = 'image/jpeg,image/png',
+  hideLabel = false,
 }: PhotoPickerProps) {
   const id = useId()
   const input = useRef<HTMLInputElement>(null)
@@ -52,7 +55,10 @@ export function PhotoPicker({
 
   return (
     <div>
-      <label htmlFor={id} className="mb-1.5 block text-small font-semibold text-ink-muted">
+      <label
+        htmlFor={id}
+        className={hideLabel ? 'sr-only' : 'mb-1.5 block text-small font-semibold text-ink-muted'}
+      >
         {label}
       </label>
       <input
@@ -96,17 +102,17 @@ export function PhotoPicker({
         ) : (
           <>
             <span className="min-w-0 grow text-small text-ink-muted">
-              Drop a photo here, or choose one. JPEG or PNG.
+              Drop an image here, or choose one. JPEG or PNG.
             </span>
             <Button variant="secondary" disabled={disabled} onClick={choose}>
-              Choose photo
+              Choose image
             </Button>
           </>
         )}
       </div>
       {wrongType && (
         <p role="alert" className="mt-1.5 text-small text-danger">
-          That file isn't a JPEG or PNG photo.
+          That file isn't a JPEG or PNG image.
         </p>
       )}
     </div>

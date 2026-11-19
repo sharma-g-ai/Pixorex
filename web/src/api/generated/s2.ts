@@ -70,52 +70,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/me/phone-change": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Start a mobile number change
-         * @deprecated
-         * @description Contract ref 1.4 in the API Contracts doc.
-         *
-         *     Deprecated by D-08: phone change is a Keycloak application-initiated action and Keycloak sends and checks the code. Kept until the mobile team confirms removal. Screen T 16.
-         */
-        post: operations["startPhoneChange"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/me/phone-change/verify": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Verify the new mobile number
-         * @deprecated
-         * @description Contract ref 1.5 in the API Contracts doc.
-         *
-         *     Deprecated by D-08: Keycloak checks the code; the API applies these effects from the Keycloak event listener. Saves phone_number and phone_verified_at, revokes every other user_session of the user, emails the user. Audit (users). Screens T 17-18.
-         */
-        post: operations["verifyPhoneChange"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/invites/preview": {
         parameters: {
             query?: never;
@@ -151,7 +105,7 @@ export interface paths {
          * Accept an invite (no auth)
          * @description Contract ref 1.7 in the API Contracts doc.
          *
-         *     Single use. Creates or re-activates app_user and one user_unit_role per invite row with the same hash. Also accepts every other pending invite for the same email and role in the tenant; the primary unit is the oldest invite's unit (D-09). Creates the Keycloak user with the email or phone not yet verified; Keycloak sends and checks the code at the first sign-in, then the account becomes active (D-08). Technicians never get dashboard access. Audit (users). Screens T 03, 05; BU 01, 33.
+         *     Single use. Creates or re-activates app_user and one user_unit_role per invite row with the same hash. Also accepts every other pending invite for the same email and role in the tenant; the primary unit is the oldest invite's unit (D-09). Creates the Keycloak user with the email not yet verified; Keycloak sends a code to the email and checks it at the first sign-in, then the account becomes active (D-08). Technicians give only their name: sign-in is by email for everyone (D-12); a phone_number sent by an older app is ignored. Technicians never get dashboard access. Audit (users). Screens T 03, 05; BU 01, 33.
          */
         post: operations["acceptInvite"];
         delete?: never;
@@ -419,8 +373,6 @@ export interface components {
             full_name: string;
             /** Format: email */
             email: string;
-            /** @description E.164, technicians only */
-            phone_number?: string | null;
             status: components["schemas"]["UserStatus"];
             /** @description Read-only Customer header in the mobile location picker. */
             tenant_name: string;
@@ -669,84 +621,6 @@ export interface operations {
             403: components["responses"]["Forbidden"];
         };
     };
-    startPhoneChange: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    /** @description E.164 */
-                    new_phone_number: string;
-                };
-            };
-        };
-        responses: {
-            /** @description Code sent to the new number */
-            202: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        expires_at: components["schemas"]["Timestamp"];
-                    };
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            401: components["responses"]["Unauthorized"];
-            403: components["responses"]["Forbidden"];
-            /** @description Number already used by another user. Problem types: /problems/phone-in-use. */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["Problem"];
-                };
-            };
-        };
-    };
-    verifyPhoneChange: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    code: string;
-                };
-            };
-        };
-        responses: {
-            /** @description Number changed; other devices signed out */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Me"];
-                };
-            };
-            401: components["responses"]["Unauthorized"];
-            403: components["responses"]["Forbidden"];
-            /** @description Wrong code, expired code, or phone changes locked for 30 minutes after 5 wrong codes. Problem types: /problems/code-invalid, /problems/phone-change-locked. */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["Problem"];
-                };
-            };
-        };
-    };
     previewInvite: {
         parameters: {
             query?: never;
@@ -795,14 +669,13 @@ export interface operations {
             content: {
                 "application/json": {
                     token: string;
+                    /** @description Leading and trailing spaces are removed; blank is refused (400). */
                     full_name: string;
-                    /** @description Required for technicians (E.164). */
-                    phone_number?: string | null;
                 };
             };
         };
         responses: {
-            /** @description Accepted. The client starts sign-in with the invited email or phone as login_hint; Keycloak sends and checks the code (D-08). */
+            /** @description Accepted. The client starts sign-in with the invited email as login_hint; Keycloak sends and checks the code (D-08). */
             201: {
                 headers: {
                     [name: string]: unknown;
@@ -811,12 +684,12 @@ export interface operations {
                     "application/json": {
                         user_id: components["schemas"]["Uuid"];
                         /** @enum {string} */
-                        next_step: "verify_phone" | "verify_email";
+                        next_step: "verify_email";
                     };
                 };
             };
             400: components["responses"]["BadRequest"];
-            /** @description Invite link no longer valid, phone number already used, email already signs in to another tenant, or a unit got a BU Admin meanwhile. Only the first three end the link. Problem types: /problems/invite-expired, /problems/invite-used, /problems/invite-cancelled, /problems/phone-in-use, /problems/email-in-use, /problems/unit-has-bu-admin. */
+            /** @description Invite link no longer valid, email already signs in to another tenant, or a unit got a BU Admin meanwhile. Only the first three end the link. Problem types: /problems/invite-expired, /problems/invite-used, /problems/invite-cancelled, /problems/email-in-use, /problems/unit-has-bu-admin. */
             409: {
                 headers: {
                     [name: string]: unknown;

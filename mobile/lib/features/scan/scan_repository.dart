@@ -12,8 +12,11 @@ import 'scan_models.dart';
 /// The scan endpoints the app calls (docs/mobile-api.md sections 5-6).
 /// Online only: the offline queue is a separate piece of work.
 class ScanRepository {
-  ScanRepository(this._api);
+  ScanRepository(this._api, {this.buId});
   final ApiClient _api;
+
+  /// The unit the technician works in: My Scans (and Home) show only its scans. Null: all units.
+  final String? buId;
   static const _uuid = Uuid();
 
   /// Max photo size the API accepts (contract 2.22).
@@ -121,6 +124,7 @@ class ScanRepository {
       Page.fromJson(
         await _api.get('/me/scans', query: {
           'tab': tab,
+          'bu_id': buId,
           'from': from == null ? null : _date(from),
           'q': q,
           'cursor': cursor,

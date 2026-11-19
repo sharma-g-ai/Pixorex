@@ -18,8 +18,8 @@ class PixorexIdentifierAuthenticatorFactoryTest {
     @Test
     void givenEveryPixorexStep_whenRegistered_thenIdsMatchTheRealmFlow() {
         List<AuthenticatorFactory> factories = List.of(new PixorexIdentifierAuthenticatorFactory(), new PixorexAppGateAuthenticatorFactory(),
-                new PixorexLockCheckAuthenticatorFactory(), new PixorexChannelAuthenticatorFactory(), new PixorexOtpAuthenticatorFactory());
-        assertEquals(List.of("pixorex-identifier", "pixorex-app-gate", "pixorex-lock-check", "pixorex-channel", "pixorex-otp"),
+                new PixorexLockCheckAuthenticatorFactory(), new PixorexOtpAuthenticatorFactory());
+        assertEquals(List.of("pixorex-identifier", "pixorex-app-gate", "pixorex-lock-check", "pixorex-otp"),
                 factories.stream().map(AuthenticatorFactory::getId).toList());
         for (AuthenticatorFactory factory : factories) {
             assertArrayEquals(new Requirement[] { Requirement.REQUIRED, Requirement.DISABLED }, factory.getRequirementChoices());
@@ -39,8 +39,8 @@ class PixorexIdentifierAuthenticatorFactoryTest {
         assertNull(new PixorexIdentifierAuthenticatorFactory().getReferenceCategory());
         assertNull(new PixorexAppGateAuthenticatorFactory().getReferenceCategory());
         assertNull(new PixorexLockCheckAuthenticatorFactory().getReferenceCategory());
-        assertNull(new PixorexChannelAuthenticatorFactory().getReferenceCategory());
         assertFalse(new PixorexLockCheckAuthenticatorFactory().isConfigurable());
+        assertFalse(new PixorexIdentifierAuthenticatorFactory().isConfigurable(), "email only: nothing to configure");
     }
 
     @Test

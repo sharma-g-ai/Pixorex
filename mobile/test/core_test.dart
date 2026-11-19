@@ -8,7 +8,7 @@ import 'package:pixorex_mobile/core/api_exception.dart';
 import 'package:pixorex_mobile/core/auth_tokens.dart';
 import 'package:pixorex_mobile/core/device_id.dart';
 import 'package:pixorex_mobile/core/invite_link.dart';
-import 'package:pixorex_mobile/core/phone.dart';
+import 'package:pixorex_mobile/core/email.dart';
 import 'package:pixorex_mobile/core/secure_store.dart';
 
 ApiClient clientFor(MockClient m, {String? token = 'tok', MemorySecureStore? store}) => ApiClient(
@@ -33,27 +33,12 @@ void main() {
     });
   });
 
-  group('phone', () {
-    const us = Country('+1', 10);
-    test('toE164 needs a complete national number', () {
-      expect(toE164(us, '(216) 555-0148'), '+12165550148');
-      expect(toE164(us, '216555'), isNull);
-      expect(toE164(us, ''), isNull);
-    });
-    test('maskPhone hides all but the last 4 digits', () {
-      expect(maskPhone('+12165550148'), '+1 ••• ••• 0148');
-    });
-    test('formatter shapes digits as the user types', () {
-      final f = NationalPhoneFormatter();
-      final out = f.formatEditUpdate(
-        TextEditingValue.empty,
-        const TextEditingValue(text: '21655501489999'),
-      );
-      expect(out.text, '(216) 555-0148');
-    });
+  group('email', () {
     test('isValidEmail', () {
       expect(isValidEmail('j.martinez@ppg-plant04.com'), isTrue);
+      expect(isValidEmail(' j.martinez@ppg-plant04.com '), isTrue);
       expect(isValidEmail('not-an-email'), isFalse);
+      expect(isValidEmail('+12165550148'), isFalse);
     });
   });
 

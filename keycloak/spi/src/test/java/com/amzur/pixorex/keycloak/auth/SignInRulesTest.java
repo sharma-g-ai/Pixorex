@@ -17,8 +17,6 @@ import org.keycloak.models.RealmModel;
 import org.keycloak.models.RoleModel;
 import org.keycloak.models.UserModel;
 
-import com.amzur.pixorex.keycloak.otp.Channel;
-
 class SignInRulesTest {
 
     private final Map<String, String> clientRoles = PixorexAppGateAuthenticator.parse(PixorexAppGateAuthenticatorFactory.DEFAULT_CLIENT_ROLES);
@@ -51,28 +49,18 @@ class SignInRulesTest {
     }
 
     @Test
-    void givenAnInvitedAdmin_whenTheEmailCodeSucceeds_thenTheEmailBecomesVerified() {
+    void givenAnInvitedAdminOrTechnician_whenTheEmailCodeSucceeds_thenTheEmailBecomesVerified() {
         UserModel user = mock(UserModel.class);
         when(user.isEmailVerified()).thenReturn(false);
-        assertTrue(PixorexOtpAuthenticator.activate(user, Channel.EMAIL));
+        assertTrue(PixorexOtpAuthenticator.activate(user));
         verify(user).setEmailVerified(true);
-    }
-
-    @Test
-    void givenAnInvitedTechnician_whenTheSmsCodeSucceeds_thenThePhoneBecomesVerified() {
-        UserModel user = mock(UserModel.class);
-        when(user.getFirstAttribute("phone_verified")).thenReturn("false");
-        assertTrue(PixorexOtpAuthenticator.activate(user, Channel.SMS));
-        verify(user).setSingleAttribute("phone_verified", "true");
     }
 
     @Test
     void givenAnActiveUser_whenTheCodeSucceeds_thenNothingChanges() {
         UserModel user = mock(UserModel.class);
         when(user.isEmailVerified()).thenReturn(true);
-        when(user.getFirstAttribute("phone_verified")).thenReturn("true");
-        assertFalse(PixorexOtpAuthenticator.activate(user, Channel.EMAIL));
-        assertFalse(PixorexOtpAuthenticator.activate(user, Channel.SMS));
+        assertFalse(PixorexOtpAuthenticator.activate(user));
         verify(user, never()).setEmailVerified(anyBoolean());
         verify(user, never()).setSingleAttribute(any(), any());
     }

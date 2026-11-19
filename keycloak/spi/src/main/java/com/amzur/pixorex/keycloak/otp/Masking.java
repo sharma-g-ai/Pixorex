@@ -1,9 +1,9 @@
 package com.amzur.pixorex.keycloak.otp;
 
-/** Destinations shown on screen and in logs: {@code r••••@example.com}, {@code •••• 4821}. */
+/** Destinations shown on screen and in logs: {@code r••••@example.com}. */
 public final class Masking {
 
-    private static final String DOTS = "\u2022\u2022\u2022\u2022";
+    private static final String DOTS = "••••";
 
     private Masking() {
     }
@@ -17,17 +17,5 @@ public final class Masking {
             return DOTS;
         }
         return email.charAt(0) + DOTS + email.substring(at);
-    }
-
-    public static String phone(String phone) {
-        if (phone == null) {
-            return "";
-        }
-        String digits = phone.replaceAll("\\D", "");
-        return DOTS + " " + (digits.length() <= 4 ? digits : digits.substring(digits.length() - 4));
-    }
-
-    public static String destination(Channel channel, String destination) {
-        return channel == Channel.SMS ? phone(destination) : email(destination);
     }
 }

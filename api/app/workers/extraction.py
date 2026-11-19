@@ -107,6 +107,18 @@ async def _end_without_values(conn: Conn, row: dict[str, Any], status: str) -> N
         await repo.set_processing(conn, row["scan_id"], "retake_required" if done else "failed")
 
 
+def _same_name(name: str) -> str:
+    return " ".join(name.split()).casefold()
+
+
+def _type_named(types: dict[str, UUID], name: str | None) -> UUID | None:
+    """The unit's published type the AI named, ignoring case and extra spaces."""
+    if not name:
+        return None
+    wanted = _same_name(name)
+    return next((tid for tname, tid in types.items() if _same_name(tname) == wanted), None)
+
+
 LEASE_MARGIN_S = 30.0  # the lease is the AI timeout plus this: photo reads and two short writes
 DEADLINE_MARGIN_S = 10.0  # the whole AI call may take the AI timeout plus this, at most
 
@@ -231,9 +243,13 @@ async def finish(conn: Conn, event: dict[str, Any], job: Job, outcome: Outcome) 
         (field, *checked_value(field, result.fields.get(field["field_key"], {}).get("value")))
         for field in job.fields
     ]
-    if job.fields and all(value is None for _, value, _ in checked):
+    suggested_id = _type_named(job.types, result.suggested_type)
+    other_type = suggested_id is not None and suggested_id != row["equipment_type_id"]
+    if job.fields and all(value is None for _, value, _ in checked) and not other_type:
         # Nothing was read at all (a blank screen, a photo of something that isn't a label):
-        # a failed attempt, so the technician gets Retry (up to 3 tries) or Retake.
+        # a failed attempt, so the technician gets Retry (up to 3 tries) or Retake. A label of
+        # another type published in the unit is not this: none of the chosen type's fields are
+        # on it, and the app asks to re-extract it as that type (type mismatch, screen 54).
         _log.warning("extraction_nothing_read", attempt_no=job.attempt_no)
         await _end_without_values(conn, row, "failed")
         return
@@ -254,7 +270,7 @@ async def finish(conn: Conn, event: dict[str, Any], job: Job, outcome: Outcome) 
         job.attempt_id,
         status="succeeded",
         detected_label=result.detected_label,
-        suggested_type_id=job.types.get(result.suggested_type or ""),
+        suggested_type_id=suggested_id,
         suggestion_confidence=result.type_confidence,
         tokens_in=result.tokens_in,
         tokens_out=result.tokens_out,

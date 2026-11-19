@@ -232,25 +232,45 @@ def test_technician_invite_rules(api: Api) -> None:
     assert made.status_code == 201, made.text
     token = api.sent[-1]["token"]
     _problem(
-        api.post("/invites/accept", json={"token": token, "full_name": "Tim"}), 400, "validation"
+        api.post("/invites/accept", json={"token": token, "full_name": " "}), 400, "validation"
     )
-    _problem(
-        api.post(
-            "/invites/accept",
-            json={"token": token, "full_name": "Tim", "phone_number": "+15550100001"},
-        ),  # Tara's number
-        409,
-        "phone-in-use",
-    )
-    ok = api.post(
-        "/invites/accept",
-        json={"token": token, "full_name": "Tim New", "phone_number": "+15550100099"},
-    )
+    # Sign-in is by email only (19 Nov 2026): a technician accepts with a name alone, and verifies
+    # the email with a code, like an admin.
+    ok = api.post("/invites/accept", json={"token": token, "full_name": "Tim New"})
     assert ok.status_code == 201, ok.text
-    assert ok.json()["next_step"] == "verify_phone"
+    assert ok.json()["next_step"] == "verify_email"
     # Contract 1.9: the BU Admin sees technician invites of their units, the EA doesn't.
     assert email in [i["email"] for i in api.get("/invites", BO).json()["items"]]
     assert email not in [i["email"] for i in api.get("/invites", ERIN).json()["items"]]
+
+
+def test_an_old_app_sending_a_phone_number_is_still_accepted(api: Api, owner_sql: Any) -> None:
+    """GIVEN an app build from before the change, which still sends phone_number
+    WHEN the technician accepts THEN it works and the number is not kept anywhere."""
+    email = f"{uuid.uuid4().hex[:6]}@example.com"
+    api.post(
+        "/invites",
+        BO,
+        json={"role": "field_technician", "email": email, "bu_ids": [P04]},
+        headers=_key(),
+    )
+    ok = api.post(
+        "/invites/accept",
+        json={
+            "token": api.sent[-1]["token"],
+            "full_name": "Old App",
+            "phone_number": "+15550100098",
+        },
+    )
+    assert ok.status_code == 201, ok.text
+    assert ok.json()["next_step"] == "verify_email"
+    me = api.get("/me", token=make_token(str(ok.json()["user_id"])))
+    assert "phone_number" not in me.json()
+    columns = owner_sql(
+        "SELECT column_name FROM information_schema.columns"
+        " WHERE table_name = 'app_user' AND column_name LIKE 'phone%%'"
+    )
+    assert columns == []
 
 
 def test_resend_replaces_the_link_and_cancel_ends_it(api: Api) -> None:

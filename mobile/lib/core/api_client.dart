@@ -43,6 +43,9 @@ class ApiClient {
   }) =>
       _send('POST', path, body: body, authenticated: authenticated, idempotencyKey: idempotencyKey);
 
+  Future<Map<String, dynamic>> put(String path, {required Map<String, dynamic> body}) =>
+      _send('PUT', path, body: body);
+
   /// Raw upload, e.g. a photo (contract 2.22): [headers] carry its Content-Type and Content-Digest.
   Future<Map<String, dynamic>> putBytes(
     String path,

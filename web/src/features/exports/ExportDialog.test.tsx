@@ -45,7 +45,7 @@ describe('Export dialog (contract 4.1)', () => {
       screen.getByText(/Names, emails and phone numbers are masked in the file\./),
     ).toBeInTheDocument()
     fireEvent.click(screen.getByLabelText('Approved scans only'))
-    fireEvent.click(screen.getByLabelText('Photo links (valid 1 hour)'))
+    fireEvent.click(screen.getByLabelText('Image links (valid 1 hour)'))
     fireEvent.click(screen.getByRole('button', { name: 'Download CSV' }))
 
     await waitFor(() => expect(handlers.onDownloaded).toHaveBeenCalled())

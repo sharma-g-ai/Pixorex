@@ -367,7 +367,7 @@ describe('New type', () => {
   it('GIVEN Blank THEN the photo picker is hidden and the button says Create type', async () => {
     renderPage()
     open()
-    expect(dialog().queryByLabelText('Photo of the label')).toBeNull()
+    expect(dialog().queryByLabelText('Image of the label')).toBeNull()
     fireEvent.change(dialog().getByLabelText('Equipment Name'), { target: { value: 'Motor v2' } })
     fireEvent.click(dialog().getByRole('button', { name: 'Create type' }))
     await waitFor(() =>
@@ -395,12 +395,12 @@ describe('New type', () => {
     expect(calls.create).not.toHaveBeenCalled()
   })
 
-  it('GIVEN AI assisted schema discovery THEN the photo picker appears and the button reads Read from photo', () => {
+  it('GIVEN AI assisted schema discovery THEN the photo picker appears and the button reads Read from image', () => {
     renderPage()
     open()
     fireEvent.click(dialog().getByLabelText('AI assisted schema discovery'))
-    expect(dialog().getByLabelText('Photo of the label')).toBeInTheDocument()
-    expect(dialog().getByRole('button', { name: 'Read from photo' })).toBeInTheDocument()
+    expect(dialog().getByLabelText('Image of the label')).toBeInTheDocument()
+    expect(dialog().getByRole('button', { name: 'Read from image' })).toBeInTheDocument()
     expect(dialog().queryByRole('button', { name: 'Create type' })).toBeNull()
   })
 
@@ -409,23 +409,23 @@ describe('New type', () => {
     open()
     fireEvent.change(dialog().getByLabelText('Equipment Name'), { target: { value: 'Generator' } })
     fireEvent.click(dialog().getByLabelText('AI assisted schema discovery'))
-    fireEvent.click(dialog().getByRole('button', { name: 'Read from photo' }))
-    expect(await dialog().findByText('Choose a photo of the label.')).toBeInTheDocument()
+    fireEvent.click(dialog().getByRole('button', { name: 'Read from image' }))
+    expect(await dialog().findByText('Choose an image of the label.')).toBeInTheDocument()
     expect(calls.suggest).not.toHaveBeenCalled()
   })
 
-  it('GIVEN no photo yet THEN the picker offers Choose photo, and a chosen file shows its name with Change and Remove', () => {
+  it('GIVEN no photo yet THEN the picker offers Choose image, and a chosen file shows its name with Change and Remove', () => {
     renderPage()
     open()
     fireEvent.click(dialog().getByLabelText('AI assisted schema discovery'))
-    expect(dialog().getByRole('button', { name: 'Choose photo' })).toBeInTheDocument()
+    expect(dialog().getByRole('button', { name: 'Choose image' })).toBeInTheDocument()
     expect(dialog().queryByText(/No file chosen/)).toBeNull()
     const photo = new File(['x'.repeat(2500)], 'nameplate.jpg', { type: 'image/jpeg' })
-    fireEvent.change(dialog().getByLabelText('Photo of the label'), { target: { files: [photo] } })
+    fireEvent.change(dialog().getByLabelText('Image of the label'), { target: { files: [photo] } })
     expect(dialog().getByText('nameplate.jpg')).toBeInTheDocument()
     expect(dialog().getByText('3 KB')).toBeInTheDocument()
     fireEvent.click(dialog().getByRole('button', { name: 'Remove' }))
-    expect(dialog().getByRole('button', { name: 'Choose photo' })).toBeInTheDocument()
+    expect(dialog().getByRole('button', { name: 'Choose image' })).toBeInTheDocument()
   })
 
   it('GIVEN a file that is not a JPEG or PNG THEN it is refused with a reason', () => {
@@ -433,7 +433,7 @@ describe('New type', () => {
     open()
     fireEvent.click(dialog().getByLabelText('AI assisted schema discovery'))
     const pdf = new File(['x'], 'label.pdf', { type: 'application/pdf' })
-    fireEvent.change(dialog().getByLabelText('Photo of the label'), { target: { files: [pdf] } })
+    fireEvent.change(dialog().getByLabelText('Image of the label'), { target: { files: [pdf] } })
     expect(dialog().getByRole('alert')).toHaveTextContent("isn't a JPEG or PNG")
     expect(dialog().queryByText('label.pdf')).toBeNull()
   })
@@ -444,14 +444,14 @@ describe('New type', () => {
       renderPage()
       open()
       fireEvent.click(dialog().getByLabelText('AI assisted schema discovery'))
-      expect(dialog().getByRole('status')).toHaveTextContent('Reading your photo…')
+      expect(dialog().getByRole('status')).toHaveTextContent('Reading your image…')
       expect(dialog().getByRole('status')).toHaveTextContent('Please keep this window open')
-      expect(dialog().getByRole('button', { name: /Reading the photo/ })).toBeDisabled()
+      expect(dialog().getByRole('button', { name: /Reading the image/ })).toBeDisabled()
       expect(dialog().getByRole('button', { name: 'Cancel' })).toBeDisabled()
-      expect(dialog().getByRole('button', { name: 'Choose photo' })).toBeDisabled()
+      expect(dialog().getByRole('button', { name: 'Choose image' })).toBeDisabled()
       expect(dialog().getByLabelText('Equipment Name')).toBeDisabled()
       expect(dialog().getByLabelText('Blank')).toBeDisabled()
-      expect(dialog().getByLabelText('Photo of the label')).toBeDisabled()
+      expect(dialog().getByLabelText('Image of the label')).toBeDisabled()
     } finally {
       reading.on = false
     }
@@ -468,8 +468,8 @@ describe('New type', () => {
     fireEvent.change(dialog().getByLabelText('Equipment Name'), { target: { value: 'Generator' } })
     fireEvent.click(dialog().getByLabelText('AI assisted schema discovery'))
     const photo = new File(['x'], 'label.jpg', { type: 'image/jpeg' })
-    fireEvent.change(dialog().getByLabelText('Photo of the label'), { target: { files: [photo] } })
-    fireEvent.click(dialog().getByRole('button', { name: 'Read from photo' }))
+    fireEvent.change(dialog().getByLabelText('Image of the label'), { target: { files: [photo] } })
+    fireEvent.click(dialog().getByRole('button', { name: 'Read from image' }))
     await dialog().findByRole('checkbox', { name: /Voltage/ })
     return photo
   }

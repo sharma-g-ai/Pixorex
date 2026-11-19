@@ -171,7 +171,7 @@ try {
         Check 'token audience includes pixorex-api' (@($claims.aud) -contains 'pixorex-api')
         Check 'token azp is pixorex-web' ($claims.azp -eq 'pixorex-web')
         Check 'token carries no roles' ($null -eq $claims.realm_access)
-        Check 'web token has no phone_verified claim' ($null -eq $claims.phone_verified)
+        Check 'token has no phone_verified claim' ($null -eq $claims.phone_verified)
         Check 'web gets a normal (not offline) refresh token' ($claims.px_refresh_typ -eq 'Refresh')
     }
     Check 'first sign-in activated EA (emailVerified=true)' ((Get-KcUser 'ea@demo.local').emailVerified -eq $true)
@@ -196,7 +196,7 @@ try {
 
     $b = Start-SignIn 'pixorex-web' $WebRedirect
     Submit $b 'px-identifier-form' @{ identifier = '+15550100001' }
-    Check 'web refuses a phone number as identifier' ((Test-Form $b 'px-identifier-form') -and ((Get-Alert $b) -match 'valid email'))
+    Check 'a phone number is refused as identifier' ((Test-Form $b 'px-identifier-form') -and ((Get-Alert $b) -match 'valid email'))
 
     $b = Start-SignIn 'pixorex-web' $WebRedirect 'dual@demo.local'
     Check 'admin+technician on web: login_hint skips to the code page' (Test-Form $b 'px-code-form')
@@ -205,35 +205,27 @@ try {
     Check 'resend within 60 s is refused' ((Get-Alert $b) -match 'wait')
     Check 'resend refusal sent nothing extra' ((Get-MessageCount 'dual@demo.local') -eq 1)
 
-    Write-Host 'Mobile app (SMS or email)'
+    Write-Host 'Mobile app (email only, D-12)'
     $b = Start-SignIn 'pixorex-mobile' $MobileRedirect -Scope 'openid profile email offline_access'
     Submit $b 'px-identifier-form' @{ identifier = 'tech1@demo.local' }
-    Check 'active technician gets the channel choice' (Test-Form $b 'px-channel-form')
-    Check 'channel choice masks the phone' ($b.Html -match '0001' -and $b.Html -notmatch '5550100001')
-    Submit $b 'px-channel-form' @{ channel = 'sms' }
-    $smsTo = Get-SmsAddress '+15550100001'
-    $claims = Finish $b (Get-LatestCode $smsTo)
-    Check 'technician signs in with an SMS code' ($null -ne $claims)
+    Check 'active technician goes straight to the email code page' ((Test-Form $b 'px-code-form') -and ($b.Html -match 'If this email belongs'))
+    $claims = Finish $b (Get-LatestCode 'tech1@demo.local')
+    Check 'technician signs in with an email code' ($null -ne $claims)
     if ($claims) {
         Check 'mobile token azp is pixorex-mobile' ($claims.azp -eq 'pixorex-mobile')
-        Check 'mobile token has phone_verified=true' ($claims.phone_verified -eq $true)
+        Check 'mobile token has no phone_verified claim' ($null -eq $claims.phone_verified)
         Check 'mobile gets an offline refresh token (offline_access)' ($claims.px_refresh_typ -eq 'Offline')
     }
-    $sms = Invoke-RestMethod "$script:MailpitUrl/api/v1/message/$((Get-MailpitMessages $smsTo)[0].ID)"
-    Check 'SMS text has the autofill line' ($sms.Text -match '@localhost #\d{6}')
 
     $b = Start-SignIn 'pixorex-mobile' $MobileRedirect
     Submit $b 'px-identifier-form' @{ identifier = '+1 (555) 010-0001' }
-    Check 'mobile accepts a verified phone number as identifier' (Test-Form $b 'px-channel-form')
-    Submit $b 'px-channel-form' @{ channel = 'email' }
-    $claims = Finish $b (Get-LatestCode 'tech1@demo.local')
-    Check 'phone identifier + email code signs in' ($claims.app_user_id -eq $ids.tech1)
+    Check 'mobile refuses a phone number as identifier' ((Test-Form $b 'px-identifier-form') -and ((Get-Alert $b) -match 'valid email'))
 
     $b = Start-SignIn 'pixorex-mobile' $MobileRedirect 'tech2@demo.local'
-    Check 'invited technician: login_hint goes straight to the code page (SMS only)' ((Test-Form $b 'px-code-form') -and ($b.Html -match 'If this number belongs'))
-    $claims = Finish $b (Get-LatestCode (Get-SmsAddress '+15550100002'))
-    Check 'invited technician signs in with the SMS code' ($null -ne $claims)
-    Check 'invited technician is activated (phone_verified=true)' ((Get-KcUser 'tech2@demo.local').attributes.phone_verified[0] -eq 'true')
+    Check 'invited technician: login_hint goes straight to the email code page' ((Test-Form $b 'px-code-form') -and ($b.Html -match 'If this email belongs'))
+    $claims = Finish $b (Get-LatestCode 'tech2@demo.local')
+    Check 'invited technician signs in with the email code' ($null -ne $claims)
+    Check 'invited technician is activated (emailVerified=true)' ((Get-KcUser 'tech2@demo.local').emailVerified -eq $true)
 
     $b = Start-SignIn 'pixorex-mobile' $MobileRedirect
     Submit $b 'px-identifier-form' @{ identifier = 'buadmin.p04@demo.local' }

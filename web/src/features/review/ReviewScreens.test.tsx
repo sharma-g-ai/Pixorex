@@ -355,10 +355,10 @@ describe('Low confidence and photos', () => {
       photos: [{ photo_no: 1, url: 'http://minio/1.jpg' }] as unknown as typeof review.photos,
     }
     inShell(<ScanReviewView scanId="s1" back={{ to: '/', label: 'Back' }} />)
-    expect(screen.getByRole('status')).toHaveTextContent('Loading photo…')
-    fireEvent.error(screen.getByAltText('Photo 1 of 1'))
-    expect(screen.getByRole('alert')).toHaveTextContent("We couldn't load this photo")
-    expect(screen.queryByAltText('Photo 1 of 1')).toBeNull()
+    expect(screen.getByRole('status')).toHaveTextContent('Loading image…')
+    fireEvent.error(screen.getByAltText('Image 1 of 1'))
+    expect(screen.getByRole('alert')).toHaveTextContent("We couldn't load this image")
+    expect(screen.queryByAltText('Image 1 of 1')).toBeNull()
   })
 })
 
@@ -373,10 +373,10 @@ describe('Photo viewer', () => {
     }
     inShell(<ScanReviewView scanId="s1" back={{ to: '/', label: 'Back' }} />)
     expect(document.querySelector('a[target="_blank"]')).toBeNull()
-    fireEvent.click(screen.getByRole('button', { name: 'Open photo 1 of 2' }))
-    const viewer = within(screen.getByRole('dialog', { name: 'Photo 1 of 2' }))
-    fireEvent.click(viewer.getByRole('button', { name: 'Next photo' }))
-    expect(screen.getByRole('dialog', { name: 'Photo 2 of 2' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Open image 1 of 2' }))
+    const viewer = within(screen.getByRole('dialog', { name: 'Image 1 of 2' }))
+    fireEvent.click(viewer.getByRole('button', { name: 'Next image' }))
+    expect(screen.getByRole('dialog', { name: 'Image 2 of 2' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Close' }))
     expect(screen.queryByRole('dialog')).toBeNull()
   })

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../core/phone.dart';
 import '../../core/theme.dart';
 import '../../widgets/auth_widgets.dart';
 import 'activation_controller.dart';
@@ -9,7 +8,7 @@ import 'invite_expired_screen.dart';
 import 'session_controller.dart';
 
 /// Activate account from invite (design 03). Loads the invite (contract 1.6),
-/// accepts it (1.7), then hands over to Keycloak, which texts the code.
+/// accepts it (1.7) with the name only, then hands over to Keycloak, which emails the code.
 class ActivateScreen extends StatefulWidget {
   const ActivateScreen({super.key, required this.controller});
   final ActivationController controller;
@@ -20,8 +19,6 @@ class ActivateScreen extends StatefulWidget {
 
 class _ActivateScreenState extends State<ActivateScreen> {
   final _name = TextEditingController();
-  final _phone = TextEditingController();
-  Country _country = supportedCountries.first;
   ActivationFormErrors? _errors;
   bool _signInFailed = false;
 
@@ -38,7 +35,6 @@ class _ActivateScreenState extends State<ActivateScreen> {
   void dispose() {
     _c.removeListener(_onChange);
     _name.dispose();
-    _phone.dispose();
     super.dispose();
   }
 
@@ -50,16 +46,13 @@ class _ActivateScreenState extends State<ActivateScreen> {
   Future<void> _activate() async {
     FocusScope.of(context).unfocus();
     final session = context.read<SessionController>();
-    final errors = await _c.submit(
-      fullName: _name.text,
-      phoneE164: toE164(_country, _phone.text),
-    );
+    final errors = await _c.submit(fullName: _name.text);
     if (!mounted) return;
     setState(() => _errors = errors);
     if (_c.status == ActivationStatus.accepted) await _continueToSignIn(session);
   }
 
-  /// Keycloak texts the code and shows its own verify screen.
+  /// Keycloak emails the code and shows its own verify screen.
   Future<void> _continueToSignIn(SessionController session) async {
     setState(() => _signInFailed = false);
     final ok = await session.signIn(loginHint: _c.signInHint);
@@ -139,25 +132,15 @@ class _ActivateScreenState extends State<ActivateScreen> {
                       error: _errors?.name,
                       textCapitalization: TextCapitalization.words,
                       autofillHints: const [AutofillHints.name],
-                      textInputAction: TextInputAction.next,
+                      textInputAction: TextInputAction.done,
                       onChanged: (_) => setState(() => _errors = null),
                     ),
                   ),
                   const SizedBox(height: 12),
-                  FieldBlock(label: 'Work email', child: LockedField(value: preview.email)),
-                  const SizedBox(height: 12),
                   FieldBlock(
-                    label: 'Mobile number',
-                    error: _errors?.phone,
-                    help: "We'll text a code to this number to verify it. Later you can sign in with this number or your email.",
-                    child: PhoneField(
-                      controller: _phone,
-                      country: _country,
-                      enabled: !accepted && !working,
-                      error: _errors?.phone,
-                      onCountryChanged: (c) => setState(() => _country = c),
-                      onChanged: (_) => setState(() => _errors = null),
-                    ),
+                    label: 'Work email',
+                    help: "We'll email a code to this address to verify it. You'll sign in with this email.",
+                    child: LockedField(value: preview.email),
                   ),
                   const SizedBox(height: 14),
                   const Text('Your business units', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
@@ -188,7 +171,7 @@ class _ActivateScreenState extends State<ActivateScreen> {
                     const SizedBox(height: 4),
                     InfoBanner(
                       text: session.error ??
-                          'Your account is activated. Finish verifying your number to sign in.',
+                          'Your account is activated. Enter the code from your email to sign in.',
                       icon: session.error != null ? Icons.error_outline : Icons.check_circle_outline,
                       error: session.error != null,
                     ),

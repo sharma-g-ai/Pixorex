@@ -16,9 +16,6 @@ import org.keycloak.models.UserModel;
 
 final class FlowSupport {
 
-    static final String PHONE_NUMBER = "phone_number";
-    static final String PHONE_VERIFIED = "phone_verified";
-
     static final String MESSAGE_TEMPLATE = "pixorex-message.ftl";
 
     private FlowSupport() {
@@ -39,10 +36,6 @@ final class FlowSupport {
 
     static String clientId(AuthenticationFlowContext context) {
         return context.getAuthenticationSession().getClient().getClientId();
-    }
-
-    static boolean phoneVerified(UserModel user) {
-        return "true".equals(user.getFirstAttribute(PHONE_VERIFIED));
     }
 
     /** Full-page message (denied, locked) with a "start over" link. Uses challenge, never failure, so nothing is counted. */

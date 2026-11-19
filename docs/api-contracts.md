@@ -59,18 +59,18 @@ Slice 1 gives every surface the signed-in user, their units and roles, unit swit
 
 | \# | Endpoint | Who | Request | Response | Rules | Screens |
 | :---- | :---- | :---- | :---- | :---- | :---- | :---- |
-| 1.1 | GET /me | All roles | — | user {id, full\_name, email, phone\_number, status}; tenant {name}; units \[{bu\_id, name, role, is\_primary, assigned\_by\_name}\]; active\_bu\_id; last\_bu\_id | Sets app\_user.last\_active\_at. tenant.name is the read-only Customer header in the mobile picker. | T 13–15, BU 03, EA 03 |
+| 1.1 | GET /me | All roles | — | user {id, full\_name, email, status}; tenant {name}; units \[{bu\_id, name, role, is\_primary, assigned\_by\_name}\]; active\_bu\_id; last\_bu\_id | Sets app\_user.last\_active\_at. tenant.name is the read-only Customer header in the mobile picker. | T 13–15, BU 03, EA 03 |
 | 1.2 | PUT /me/active-unit | All roles | {bu\_id} | Same body as 1.1 | Caller must hold an active role in bu\_id (403). Updates user\_session.active\_bu\_id and app\_user.last\_bu\_id. No new sign-in. | T 19–20, 28; BU 28–30 |
 | 1.3 | POST /me/sign-out | All roles | — | 204 | Sets user\_session.revoked\_at for this device. The app also ends the Keycloak session. **Audit** (sign\_in). | T 29 |
-| 1.4 | POST /me/phone-change | field\_technician | {new\_phone\_number} (E.164) | 202 {expires\_at} | Deprecated (D-08): phone change is a Keycloak application-initiated action; Keycloak sends and checks the code. Number already used → 409 phone-in-use. | T 16 |
-| 1.5 | POST /me/phone-change/verify | field\_technician | {code} | Same body as 1.1 | Deprecated (D-08): Keycloak checks the code and the API applies these effects from its event listener. On success: saves phone\_number, phone\_verified\_at; revokes every other user\_session of the user; emails the user. 5 wrong codes lock phone changes 30 min (V3). **Audit** (users). | T 17–18 |
+| 1.4 | ~~POST /me/phone-change~~ | | | | **Removed** (D-12, 19 Nov 2026): no phone numbers; everyone signs in by email. | |
+| 1.5 | ~~POST /me/phone-change/verify~~ | | | | **Removed** (D-12, 19 Nov 2026). | |
 
 ### **1B. Invite links (no token)**
 
 | \# | Endpoint | Who | Request | Response | Rules | Screens |
 | :---- | :---- | :---- | :---- | :---- | :---- | :---- |
 | 1.6 | POST /invites/preview | Anyone holding the link | {token} — from the link, sent in the body so it never sits in a URL | {role, email, units \[{bu\_id, name}\], invited\_by\_name, expires\_at} | Looks up invite.token\_hash. The web link carries the token in the URL fragment (/activate#token=…), so it never reaches a server log (D-11). Expired, used or cancelled → 409 invite-expired, invite-used, invite-cancelled. | T 03–04, BU 01 |
-| 1.7 | POST /invites/accept | Anyone holding the link | {token, full\_name, phone\_number (technicians, E.164)} | 201 {user\_id, next\_step: "verify\_phone" or "verify\_email"} | Single use. Creates or re-activates app\_user and one user\_unit\_role per invite row with the same hash. Also accepts every other pending invite for the same email and role in the tenant; the primary unit is the oldest invite's unit (D-09). Creates the Keycloak user with the email or phone not yet verified; Keycloak sends and checks the code at the first sign-in, then the account becomes active (D-08). Technicians never get dashboard access. **Audit** (users). | T 03, 05; BU 01, 33 |
+| 1.7 | POST /invites/accept | Anyone holding the link | {token, full\_name} | 201 {user\_id, next\_step: "verify\_email"} | Single use. Creates or re-activates app\_user and one user\_unit\_role per invite row with the same hash. Also accepts every other pending invite for the same email and role in the tenant; the primary unit is the oldest invite's unit (D-09). Creates the Keycloak user with the email not yet verified; Keycloak emails a code and checks it at the first sign-in, then the account becomes active (D-08). Everyone, technicians included, signs in by email (D-12); a phone\_number sent by an older app is ignored. A blank name → 400. Technicians never get dashboard access. **Audit** (users). | T 03, 05; BU 01, 33 |
 
 ### **1C. Invites (admins)**
 
@@ -309,7 +309,6 @@ Every error is RFC 9457 problem+json, as in the earlier contract set; code is th
 | 409 | already-assigned | Scan already in an open batch | 3.9 |
 | 409 | unit-has-bu-admin, not-a-bu-admin, no-bu-admin | BU Admin rules | 1.7, 1.8, 1.13, 1.16, 3.17 |
 | 409 | email-in-use | The email already signs in to another tenant | 1.7 |
-| 409 | phone-in-use, code-invalid, phone-change-locked | Phone change and activation | 1.4–1.5, 1.7 |
 | 409 | invite-expired, invite-used, invite-cancelled | Invite link no longer valid | 1.6–1.7 |
 | 409 | link-expired | Export link older than 1 hour | 4.2 |
 | 409 | invalid-state | Any other status move not allowed (table below) | 1.10–1.11, 2.21–2.27, 3.2, 3.5, 3.7, 3.12–3.14 |

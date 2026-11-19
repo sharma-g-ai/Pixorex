@@ -46,8 +46,8 @@ def ai(monkeypatch: pytest.MonkeyPatch) -> dict[str, Any]:
                 "serial": {"value": "SN-77", "confidence": 0.42},
                 "voltage": {"value": None, "confidence": None},
             },
-            detected_label="Motor nameplate",
-            suggested_type="Motor",
+            detected_label=seen.get("label", "Motor nameplate"),
+            suggested_type=seen.get("suggested", "Motor"),
             type_confidence=0.91,
             tokens_in=1200,
             tokens_out=80,
@@ -187,6 +187,89 @@ async def test_flags_follow_each_fields_threshold_end_to_end(
     assert shown["voltage"]["flag_reasons"] == voltage_flags
     assert shown["serial"]["description"] == SERIAL_DESCRIPTION
     assert shown["serial"]["is_critical"] is False  # deprecated, for older app builds
+
+
+_NOTHING_READ = {
+    "serial": {"value": None, "confidence": None},
+    "voltage": {"value": None, "confidence": None},
+}
+
+
+def _another_published_type(owner_sql: Any, unit: dict[str, str], name: str) -> str:
+    """A second type published in the same unit as the scan's type."""
+    return str(
+        owner_sql(
+            "INSERT INTO equipment_type (tenant_id, bu_id, process_id, name, created_via, status)"
+            " SELECT tenant_id, bu_id, process_id, %s, 'blank', 'published'"
+            " FROM equipment_type WHERE id = %s RETURNING id",
+            (name, unit["type"]),
+        )[0][0]
+    )
+
+
+async def test_a_label_of_another_published_type_asks_the_technician(
+    api: Api,
+    owner_sql: Any,
+    unit: dict[str, str],
+    uploads: dict[str, bytes],
+    pool: Any,
+    database: dict[str, str],
+    ai: dict[str, Any],
+) -> None:
+    """GIVEN a scan chosen as Motor of a label that is another type published in the plant
+    WHEN the AI reads none of Motor's fields but says it is that type
+    THEN the scan is ready to review with that suggestion (the app's type mismatch question),
+    not failed."""
+    pump = _another_published_type(owner_sql, unit, "Pump Nameplate")
+    ai["fields"], ai["label"], ai["suggested"] = _NOTHING_READ, "Pump nameplate", "Pump Nameplate"
+    sid = _confirmed(api, unit)["scan_id"]
+    await _run(pool, owner_sql, database)
+
+    scan = api.get(f"/scans/{sid}", TARA).json()
+    assert scan["processing_status"] == "ready_to_review"
+    assert scan["latest_attempt"]["status"] == "succeeded"
+    assert scan["latest_attempt"]["suggested_type_id"] == pump
+    assert scan["latest_attempt"]["detected_label"] == "Pump nameplate"
+    assert all(f["ai_value"] is None for f in scan["fields"])
+
+
+@pytest.mark.parametrize("suggested", [None, "Motor", "Boiler"])  # none, the same, not in the unit
+async def test_nothing_read_and_no_other_type_still_fails(
+    api: Api,
+    owner_sql: Any,
+    unit: dict[str, str],
+    uploads: dict[str, bytes],
+    pool: Any,
+    database: dict[str, str],
+    ai: dict[str, Any],
+    suggested: str | None,
+) -> None:
+    """GIVEN a photo the AI reads nothing from WHEN it names no other published type
+    THEN the attempt fails, so the technician gets Retry or Retake (a blank or useless photo)."""
+    _another_published_type(owner_sql, unit, "Pump Nameplate")
+    ai["fields"], ai["suggested"] = _NOTHING_READ, suggested
+    sid = _confirmed(api, unit)["scan_id"]
+    await _run(pool, owner_sql, database)
+    scan = api.get(f"/scans/{sid}", TARA).json()
+    assert (scan["processing_status"], scan["latest_attempt"]["status"]) == ("failed", "failed")
+
+
+async def test_the_suggested_type_matches_whatever_the_case_and_spaces(
+    api: Api,
+    owner_sql: Any,
+    unit: dict[str, str],
+    uploads: dict[str, bytes],
+    pool: Any,
+    database: dict[str, str],
+    ai: dict[str, Any],
+) -> None:
+    """GIVEN a published type "Pump Nameplate" WHEN the AI writes " pump  nameplate"
+    THEN it is still that type."""
+    pump = _another_published_type(owner_sql, unit, "Pump Nameplate")
+    ai["suggested"] = " pump  nameplate"
+    sid = _confirmed(api, unit)["scan_id"]
+    await _run(pool, owner_sql, database)
+    assert api.get(f"/scans/{sid}", TARA).json()["latest_attempt"]["suggested_type_id"] == pump
 
 
 async def test_a_failed_extraction_allows_retries_then_a_retake(

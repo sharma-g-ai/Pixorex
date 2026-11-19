@@ -5,7 +5,7 @@ The interface between `web/`, `mobile/` and `api/`. The readable version is `doc
 | File | Slice / sprint | Endpoints |
 |---|---|---|
 | `common.yaml` | Shared: auth, RFC 9457 errors, paging, Idempotency-Key, roles; `/health`, `/ready` | 2 |
-| `slice-s2-auth-rbac.yaml` | S2: me, unit switching, phone change, invites, business units, BU Admins, technicians | 19 |
+| `slice-s2-auth-rbac.yaml` | S2: me, unit switching, invites, business units, BU Admins, technicians | 17 |
 | `slice-s3-capture-extraction.yaml` | S3: locations, equipment types and fields, AI-assist, scan upload, extraction | 27 |
 | `slice-s4-workflow-review.yaml` | S4: My Scans, self-review, decisions, override, delegation, escalation, alerts, audit, quota, retention | 26 |
 | `slice-s5-portal-export.yaml` | S5: CSV export | 2 |

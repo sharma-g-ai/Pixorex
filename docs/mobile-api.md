@@ -16,7 +16,7 @@ Follow [local-setup.md](local-setup.md) (`docker compose up -d` from the repo ro
 |---|---|
 | API | `http://<host>:8000/api/v1` |
 | Keycloak (sign-in) | `http://<host>:8080/realms/pixorex` |
-| Mailpit (emails **and** SMS codes) | `http://localhost:8025` |
+| Mailpit (sign-in codes and other emails) | `http://localhost:8025` |
 
 **Testing on a phone or emulator.** The phone can't use `localhost`. Put your laptop's network address in `.env` and restart:
 
@@ -28,13 +28,13 @@ This changes both the sign-in address and the token issuer the API checks, so th
 
 **Test accounts** (all in company "PPG", unit Plant 04):
 
-| Email | Phone | Role |
-|---|---|---|
-| tech1@demo.local | +15550100001 | Technician, active |
-| tech2@demo.local | +15550100002 | Technician, invited (phone not verified yet) |
-| dual@demo.local | +15550100003 | Technician in Plant 04 and BU Admin in Plant 05 |
+| Email | Role |
+|---|---|
+| tech1@demo.local | Technician, active |
+| tech2@demo.local | Technician, invited (email not verified yet) |
+| dual@demo.local | Technician in Plant 04 and BU Admin in Plant 05 |
 
-Sign-in codes go to Mailpit. An SMS shows up there as an email to `sms+<digits>@…`.
+Everyone signs in with their email; the code goes to Mailpit. There are no phone numbers or SMS codes (D-12, 19 Nov 2026): activation asks for the name only.
 
 ---
 
@@ -190,7 +190,7 @@ Your own scans, newest change first. Filters: `bu_id`, `tab`, `review_status`, `
 |---|---|
 | AI extraction runs in the worker (21 Oct) | After upload-complete, poll `GET /scans/{scanId}`: usually `ready_to_review` in seconds, or `failed` (retry) / `retake_required` after 3 attempts. Needs `PIXOREX_OPENAI_API_KEY` in the backend's `.env`. |
 | Invite link opens the web page `/activate#token=…` | How a technician's link opens the app (deep link or app link) is **not decided**. Agree it with the API side before building T 03–05. |
-| Phone number change (1.4, 1.5) | Deprecated (D-08): done inside Keycloak as an application-initiated action. Keycloak doesn't send the event to the API yet (Iswarya). |
+| Phone number change (1.4, 1.5) | Removed (D-12, 19 Nov 2026): no phone numbers. |
 | Photo link name | `view_url` in `GET /scans/{scanId}`, `url` in `GET /scans/{scanId}/review`, as each contract says. |
 | `photo_count` | Not stored (no database column yet). Upload-complete checks photos 1..n have no gap. Send exactly the photos you said. |
 | Monthly scan limit (402) | Counted, never refused yet: where the limit lives is undecided. |

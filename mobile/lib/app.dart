@@ -130,7 +130,8 @@ class _AuthGate extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final status = context.select<SessionController, SessionStatus>((s) => s.status);
+    // The active unit too: switching units in Profile rebuilds every screen for the new one.
+    final (status, _) = context.select<SessionController, (SessionStatus, String?)>((s) => (s.status, s.me?.activeBuId));
     return switch (status) {
       SessionStatus.restoring => const SplashScreen(),
       SessionStatus.signedIn => _signedIn(context),
@@ -140,9 +141,9 @@ class _AuthGate extends StatelessWidget {
 
   Widget _signedIn(BuildContext context) {
     final session = context.read<SessionController>();
-    final scans = ScanRepository(session.api);
     final unit = session.me == null ? null : activeUnit(session.me!);
     final buId = unit?.buId;
+    final scans = ScanRepository(session.api, buId: buId);
     if (buId == null) return HomeShell(scans: scans);
     final nav = Navigator.of(context);
     late final Future<bool> Function(MyScan old) retake;
@@ -160,6 +161,7 @@ class _AuthGate extends StatelessWidget {
     retake = retakeWith(nav, scans, flow, photoSource);
 
     return HomeShell(
+      key: ValueKey(buId), // a fresh Home (and its lists) for each unit
       scans: scans,
       onNewScan: () => nav.push(MaterialPageRoute<void>(builder: (_) => flow())),
       onMyScans: ({String? tab}) => openMyScans(nav, scans, unit!.name ?? '', retake, tab: tab),

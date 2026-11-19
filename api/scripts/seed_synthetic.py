@@ -4,7 +4,7 @@ Tenant A matches the Keycloak test users in keycloak/scripts/seed-users.json (sa
 app_user ids, tenant id and emails), so signing in locally finds these rows. It has
 3 units; Plant 11 has no BU Admin and a pending invite. Tenant B has no Keycloak users;
 it is there so isolation between tenants can be seen and tested.
-Invented names, demo.local emails, 555-01xx phone numbers. No real customer data.
+Invented names and demo.local emails. No real customer data.
 
 Run after migrations, as the owner role:
     PIXOREX_MIGRATIONS_DATABASE_URL=postgresql://pixorex_owner:local-only@localhost:5433/pixorex \
@@ -76,8 +76,6 @@ USERS: list[dict[str, Any]] = [
         "name": "Tara Tech",
         "email": "tech1@demo.local",
         "status": "active",
-        "phone": "+15550100001",
-        "phone_verified": True,
         "roles": [("field_technician", "p04", False)],
     },
     {
@@ -86,8 +84,6 @@ USERS: list[dict[str, Any]] = [
         "name": "Theo Invited",
         "email": "tech2@demo.local",
         "status": "invited",
-        "phone": "+15550100002",
-        "phone_verified": False,
         "roles": [("field_technician", "p04", False)],
     },
     {
@@ -96,8 +92,6 @@ USERS: list[dict[str, Any]] = [
         "name": "Dana Dual",
         "email": "dual@demo.local",
         "status": "active",
-        "phone": "+15550100003",
-        "phone_verified": True,
         "roles": [("bu_admin", "p05", False), ("field_technician", "p04", False)],
     },
     {
@@ -188,16 +182,14 @@ def seed(conn: psycopg.Connection) -> None:
 def _seed_user(conn: psycopg.Connection, user: dict[str, Any]) -> None:
     unit_keys = [unit for _, unit, removed in user["roles"] if unit and not removed]
     conn.execute(
-        "INSERT INTO app_user (id, tenant_id, email, full_name, phone_number, phone_verified_at,"
-        " status, last_bu_id) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)"
+        "INSERT INTO app_user (id, tenant_id, email, full_name, status, last_bu_id)"
+        " VALUES (%s, %s, %s, %s, %s, %s)"
         " ON CONFLICT (id) DO NOTHING",
         (
             user["id"],
             user["tenant"],
             user["email"],
             user["name"],
-            user.get("phone"),
-            "2026-10-01T00:00:00Z" if user.get("phone_verified") else None,
             user["status"],
             _id(f"unit/{unit_keys[0]}") if unit_keys else None,
         ),

@@ -38,13 +38,10 @@ class InvitePreview {
       );
 }
 
-enum NextStep { verifyPhone, verifyEmail }
-
-/// `POST /invites/accept` (contract 1.7).
+/// `POST /invites/accept` (contract 1.7). The next step is always the email code.
 class InviteAccepted {
-  const InviteAccepted({required this.userId, required this.nextStep});
+  const InviteAccepted({required this.userId});
   final String userId;
-  final NextStep nextStep;
 }
 
 class InviteRepository {
@@ -56,20 +53,13 @@ class InviteRepository {
     return InvitePreview.fromJson(json);
   }
 
-  /// [phoneNumber] is E.164 and required for technicians.
-  Future<InviteAccepted> accept({
-    required String token,
-    required String fullName,
-    required String phoneNumber,
-  }) async {
+  /// The name only: everyone signs in by email (phone numbers removed on 19 Nov 2026).
+  Future<InviteAccepted> accept({required String token, required String fullName}) async {
     final json = await _api.post(
       '/invites/accept',
-      body: {'token': token, 'full_name': fullName, 'phone_number': phoneNumber},
+      body: {'token': token, 'full_name': fullName},
       authenticated: false,
     );
-    return InviteAccepted(
-      userId: json['user_id'] as String,
-      nextStep: json['next_step'] == 'verify_email' ? NextStep.verifyEmail : NextStep.verifyPhone,
-    );
+    return InviteAccepted(userId: json['user_id'] as String);
   }
 }

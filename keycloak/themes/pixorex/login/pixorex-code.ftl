@@ -4,7 +4,7 @@
         ${msg("pixorexCodeTitle")}
     <#elseif section = "form">
         <p class="px-lead">
-            <#if pxChannel == "sms">${msg("pixorexCodeSentSms", pxDestination, pxTtlMinutes)}<#else>${msg("pixorexCodeSentEmail", pxDestination, pxTtlMinutes)}</#if>
+            ${msg("pixorexCodeSentEmail", pxDestination, pxTtlMinutes)}
         </p>
         <form id="px-code-form" class="px-form" action="${url.loginAction}" method="post"
               onsubmit="this.querySelector('button').disabled = true; return true;">

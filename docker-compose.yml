@@ -144,14 +144,6 @@ services:
       KC_SPI_EMAIL_SENDER__PROVIDER_DEFAULT: pixorex-routing
       PIXOREX_LOCAL_SMTP_HOST: ${PIXOREX_LOCAL_SMTP_HOST:-mailpit}
       PIXOREX_LOCAL_SMTP_PORT: ${PIXOREX_LOCAL_SMTP_PORT:-1025}
-      # SMS for one-time codes (PX-01-T03): mailpit (local inbox), log (CI) or amzur (real gateway, values from .env / Vault)
-      KC_SPI_PIXOREX_SMS__PROVIDER: ${KC_SMS_PROVIDER:-mailpit}
-      KC_SPI_PIXOREX_SMS__AMZUR__URL: ${PIXOREX_SMS_URL:-}
-      KC_SPI_PIXOREX_SMS__AMZUR__AUTH_HEADER: ${PIXOREX_SMS_AUTH_HEADER:-}
-      KC_SPI_PIXOREX_SMS__AMZUR__AUTH_VALUE: ${PIXOREX_SMS_AUTH_VALUE:-}
-      KC_SPI_PIXOREX_SMS__AMZUR__SENDER: ${PIXOREX_SMS_SENDER:-}
-      KC_SPI_PIXOREX_SMS__AMZUR__FORMAT: ${PIXOREX_SMS_FORMAT:-}
-      KC_SPI_PIXOREX_SMS__AMZUR__BODY_TEMPLATE: ${PIXOREX_SMS_BODY_TEMPLATE:-}
       # Audit events (PX-01-T04) go to the API's internal endpoint; set
       # PIXOREX_AUDIT_ENDPOINT=http://event-sink:8888/internal/keycloak-events to only print them.
       KC_SPI_EVENTS_LISTENER__PIXOREX_AUDIT__ENDPOINT: ${PIXOREX_AUDIT_ENDPOINT:-http://api:8000/internal/keycloak-events}

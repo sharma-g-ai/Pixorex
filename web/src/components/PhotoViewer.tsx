@@ -71,7 +71,7 @@ export function PhotoViewer({
   return (
     <dialog
       ref={ref}
-      aria-label={`Photo ${photo.no} of ${photos.length}`}
+      aria-label={`Image ${photo.no} of ${photos.length}`}
       onCancel={(e) => {
         e.preventDefault()
         onClose()
@@ -87,7 +87,7 @@ export function PhotoViewer({
       <div className="flex h-full flex-col">
         <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
           <span className="text-small font-semibold">
-            Photo {photo.no} of {photos.length}
+            Image {photo.no} of {photos.length}
             <span className="ml-2 font-normal text-white/60">
               scroll or use + and − to zoom, drag to move
             </span>
@@ -125,7 +125,7 @@ export function PhotoViewer({
         >
           <img
             src={photo.url}
-            alt={`Photo ${photo.no} of ${photos.length}`}
+            alt={`Image ${photo.no} of ${photos.length}`}
             draggable={false}
             className="max-h-full max-w-full object-contain select-none"
             style={{
@@ -136,7 +136,7 @@ export function PhotoViewer({
             <>
               <button
                 type="button"
-                aria-label="Previous photo"
+                aria-label="Previous image"
                 onClick={() => go(-1)}
                 className={`${tool} absolute top-1/2 left-4 -translate-y-1/2 text-lg`}
               >
@@ -144,7 +144,7 @@ export function PhotoViewer({
               </button>
               <button
                 type="button"
-                aria-label="Next photo"
+                aria-label="Next image"
                 onClick={() => go(1)}
                 className={`${tool} absolute top-1/2 right-4 -translate-y-1/2 text-lg`}
               >

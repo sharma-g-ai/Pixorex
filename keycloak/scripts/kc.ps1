@@ -48,7 +48,7 @@ function Wait-KeycloakReady {
                 Write-Host 'Keycloak is ready.' -ForegroundColor Green
                 Write-Host "  Admin console : $KcUrl/admin  (local-only credentials in docker-compose.yml)"
                 Write-Host "  Realm         : $KcUrl/realms/pixorex/.well-known/openid-configuration"
-                Write-Host '  Mailpit inbox : http://localhost:8025   (email and SMS codes)'
+                Write-Host '  Mailpit inbox : http://localhost:8025   (sign-in codes)'
                 Write-Host '  Audit events  : docker compose logs -f event-sink'
                 return
             }

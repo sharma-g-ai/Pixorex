@@ -9,7 +9,7 @@ from app.repositories.rows import returned_id
 
 async def profile(conn: Conn, user_id: UUID) -> dict[str, Any] | None:
     cur = await conn.execute(
-        "SELECT u.id, u.full_name, u.email, u.phone_number, u.status, u.last_bu_id,"
+        "SELECT u.id, u.full_name, u.email, u.status, u.last_bu_id,"
         " t.name AS tenant_name"
         " FROM app_user u JOIN tenant t ON t.id = u.tenant_id WHERE u.id = %s",
         (user_id,),
@@ -87,28 +87,21 @@ async def by_email(conn: Conn, email: str) -> dict[str, Any] | None:
     return await cur.fetchone()
 
 
-async def create_invited(
-    conn: Conn, *, tenant_id: UUID, email: str, full_name: str, phone: str | None
-) -> UUID:
+async def create_invited(conn: Conn, *, tenant_id: UUID, email: str, full_name: str) -> UUID:
     cur = await conn.execute(
-        "INSERT INTO app_user (tenant_id, email, full_name, phone_number, status)"
-        " VALUES (%s, %s, %s, %s, 'invited') RETURNING id",
-        (tenant_id, email, full_name, phone),
+        "INSERT INTO app_user (tenant_id, email, full_name, status)"
+        " VALUES (%s, %s, %s, 'invited') RETURNING id",
+        (tenant_id, email, full_name),
     )
     return await returned_id(cur)
 
 
-async def reinvite(conn: Conn, user_id: UUID, full_name: str, phone: str | None) -> None:
-    """An existing person accepts again: new name, new phone (technicians), removed -> invited.
-    A phone stays verified unless the number changes. (SET reads the row's old values.)
-    """
+async def reinvite(conn: Conn, user_id: UUID, full_name: str) -> None:
+    """An existing person accepts again: new name, removed -> invited."""
     await conn.execute(
         "UPDATE app_user SET full_name = %(name)s,"
-        " phone_number = coalesce(%(phone)s, phone_number),"
-        " phone_verified_at = CASE WHEN %(phone)s::text IS NULL OR %(phone)s = phone_number"
-        " THEN phone_verified_at END,"
         " status = CASE WHEN status = 'removed' THEN 'invited' ELSE status END WHERE id = %(id)s",
-        {"name": full_name, "phone": phone, "id": user_id},
+        {"name": full_name, "id": user_id},
     )
 
 

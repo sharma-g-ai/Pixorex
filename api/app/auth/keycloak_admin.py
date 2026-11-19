@@ -2,7 +2,8 @@
 
 A0, HUMAN-WRITTEN LOGIC. Ported from Iswarya's api/app/auth/keycloak_admin.py (branch
 feature/PX-01-T08-invite-signin-api): username = app_user_id, attributes app_user_id and
-tenant_id (and phone for technicians), realm role pixorex-web or pixorex-mobile.
+tenant_id, realm role pixorex-web or pixorex-mobile. Everyone signs in by email (D-12, 19 Nov
+2026): the phone attributes were removed, and an update drops any left on an older user.
 Changed in the port: async, one shared HTTP client, the service token is reused until
 shortly before it expires. Needs architect review (CONSTITUTION §5).
 """
@@ -26,24 +27,25 @@ class KeycloakUser:
     email: str
     realm_role: str  # pixorex-web (admins) or pixorex-mobile (technicians)
     email_verified: bool = False
-    phone_number: str | None = None
     first_name: str | None = None
     last_name: str | None = None
 
 
+_REMOVED_ATTRIBUTES = ("phone_number", "phone_verified")  # no longer in the realm's user profile
+
+
 def _body(user: KeycloakUser, current: dict[str, Any] | None) -> dict[str, Any]:
     """The user representation to send. Keycloak replaces the whole attribute map on update,
-    so the current attributes are kept (added in the port), and nothing verified is reset:
-    a phone counts as unverified only when the number changes.
+    so the current attributes are kept (added in the port), except the removed phone ones,
+    and a verified email is never reset.
     """
     current = current or {}
+    kept = {k: v for k, v in current.get("attributes", {}).items() if k not in _REMOVED_ATTRIBUTES}
     attributes: dict[str, list[str]] = {
-        **current.get("attributes", {}),
+        **kept,
         "app_user_id": [user.app_user_id],
         "tenant_id": [user.tenant_id],
     }
-    if user.phone_number and attributes.get("phone_number") != [user.phone_number]:
-        attributes |= {"phone_number": [user.phone_number], "phone_verified": ["false"]}
     body: dict[str, Any] = {
         "email": user.email,
         "enabled": True,

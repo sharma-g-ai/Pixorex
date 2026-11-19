@@ -24,7 +24,6 @@ class Me(BaseModel):
     user_id: UUID
     full_name: str
     email: str
-    phone_number: str | None
     status: Literal["invited", "active", "removed"]
     tenant_name: str
     units: list[UnitRole]
@@ -57,7 +56,6 @@ async def get_me(session: Session) -> Me:
         user_id=profile["id"],
         full_name=profile["full_name"],
         email=profile["email"],
-        phone_number=profile["phone_number"],
         status=profile["status"],
         tenant_name=profile["tenant_name"],
         units=units,

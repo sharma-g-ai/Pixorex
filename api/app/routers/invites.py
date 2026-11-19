@@ -5,7 +5,7 @@ from typing import Annotated, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, BackgroundTasks, Header, Request, Response
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, StringConstraints
 
 from app.auth.context import Public, SignedIn
 from app.core.paging import Cursor, Limit
@@ -19,8 +19,12 @@ class LinkToken(BaseModel):
 
 
 class Acceptance(LinkToken):
-    full_name: str = Field(min_length=1, max_length=200)
-    phone_number: str | None = None
+    """A name only: everyone signs in by email (D-12). A phone_number sent by an app build from
+    before 19 Nov 2026 is ignored, like any unknown field."""
+
+    full_name: Annotated[
+        str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)
+    ]
 
 
 class ResendResult(BaseModel):
@@ -39,7 +43,6 @@ async def accept(body: Acceptance, conn: Public, request: Request) -> invites.Ac
         request.app.state.keycloak,
         token=body.token,
         full_name=body.full_name.strip(),
-        phone=body.phone_number,
     )
 
 
